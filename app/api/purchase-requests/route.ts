@@ -24,26 +24,43 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Fetch user to get companyId for company-scoped queries
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: { managedDepartments: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const limit = parseInt(searchParams.get('limit') || '10', 10)
 
-    const where: any = {}
+    // Calculate pagination
+    const skip = (page - 1) * limit
+
+    const where: any = {
+      companyId: user.companyId, // Company-scoped filtering
+    }
 
     // Role-based filtering
-    if (decoded.role === 'EMPLOYEE') {
+    if (user.role === 'EMPLOYEE') {
       where.requesterId = decoded.userId
-    } else if (decoded.role === 'DEPARTMENT_MANAGER') {
+    } else if (user.role === 'DEPARTMENT_MANAGER') {
       // Get user's managed departments
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { managedDepartments: true }
-      })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
+      const deptIds = user.managedDepartments.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
-    // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
+    // COMPANY_ADMIN, FINANCE_MANAGER, GENERAL_MANAGER, PROCUREMENT_MANAGER see all in company
 
+    // Additional filters
     if (status) {
       where.status = status
     }
@@ -52,6 +69,10 @@ export async function GET(request: NextRequest) {
       where.departmentId = departmentId
     }
 
+    // Get total count for pagination
+    const total = await prisma.purchaseRequest.count({ where })
+
+    // Fetch paginated requests
     const requests = await prisma.purchaseRequest.findMany({
       where,
       include: {
@@ -97,12 +118,23 @@ export async function GET(request: NextRequest) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      skip,
+      take: limit
     })
+
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit)
 
     return NextResponse.json({
       success: true,
-      data: requests
+      data: requests,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages
+      }
     })
   } catch (error) {
     console.error('Purchase requests fetch error:', error)
@@ -132,6 +164,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Fetch user to get companyId for company-scoped operations
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
@@ -140,16 +184,19 @@ export async function POST(request: NextRequest) {
       return sum + (item.unitPrice * item.quantity)
     }, 0)
 
-    // Generate request number
+    // Generate request number (company-scoped)
     const date = new Date()
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
-    const count = await prisma.purchaseRequest.count() + 1
+    const count = await prisma.purchaseRequest.count({
+      where: { companyId: user.companyId }
+    }) + 1
     const requestNumber = `PR${year}${month}${String(count).padStart(4, '0')}`
 
-    // Find appropriate workflow
+    // Find appropriate workflow (company-scoped)
     const workflow = await prisma.approvalWorkflow.findFirst({
       where: {
+        companyId: user.companyId,
         isActive: true,
         OR: [
           {
@@ -164,7 +211,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         departmentIds: {
-          has: departmentId
+          has: departmentId || user.departmentId
         }
       },
       include: {
@@ -178,9 +225,10 @@ export async function POST(request: NextRequest) {
 
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
+        companyId: user.companyId, // Explicitly set companyId
         requestNumber,
         requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        departmentId: departmentId || user.departmentId,
         title,
         description,
         priority: priority || 'NORMAL',
