@@ -257,7 +257,7 @@ export default function WorkflowsPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Onay Adımları:</h4>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {workflow.steps.map((step, idx) => (
+                  {workflow.steps.map((step: any, idx: number) => (
                     <div key={idx} className="flex items-center gap-2">
                       <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2">
                         <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
