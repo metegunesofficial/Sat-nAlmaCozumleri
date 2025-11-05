@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
@@ -30,11 +30,7 @@ export default function SuppliersPage() {
     status: 'ACTIVE',
   })
 
-  useEffect(() => {
-    fetchSuppliers()
-  }, [])
-
-  const fetchSuppliers = async () => {
+  const fetchSuppliers = useCallback(async () => {
     try {
       setIsLoading(true)
       const response = await suppliersApi.getAll()
@@ -50,7 +46,11 @@ export default function SuppliersPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [error])
+
+  useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers])
 
   const openCreateModal = () => {
     setEditingSupplier(null)
