@@ -147,35 +147,6 @@ export async function POST(request: NextRequest) {
     const count = await prisma.purchaseRequest.count() + 1
     const requestNumber = `PR${year}${month}${String(count).padStart(4, '0')}`
 
-    // Find appropriate workflow
-    const workflow = await prisma.approvalWorkflow.findFirst({
-      where: {
-        isActive: true,
-        OR: [
-          {
-            AND: [
-              { minAmount: { lte: estimatedTotal } },
-              { maxAmount: { gte: estimatedTotal } }
-            ]
-          },
-          {
-            minAmount: { lte: estimatedTotal },
-            maxAmount: null
-          }
-        ],
-        departmentIds: {
-          has: departmentId
-        }
-      },
-      include: {
-        steps: {
-          orderBy: {
-            stepOrder: 'asc'
-          }
-        }
-      }
-    })
-
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
         requestNumber,
@@ -187,7 +158,6 @@ export async function POST(request: NextRequest) {
         status: 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
-        ...(workflow?.id && { workflowId: workflow.id }),
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -201,12 +171,7 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
-        items: true,
-        workflow: {
-          include: {
-            steps: true
-          }
-        }
+        items: true
       }
     })
 
