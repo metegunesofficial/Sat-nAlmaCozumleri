@@ -4,6 +4,7 @@ import { useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
+import CategorySelector from '@/components/CategorySelector'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Package } from 'lucide-react'
 
@@ -23,7 +24,7 @@ export default function ProductsPage() {
     name: '',
     sku: '',
     price: '',
-    category: '',
+    categoryId: '',
     stock: '',
     status: 'active',
     description: '',
@@ -35,7 +36,7 @@ export default function ProductsPage() {
       name: '',
       sku: '',
       price: '',
-      category: '',
+      categoryId: '',
       stock: '',
       status: 'active',
       description: '',
@@ -49,7 +50,7 @@ export default function ProductsPage() {
       name: product.name,
       sku: product.sku,
       price: product.price.toString(),
-      category: product.category,
+      categoryId: product.categoryId || '',
       stock: product.stock.toString(),
       status: product.status,
       description: product.description || '',
@@ -306,21 +307,12 @@ export default function ProductsPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Kategori Seçin</option>
-                <option value="Bilgisayar">Bilgisayar</option>
-                <option value="Yazıcı">Yazıcı</option>
-                <option value="Aksesuar">Aksesuar</option>
-                <option value="Monitör">Monitör</option>
-                <option value="Yazılım">Yazılım</option>
-              </select>
-            </div>
+            <CategorySelector
+              value={formData.categoryId}
+              onChange={(categoryId) => setFormData({ ...formData, categoryId })}
+              label="Kategori"
+              required
+            />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Durum</label>
               <select

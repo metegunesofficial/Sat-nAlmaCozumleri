@@ -262,50 +262,155 @@ async function main() {
   // Create Categories
   console.log('\n📂 Creating categories for', company1.name)
 
-  const categories = [
-    {
+  // Create parent categories first
+  const officeSuppliesCategory = await prisma.category.create({
+    data: {
       companyId: company1.id,
       name: 'Ofis Malzemeleri',
       slug: 'ofis-malzemeleri',
       description: 'Kırtasiye, yazıcı, vs.',
       order: 1
-    },
-    {
+    }
+  })
+
+  const itCategory = await prisma.category.create({
+    data: {
       companyId: company1.id,
       name: 'Bilgisayar ve Donanım',
       slug: 'bilgisayar-donanim',
       description: 'Laptop, masaüstü, monitor',
       order: 2
-    },
-    {
+    }
+  })
+
+  const dentalCategory = await prisma.category.create({
+    data: {
       companyId: company1.id,
       name: 'Dental Malzemeler',
       slug: 'dental-malzemeler',
       description: 'Dental ürünler ve ekipmanlar',
       order: 3
-    },
-    {
+    }
+  })
+
+  const cleaningCategory = await prisma.category.create({
+    data: {
       companyId: company1.id,
       name: 'Temizlik Malzemeleri',
       slug: 'temizlik-malzemeleri',
       description: 'Hijyen ve temizlik ürünleri',
       order: 4
     }
+  })
+
+  // Create subcategories for Ofis Malzemeleri
+  const stationerySubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Kırtasiye',
+      slug: 'kirtasiye',
+      description: 'Kalem, defter, kağıt vb.',
+      parentId: officeSuppliesCategory.id,
+      order: 1
+    }
+  })
+
+  const printersSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Yazıcılar ve Sarf Malzemeleri',
+      slug: 'yazicilar-sarf',
+      description: 'Yazıcı, toner, kartuş',
+      parentId: officeSuppliesCategory.id,
+      order: 2
+    }
+  })
+
+  // Create subcategories for Bilgisayar ve Donanım
+  const laptopsSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Dizüstü Bilgisayarlar',
+      slug: 'dizustu-bilgisayarlar',
+      description: 'Laptop ve notebook',
+      parentId: itCategory.id,
+      order: 1
+    }
+  })
+
+  const desktopsSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Masaüstü Bilgisayarlar',
+      slug: 'masaustu-bilgisayarlar',
+      description: 'Desktop PC',
+      parentId: itCategory.id,
+      order: 2
+    }
+  })
+
+  const monitorsSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Monitörler',
+      slug: 'monitorler',
+      description: 'LCD ve LED monitörler',
+      parentId: itCategory.id,
+      order: 3
+    }
+  })
+
+  const accessoriesSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Bilgisayar Aksesuarları',
+      slug: 'bilgisayar-aksesuarlari',
+      description: 'Klavye, mouse, kulaklık vb.',
+      parentId: itCategory.id,
+      order: 4
+    }
+  })
+
+  // Create subcategories for Dental Malzemeler
+  const glovesSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Eldivenler',
+      slug: 'eldivenler',
+      description: 'Latex ve nitril eldivenler',
+      parentId: dentalCategory.id,
+      order: 1
+    }
+  })
+
+  const instrumentsSubCat = await prisma.category.create({
+    data: {
+      companyId: company1.id,
+      name: 'Dental Aletler',
+      slug: 'dental-aletler',
+      description: 'Cerrahi aletler ve ekipmanlar',
+      parentId: dentalCategory.id,
+      order: 2
+    }
+  })
+
+  const createdCategories = [
+    officeSuppliesCategory,
+    itCategory,
+    dentalCategory,
+    cleaningCategory
   ]
 
-  const createdCategories = await Promise.all(
-    categories.map(cat => prisma.category.create({ data: cat }))
-  )
-
-  console.log(`✅ Categories created`)
+  console.log(`✅ Categories created with subcategories`)
 
   // Create Products
   console.log('\n📦 Creating products for', company1.name)
 
   const products = [
+    // Kırtasiye ürünleri
     {
       companyId: company1.id,
-      categoryId: createdCategories[0].id,
+      categoryId: stationerySubCat.id,
       name: 'A4 Kağıt (500 sayfa)',
       slug: 'a4-kagit-500',
       sku: 'OFF-A4-500',
@@ -317,7 +422,20 @@ async function main() {
     },
     {
       companyId: company1.id,
-      categoryId: createdCategories[1].id,
+      categoryId: stationerySubCat.id,
+      name: 'Tükenmez Kalem Seti (10lu)',
+      slug: 'tukenmez-kalem-10',
+      sku: 'OFF-PEN-10',
+      description: 'Mavi tükenmez kalem seti',
+      price: 25,
+      stock: 200,
+      unit: 'paket',
+      isActive: true
+    },
+    // Laptop ürünleri
+    {
+      companyId: company1.id,
+      categoryId: laptopsSubCat.id,
       name: 'Dell Latitude 5430 Laptop',
       slug: 'dell-latitude-5430',
       sku: 'IT-DELL-5430',
@@ -331,7 +449,22 @@ async function main() {
     },
     {
       companyId: company1.id,
-      categoryId: createdCategories[1].id,
+      categoryId: laptopsSubCat.id,
+      name: 'HP ProBook 450 G9',
+      slug: 'hp-probook-450',
+      sku: 'IT-HP-450',
+      description: 'Intel i7, 16GB RAM, 1TB SSD',
+      price: 42000,
+      wholesalePrice: 38000,
+      stock: 5,
+      unit: 'adet',
+      isActive: true,
+      isFeatured: true
+    },
+    // Monitör ürünleri
+    {
+      companyId: company1.id,
+      categoryId: monitorsSubCat.id,
       name: 'LG 27" Monitor',
       slug: 'lg-27-monitor',
       sku: 'IT-LG-27',
@@ -343,7 +476,20 @@ async function main() {
     },
     {
       companyId: company1.id,
-      categoryId: createdCategories[2].id,
+      categoryId: monitorsSubCat.id,
+      name: 'Dell UltraSharp 24"',
+      slug: 'dell-ultrasharp-24',
+      sku: 'IT-DELL-US24',
+      description: 'QHD IPS monitor',
+      price: 6500,
+      stock: 15,
+      unit: 'adet',
+      isActive: true
+    },
+    // Dental ürünleri
+    {
+      companyId: company1.id,
+      categoryId: glovesSubCat.id,
       name: 'Dental Eldiven (100lü)',
       slug: 'dental-eldiven-100',
       sku: 'DEN-GLOVE-100',
@@ -354,6 +500,20 @@ async function main() {
       stock: 1000,
       unit: 'kutu',
       isActive: true
+    },
+    {
+      companyId: company1.id,
+      categoryId: glovesSubCat.id,
+      name: 'Nitril Eldiven (100lü)',
+      slug: 'nitril-eldiven-100',
+      sku: 'DEN-NITRIL-100',
+      description: 'Pudrasız nitril eldiven',
+      price: 175,
+      wholesalePrice: 160,
+      minOrderQty: 10,
+      stock: 800,
+      unit: 'kutu',
+      isActive: true
     }
   ]
 
@@ -361,7 +521,7 @@ async function main() {
     products.map(prod => prisma.product.create({ data: prod }))
   )
 
-  console.log(`✅ Products created`)
+  console.log(`✅ Products created with subcategories`)
 
   // Create Approval Workflows
   console.log('\n⚙️ Creating approval workflows for', company1.name)

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
     const category = searchParams.get('category')
+    const categoryIds = searchParams.getAll('categoryId') // Support multiple category IDs
     const search = searchParams.get('search')
     const sort = searchParams.get('sort') || 'createdAt'
     const order = searchParams.get('order') || 'desc'
@@ -21,7 +22,10 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = { isActive: true }
 
-    if (category) {
+    // Category filtering - support both slug and IDs
+    if (categoryIds.length > 0) {
+      where.categoryId = { in: categoryIds }
+    } else if (category) {
       where.category = { slug: category }
     }
 

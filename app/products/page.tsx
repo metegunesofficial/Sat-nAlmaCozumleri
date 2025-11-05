@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import ProductCard from '@/components/ProductCard'
+import CategoryFilter from '@/components/CategoryFilter'
 import { Filter, Grid, List, ChevronDown } from 'lucide-react'
 import { Product } from '@/types'
 
@@ -11,11 +12,27 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState('createdAt')
   const [filterOpen, setFilterOpen] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
 
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/products?sort=${sortBy}&order=desc&limit=20`)
+
+      // Build query params
+      const params = new URLSearchParams({
+        sort: sortBy,
+        order: 'desc',
+        limit: '20'
+      })
+
+      // Add category filters
+      if (selectedCategories.length > 0) {
+        selectedCategories.forEach(catId => {
+          params.append('categoryId', catId)
+        })
+      }
+
+      const response = await fetch(`/api/products?${params.toString()}`)
       const data = await response.json()
 
       if (data.success) {
@@ -26,7 +43,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [sortBy])
+  }, [sortBy, selectedCategories])
 
   useEffect(() => {
     fetchProducts()
@@ -61,24 +78,10 @@ export default function ProductsPage() {
 
               <div className={`space-y-6 ${filterOpen ? 'block' : 'hidden lg:block'}`}>
                 {/* Categories */}
-                <div>
-                  <h4 className="font-semibold mb-3">Kategoriler</h4>
-                  <div className="space-y-2">
-                    {[
-                      'Diş Fırçaları',
-                      'Diş Macunları',
-                      'Ağız Suları',
-                      'Diş İplikleri',
-                      'Protezler',
-                      'İmplantlar',
-                    ].map((category) => (
-                      <label key={category} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" />
-                        <span className="text-sm">{category}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+                <CategoryFilter
+                  selectedCategories={selectedCategories}
+                  onChange={setSelectedCategories}
+                />
 
                 {/* Price Range */}
                 <div>
