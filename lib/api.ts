@@ -105,3 +105,55 @@ export const departmentsApi = {
   getAll: () => fetchWithAuth('/api/departments'),
   create: (data: any) => fetchWithAuth('/api/departments', { method: 'POST', body: JSON.stringify(data) }),
 }
+
+// Purchase Requests API
+export const purchaseRequestsApi = {
+  getAll: (params?: { status?: string; departmentId?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams(params as any).toString()
+    return fetchWithAuth(`/api/purchase-requests${query ? `?${query}` : ''}`)
+  },
+  getById: (id: string) => fetchWithAuth(`/api/purchase-requests/${id}`),
+  create: (data: any) => fetchWithAuth('/api/purchase-requests', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => fetchWithAuth(`/api/purchase-requests/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  approve: (id: string, data: { action: string; comments?: string }) =>
+    fetchWithAuth(`/api/purchase-requests/${id}/approve`, { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id: string) => fetchWithAuth(`/api/purchase-requests/${id}`, { method: 'DELETE' }),
+}
+
+// Reports API
+export const reportsApi = {
+  purchaseSummary: (params?: { startDate?: string; endDate?: string }) => {
+    const query = new URLSearchParams(params as any).toString()
+    return fetchWithAuth(`/api/reports/purchase-summary${query ? `?${query}` : ''}`)
+  },
+  budget: (params?: { departmentId?: string }) => {
+    const query = new URLSearchParams(params as any).toString()
+    return fetchWithAuth(`/api/reports/budget${query ? `?${query}` : ''}`)
+  },
+  approvalPerformance: (params?: { startDate?: string; endDate?: string }) => {
+    const query = new URLSearchParams(params as any).toString()
+    return fetchWithAuth(`/api/reports/approval-performance${query ? `?${query}` : ''}`)
+  },
+}
+
+// Orders API
+export const ordersApi = {
+  getAll: (params?: { status?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams(params as any).toString()
+    return fetchWithAuth(`/api/orders${query ? `?${query}` : ''}`)
+  },
+  getById: (id: string) => fetchWithAuth(`/api/orders/${id}`),
+  create: (data: any) => fetchWithAuth('/api/orders', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => fetchWithAuth(`/api/orders/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+}
+
+// Cart API
+export const cartApi = {
+  getItems: () => fetchWithAuth('/api/cart'),
+  addItem: (productId: string, quantity: number) =>
+    fetchWithAuth('/api/cart', { method: 'POST', body: JSON.stringify({ productId, quantity }) }),
+  updateItem: (itemId: string, quantity: number) =>
+    fetchWithAuth(`/api/cart/${itemId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
+  removeItem: (itemId: string) => fetchWithAuth(`/api/cart/${itemId}`, { method: 'DELETE' }),
+  clear: () => fetchWithAuth('/api/cart', { method: 'DELETE' }),
+}

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface User {
   id: string
@@ -30,81 +31,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in (from localStorage)
-    const storedUser = localStorage.getItem('user')
-    const token = localStorage.getItem('token')
+    const checkAuth = () => {
+      try {
+        const storedUser = localStorage.getItem('user')
+        const token = localStorage.getItem('token')
 
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser))
+        if (storedUser && token) {
+          setUser(JSON.parse(storedUser))
+        }
+      } catch (error) {
+        console.error('Error checking auth:', error)
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+      } finally {
+        setLoading(false)
+      }
     }
 
-    setLoading(false)
+    checkAuth()
   }, [])
 
   const login = async (email: string, password: string) => {
     setLoading(true)
     try {
-      // Mock login - replace with actual API call
-      const mockUsers = [
-        {
-          id: '1',
-          email: 'admin@attelia.com',
-          name: 'Ahmet Yıldırım',
-          role: 'COMPANY_ADMIN',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          position: 'Genel Müdür'
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        {
-          id: '2',
-          email: 'john.doe@attelia.com',
-          name: 'John Doe',
-          role: 'EMPLOYEE',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          departmentId: 'dept1',
-          departmentName: 'Bilgi İşlem',
-          position: 'Yazılım Geliştirici'
-        },
-        {
-          id: '3',
-          email: 'it.manager@attelia.com',
-          name: 'Mehmet Demir',
-          role: 'DEPARTMENT_MANAGER',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          departmentId: 'dept1',
-          departmentName: 'Bilgi İşlem',
-          position: 'IT Müdürü'
-        },
-        {
-          id: '4',
-          email: 'finance@attelia.com',
-          name: 'Can Öztürk',
-          role: 'FINANCE_MANAGER',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          departmentId: 'dept-fin',
-          departmentName: 'Finans',
-          position: 'Finans Müdürü'
-        }
-      ]
+        body: JSON.stringify({ email, password }),
+      })
 
-      const foundUser = mockUsers.find(u => u.email === email)
+      const data = await response.json()
 
-      if (!foundUser || password !== 'password123') {
-        throw new Error('Geçersiz email veya şifre')
+      if (!response.ok) {
+        throw new Error(data.error || 'Giriş başarısız')
       }
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      if (!data.success) {
+        throw new Error(data.error || 'Giriş başarısız')
+      }
 
-      const mockToken = 'mock-jwt-token-' + foundUser.id
+      // Store user and token
+      const userData = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+        companyId: data.user.companyId,
+        companyName: data.user.company?.name || '',
+        departmentId: data.user.departmentId || undefined,
+        departmentName: data.user.department?.name || undefined,
+        position: data.user.position || undefined,
+      }
 
-      localStorage.setItem('user', JSON.stringify(foundUser))
-      localStorage.setItem('token', mockToken)
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('token', data.token)
 
-      setUser(foundUser)
-    } catch (error) {
+      setUser(userData)
+    } catch (error: any) {
+      console.error('Login error:', error)
       throw error
     } finally {
       setLoading(false)
