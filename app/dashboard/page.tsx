@@ -1,9 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests, mockBudgetData } from '@/lib/mockData'
+import Loading from '@/components/Loading'
+import { purchaseRequestsApi, reportsApi } from '@/lib/api'
+import { useNotification } from '@/contexts/NotificationContext'
 import {
   ShoppingCart,
   Clock,
@@ -17,6 +20,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  SUBMITTED: 'bg-blue-100 text-blue-800',
   IN_REVIEW: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
@@ -25,6 +29,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Taslak',
+  SUBMITTED: 'Gönderildi',
   IN_REVIEW: 'İncelemede',
   APPROVED: 'Onaylandı',
   REJECTED: 'Reddedildi',
@@ -34,33 +39,72 @@ const statusLabels: Record<string, string> = {
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
 export default function DashboardPage() {
-  const totalRequests = mockPurchaseRequests.length
-  const pendingRequests = mockPurchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
-  const approvedRequests = mockPurchaseRequests.filter((r) => r.status === 'APPROVED').length
-  const totalSpent = mockPurchaseRequests
-    .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
-    .reduce((sum, r) => sum + r.estimatedTotal, 0)
+  const { error: showError } = useNotification()
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<any>(null)
+  const [recentRequests, setRecentRequests] = useState<any[]>([])
+  const [budgetData, setBudgetData] = useState<any>(null)
 
-  const recentRequests = mockPurchaseRequests.slice(0, 5)
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
 
-  // Budget utilization chart data
-  const budgetChartData = mockBudgetData.departments.map((dept) => ({
-    name: dept.name,
-    budget: dept.budget,
-    spent: dept.spent,
-    remaining: dept.budget - dept.spent,
-  }))
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
 
-  // Status distribution pie chart data
-  const statusDistribution = Object.entries(
-    mockPurchaseRequests.reduce((acc, req) => {
-      acc[req.status] = (acc[req.status] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-  ).map(([status, count]) => ({
-    name: statusLabels[status] || status,
-    value: count,
-  }))
+      const [summaryResponse, requestsResponse, budgetResponse] = await Promise.all([
+        reportsApi.purchaseSummary().catch(e => ({ success: false, error: e.message })),
+        purchaseRequestsApi.getAll({ limit: 5 }).catch(e => ({ success: false, error: e.message })),
+        reportsApi.budget().catch(e => ({ success: false, error: e.message }))
+      ])
+
+      if (summaryResponse.success) {
+        setStats(summaryResponse.data)
+      }
+
+      if (requestsResponse.success) {
+        const requests = requestsResponse.data?.requests || requestsResponse.data || []
+        setRecentRequests(Array.isArray(requests) ? requests : [])
+      }
+
+      if (budgetResponse.success) {
+        setBudgetData(budgetResponse.data)
+      }
+    } catch (err: any) {
+      console.error('Dashboard data fetch error:', err)
+      showError(err.message || 'Veri yüklenirken hata oluştu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
+  }
+
+  const totalRequests = stats?.totalRequests || 0
+  const pendingRequests = (stats?.statusBreakdown?.IN_REVIEW || 0) + (stats?.statusBreakdown?.SUBMITTED || 0)
+  const approvedRequests = stats?.statusBreakdown?.APPROVED || 0
+  const totalSpent = stats?.totalAmount || 0
+
+  const budgetChartData = budgetData?.departments?.map((dept: any) => ({
+    name: dept.departmentName || dept.name || 'Departman',
+    budget: Number(dept.monthlyBudget || dept.budget || 0),
+    spent: Number(dept.spent || 0),
+    remaining: Number(dept.monthlyBudget || dept.budget || 0) - Number(dept.spent || 0),
+  })) || []
+
+  const statusDistribution = Object.entries(stats?.statusBreakdown || {})
+    .map(([status, count]) => ({
+      name: statusLabels[status] || status,
+      value: count as number,
+    }))
+    .filter(item => item.value > 0)
 
   const columns = [
     {
@@ -76,10 +120,12 @@ export default function DashboardPage() {
     {
       key: 'requester',
       label: 'Talep Eden',
-      render: (value: any) => (
+      render: (value: any, row: any) => (
         <div>
-          <div className="font-medium">{value.name}</div>
-          <div className="text-xs text-gray-500">{value.department}</div>
+          <div className="font-medium">{row.requester?.name || value?.name || 'N/A'}</div>
+          <div className="text-xs text-gray-500">
+            {row.department?.name || row.requester?.department?.name || 'N/A'}
+          </div>
         </div>
       ),
     },
@@ -89,7 +135,7 @@ export default function DashboardPage() {
       sortable: true,
       render: (value: number) => (
         <span className="font-semibold">
-          {value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+          {Number(value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
         </span>
       ),
     },
@@ -97,8 +143,8 @@ export default function DashboardPage() {
       key: 'status',
       label: 'Durum',
       render: (value: string) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value]}`}>
-          {statusLabels[value]}
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value] || statusColors.DRAFT}`}>
+          {statusLabels[value] || value}
         </span>
       ),
     },
@@ -106,19 +152,18 @@ export default function DashboardPage() {
       key: 'createdAt',
       label: 'Tarih',
       sortable: true,
+      render: (value: string) => new Date(value).toLocaleDateString('tr-TR'),
     },
   ]
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">Satın alma yönetimi özeti ve istatistikler</p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Toplam Talepler"
@@ -126,7 +171,7 @@ export default function DashboardPage() {
             subtitle="Tüm zamanlar"
             icon={ShoppingCart}
             color="blue"
-            trend={{ value: 12, isPositive: true }}
+            trend={stats?.trend?.requests}
           />
           <StatCard
             title="Bekleyen Onaylar"
@@ -141,93 +186,97 @@ export default function DashboardPage() {
             subtitle="Bu ay"
             icon={CheckCircle}
             color="green"
-            trend={{ value: 8, isPositive: true }}
+            trend={stats?.trend?.approved}
           />
           <StatCard
             title="Toplam Harcama"
-            value={totalSpent.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+            value={Number(totalSpent).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
             subtitle="Onaylanan talepler"
             icon={TrendingUp}
             color="purple"
           />
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Budget Utilization Chart */}
+        {(budgetChartData.length > 0 || statusDistribution.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {budgetChartData.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Bütçe Kullanımı</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={budgetChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                    <YAxis />
+                    <Tooltip
+                      formatter={(value: number) =>
+                        value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+                      }
+                    />
+                    <Bar dataKey="spent" fill="#3B82F6" name="Harcanan" />
+                    <Bar dataKey="remaining" fill="#E5E7EB" name="Kalan" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {statusDistribution.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Talep Durumu Dağılımı</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={statusDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(entry: any) => `${entry.name}: ${entry.value}`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {statusDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        )}
+
+        {budgetData?.warnings && budgetData.warnings.length > 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+            <div className="flex-1">
+              <h4 className="font-semibold text-yellow-900">Bütçe Uyarısı</h4>
+              {budgetData.warnings.map((warning: string, index: number) => (
+                <p key={index} className="text-sm text-yellow-800 mt-1">{warning}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {recentRequests.length > 0 && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Bütçe Kullanımı</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={budgetChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number) =>
-                    value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
-                  }
-                />
-                <Bar dataKey="spent" fill="#3B82F6" name="Harcanan" />
-                <Bar dataKey="remaining" fill="#E5E7EB" name="Kalan" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Son Talepler</h3>
+              <Link
+                href="/requests"
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Tümünü Gör →
+              </Link>
+            </div>
+            <DataTable
+              data={recentRequests}
+              columns={columns}
+              onRowClick={(row) => (window.location.href = `/requests/${row.id}`)}
+            />
           </div>
+        )}
 
-          {/* Status Distribution Chart */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Talep Durumu Dağılımı</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Budget Alert */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-          <div className="flex-1">
-            <h4 className="font-semibold text-yellow-900">Bütçe Uyarısı</h4>
-            <p className="text-sm text-yellow-800 mt-1">
-              Bilgi İşlem departmanı bütçesinin %90&apos;ı kullanıldı. Yeni talepler için bütçe artırımı gerekebilir.
-            </p>
-          </div>
-        </div>
-
-        {/* Recent Requests */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Son Talepler</h3>
-            <Link
-              href="/requests"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Tümünü Gör →
-            </Link>
-          </div>
-          <DataTable
-            data={recentRequests}
-            columns={columns}
-            onRowClick={(row) => console.log('Clicked:', row)}
-          />
-        </div>
-
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             href="/requests/new"
@@ -240,7 +289,7 @@ export default function DashboardPage() {
             </div>
           </Link>
           <Link
-            href="/requests/pending"
+            href="/requests?status=IN_REVIEW"
             className="bg-white hover:bg-gray-50 border-2 border-gray-200 rounded-lg p-6 flex items-center gap-4 transition-colors"
           >
             <Clock size={32} className="text-yellow-600" />

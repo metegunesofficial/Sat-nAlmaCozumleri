@@ -1,24 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
+import Loading from '@/components/Loading'
 import { useNotification } from '@/contexts/NotificationContext'
+import { productsApi } from '@/lib/api'
 import { Plus, Edit, Trash2, Package } from 'lucide-react'
 
-const mockProducts = [
-  { id: 'p1', name: 'Dell Latitude 5430 Laptop', sku: 'DL-5430', price: 35000, category: 'Bilgisayar', stock: 12, status: 'active' },
-  { id: 'p2', name: 'HP LaserJet Pro Printer', sku: 'HP-LJ-PRO', price: 8500, category: 'Yazıcı', stock: 8, status: 'active' },
-  { id: 'p3', name: 'Logitech MX Master Mouse', sku: 'LG-MXM', price: 1200, category: 'Aksesuar', stock: 45, status: 'active' },
-  { id: 'p4', name: 'Samsung 27" Monitor', sku: 'SM-27-MON', price: 6500, category: 'Monitör', stock: 15, status: 'active' },
-  { id: 'p5', name: 'Microsoft Office 365 Lisans', sku: 'MS-O365', price: 450, category: 'Yazılım', stock: 0, status: 'inactive' },
-]
-
 export default function ProductsPage() {
-  const { success, error } = useNotification()
+  const { success, error: showError } = useNotification()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -28,6 +25,29 @@ export default function ProductsPage() {
     status: 'active',
     description: '',
   })
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      setLoading(true)
+      const response = await productsApi.getAll()
+      if (response.success) {
+        const data = response.data?.products || response.data || []
+        setProducts(Array.isArray(data) ? data : [])
+      } else {
+        showError(response.error || 'Ürünler yüklenirken hata oluştu')
+        setProducts([])
+      }
+    } catch (err: any) {
+      showError(err.message || 'Ürünler yüklenirken hata oluştu')
+      setProducts([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingProduct(null)
@@ -57,23 +77,55 @@ export default function ProductsPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.sku || !formData.price) {
-      error('Lütfen tüm gerekli alanları doldurun')
+      showError('Lütfen tüm gerekli alanları doldurun')
       return
     }
 
-    if (editingProduct) {
-      success('Ürün güncellendi!')
-    } else {
-      success('Ürün eklendi!')
+    try {
+      setSubmitting(true)
+      let response
+      const data = {
+        ...formData,
+        price: parseFloat(formData.price),
+        stock: formData.stock ? parseInt(formData.stock) : 0,
+      }
+      if (editingProduct) {
+        response = await productsApi.update(editingProduct.id, data)
+      } else {
+        response = await productsApi.create(data)
+      }
+
+      if (response.success) {
+        success(editingProduct ? 'Ürün güncellendi!' : 'Ürün eklendi!')
+        setIsModalOpen(false)
+        fetchProducts()
+      } else {
+        showError(response.error || 'İşlem başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'İşlem başarısız oldu')
+    } finally {
+      setSubmitting(false)
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (product: any) => {
-    if (confirm(`${product.name} ürününü silmek istediğinize emin misiniz?`)) {
-      success('Ürün silindi!')
+  const handleDelete = async (product: any) => {
+    if (!confirm(`${product.name} ürününü silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const response = await productsApi.delete(product.id)
+      if (response.success) {
+        success('Ürün silindi!')
+        fetchProducts()
+      } else {
+        showError(response.error || 'Silme işlemi başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Silme işlemi başarısız oldu')
     }
   }
 
@@ -166,6 +218,14 @@ export default function ProductsPage() {
     },
   ]
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -188,7 +248,7 @@ export default function ProductsPage() {
             <div className="flex items-center gap-3">
               <Package className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockProducts.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{products.length}</p>
                 <p className="text-sm text-gray-600">Toplam Ürün</p>
               </div>
             </div>
@@ -198,7 +258,7 @@ export default function ProductsPage() {
               <Package className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.status === 'active').length}
+                  {products.filter((p) => p.status === 'active').length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif Ürün</p>
               </div>
@@ -209,7 +269,7 @@ export default function ProductsPage() {
               <Package className="text-yellow-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.stock < 10 && p.stock > 0).length}
+                  {products.filter((p) => (p.stock || 0) < 10 && (p.stock || 0) > 0).length}
                 </p>
                 <p className="text-sm text-gray-600">Düşük Stok</p>
               </div>
@@ -220,7 +280,7 @@ export default function ProductsPage() {
               <Package className="text-red-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.stock === 0).length}
+                  {products.filter((p) => (p.stock || 0) === 0).length}
                 </p>
                 <p className="text-sm text-gray-600">Stokta Yok</p>
               </div>
@@ -229,7 +289,7 @@ export default function ProductsPage() {
         </div>
 
         <DataTable
-          data={mockProducts}
+          data={products}
           columns={columns}
           searchable
           searchPlaceholder="Ürün ara..."
@@ -251,9 +311,10 @@ export default function ProductsPage() {
             </button>
             <button
               onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingProduct ? 'Güncelle' : 'Ekle'}
+              {submitting ? 'İşleniyor...' : editingProduct ? 'Güncelle' : 'Ekle'}
             </button>
           </>
         }

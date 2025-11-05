@@ -1,24 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
+import Loading from '@/components/Loading'
 import { useNotification } from '@/contexts/NotificationContext'
+import { categoriesApi } from '@/lib/api'
 import { Plus, Edit, Trash2, ChevronRight, GitBranch } from 'lucide-react'
 
-const mockCategories = [
-  { id: '1', name: 'Bilgi İşlem', parent: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
-  { id: '2', name: 'Bilgisayarlar', parent: 'Bilgi İşlem', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
-  { id: '3', name: 'Yazıcılar', parent: 'Bilgi İşlem', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
-  { id: '4', name: 'Ofis Malzemeleri', parent: null, productCount: 78, monthlyLimit: 15000, requiresApproval: false },
-  { id: '5', name: 'Kırtasiye', parent: 'Ofis Malzemeleri', productCount: 45, monthlyLimit: 5000, requiresApproval: false },
-  { id: '6', name: 'Mobilya', parent: null, productCount: 23, monthlyLimit: 75000, requiresApproval: true },
-]
-
 export default function CategoriesPage() {
-  const { success, error } = useNotification()
+  const { success, error: showError } = useNotification()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     parentId: '',
@@ -26,6 +22,29 @@ export default function CategoriesPage() {
     requiresApproval: false,
     minApprovalAmount: '',
   })
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true)
+      const response = await categoriesApi.getAll()
+      if (response.success) {
+        const data = response.data?.categories || response.data || []
+        setCategories(Array.isArray(data) ? data : [])
+      } else {
+        showError(response.error || 'Kategoriler yüklenirken hata oluştu')
+        setCategories([])
+      }
+    } catch (err: any) {
+      showError(err.message || 'Kategoriler yüklenirken hata oluştu')
+      setCategories([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingCategory(null)
@@ -51,29 +70,71 @@ export default function CategoriesPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name) {
-      error('Kategori adı gereklidir')
+      showError('Kategori adı gereklidir')
       return
     }
 
-    if (editingCategory) {
-      success('Kategori güncellendi!')
-    } else {
-      success('Kategori eklendi!')
+    try {
+      setSubmitting(true)
+      let response
+      const data = {
+        name: formData.name,
+        parentId: formData.parentId || undefined,
+        monthlyLimit: formData.monthlyLimit ? parseFloat(formData.monthlyLimit) : undefined,
+        requiresApproval: formData.requiresApproval,
+        minApprovalAmount: formData.minApprovalAmount ? parseFloat(formData.minApprovalAmount) : undefined,
+      }
+      if (editingCategory) {
+        response = await categoriesApi.update(editingCategory.id, data)
+      } else {
+        response = await categoriesApi.create(data)
+      }
+
+      if (response.success) {
+        success(editingCategory ? 'Kategori güncellendi!' : 'Kategori eklendi!')
+        setIsModalOpen(false)
+        fetchCategories()
+      } else {
+        showError(response.error || 'İşlem başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'İşlem başarısız oldu')
+    } finally {
+      setSubmitting(false)
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (category: any) => {
-    if (confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
-      success('Kategori silindi!')
+  const handleDelete = async (category: any) => {
+    if (!confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
+      return
     }
+
+    try {
+      const response = await categoriesApi.delete(category.id)
+      if (response.success) {
+        success('Kategori silindi!')
+        fetchCategories()
+      } else {
+        showError(response.error || 'Silme işlemi başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Silme işlemi başarısız oldu')
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
   }
 
   // Group categories by parent
-  const rootCategories = mockCategories.filter((c) => !c.parent)
-  const childCategories = mockCategories.filter((c) => c.parent)
+  const rootCategories = categories.filter((c) => !c.parentId && !c.parent)
+  const childCategories = categories.filter((c) => c.parentId || c.parent)
 
   return (
     <DashboardLayout>
@@ -97,7 +158,7 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-3">
               <GitBranch className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockCategories.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kategori</p>
               </div>
             </div>
@@ -239,9 +300,10 @@ export default function CategoriesPage() {
             </button>
             <button
               onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingCategory ? 'Güncelle' : 'Ekle'}
+              {submitting ? 'İşleniyor...' : editingCategory ? 'Güncelle' : 'Ekle'}
             </button>
           </>
         }

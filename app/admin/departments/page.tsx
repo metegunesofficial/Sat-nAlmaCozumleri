@@ -1,30 +1,50 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
+import Loading from '@/components/Loading'
 import { useNotification } from '@/contexts/NotificationContext'
+import { departmentsApi } from '@/lib/api'
 import { Plus, Edit, Trash2, Building2, TrendingUp } from 'lucide-react'
 
-const mockDepartments = [
-  { id: 'd1', name: 'Bilgi İşlem', code: 'IT', budget: 500000, spent: 145000, employeeCount: 12, status: 'active' },
-  { id: 'd2', name: 'İnsan Kaynakları', code: 'HR', budget: 200000, spent: 85000, employeeCount: 5, status: 'active' },
-  { id: 'd3', name: 'Muhasebe', code: 'ACC', budget: 150000, spent: 65000, employeeCount: 8, status: 'active' },
-  { id: 'd4', name: 'Satış', code: 'SALES', budget: 300000, spent: 195000, employeeCount: 15, status: 'active' },
-  { id: 'd5', name: 'Pazarlama', code: 'MKT', budget: 250000, spent: 180000, employeeCount: 10, status: 'active' },
-]
-
 export default function DepartmentsPage() {
-  const { success, error } = useNotification()
+  const { success, error: showError } = useNotification()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDept, setEditingDept] = useState<any>(null)
+  const [departments, setDepartments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     budget: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    fetchDepartments()
+  }, [])
+
+  const fetchDepartments = async () => {
+    try {
+      setLoading(true)
+      const response = await departmentsApi.getAll()
+      if (response.success) {
+        const data = response.data?.departments || response.data || []
+        setDepartments(Array.isArray(data) ? data : [])
+      } else {
+        showError(response.error || 'Departmanlar yüklenirken hata oluştu')
+        setDepartments([])
+      }
+    } catch (err: any) {
+      showError(err.message || 'Departmanlar yüklenirken hata oluştu')
+      setDepartments([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingDept(null)
@@ -43,22 +63,54 @@ export default function DepartmentsPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.code || !formData.budget) {
-      error('Lütfen tüm gerekli alanları doldurun')
+      showError('Lütfen tüm gerekli alanları doldurun')
       return
     }
-    if (editingDept) {
-      success('Departman güncellendi!')
-    } else {
-      success('Departman eklendi!')
+
+    try {
+      setSubmitting(true)
+      let response
+      const data = {
+        ...formData,
+        budget: parseFloat(formData.budget),
+      }
+      if (editingDept) {
+        response = await departmentsApi.update(editingDept.id, data)
+      } else {
+        response = await departmentsApi.create(data)
+      }
+
+      if (response.success) {
+        success(editingDept ? 'Departman güncellendi!' : 'Departman eklendi!')
+        setIsModalOpen(false)
+        fetchDepartments()
+      } else {
+        showError(response.error || 'İşlem başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'İşlem başarısız oldu')
+    } finally {
+      setSubmitting(false)
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (dept: any) => {
-    if (confirm(`${dept.name} departmanını silmek istediğinize emin misiniz?`)) {
-      success('Departman silindi!')
+  const handleDelete = async (dept: any) => {
+    if (!confirm(`${dept.name} departmanını silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const response = await departmentsApi.delete(dept.id)
+      if (response.success) {
+        success('Departman silindi!')
+        fetchDepartments()
+      } else {
+        showError(response.error || 'Silme işlemi başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Silme işlemi başarısız oldu')
     }
   }
 
@@ -166,9 +218,17 @@ export default function DepartmentsPage() {
     },
   ]
 
-  const totalBudget = mockDepartments.reduce((sum, d) => sum + d.budget, 0)
-  const totalSpent = mockDepartments.reduce((sum, d) => sum + d.spent, 0)
-  const totalEmployees = mockDepartments.reduce((sum, d) => sum + d.employeeCount, 0)
+  const totalBudget = departments.reduce((sum, d) => sum + (d.budget || 0), 0)
+  const totalSpent = departments.reduce((sum, d) => sum + (d.spent || 0), 0)
+  const totalEmployees = departments.reduce((sum, d) => sum + (d.employeeCount || d._count?.users || 0), 0)
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -192,7 +252,7 @@ export default function DepartmentsPage() {
             <div className="flex items-center gap-3">
               <Building2 className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockDepartments.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{departments.length}</p>
                 <p className="text-sm text-gray-600">Toplam Departman</p>
               </div>
             </div>
@@ -230,7 +290,7 @@ export default function DepartmentsPage() {
           </div>
         </div>
 
-        <DataTable data={mockDepartments} columns={columns} searchable searchPlaceholder="Departman ara..." />
+        <DataTable data={departments} columns={columns} searchable searchPlaceholder="Departman ara..." />
       </div>
 
       <Modal
@@ -247,9 +307,10 @@ export default function DepartmentsPage() {
             </button>
             <button
               onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingDept ? 'Güncelle' : 'Ekle'}
+              {submitting ? 'İşleniyor...' : editingDept ? 'Güncelle' : 'Ekle'}
             </button>
           </>
         }

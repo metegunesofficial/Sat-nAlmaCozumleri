@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
-import { mockPurchaseRequests } from '@/lib/mockData'
+import Loading from '@/components/Loading'
+import { purchaseRequestsApi } from '@/lib/api'
 import { useParams, useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
 import {
@@ -38,12 +39,88 @@ const statusLabels: Record<string, string> = {
 export default function RequestDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { success, error } = useNotification()
+  const { success, error: showError } = useNotification()
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
   const [comments, setComments] = useState('')
+  const [request, setRequest] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
 
-  const request = mockPurchaseRequests.find((r) => r.id === params.id)
+  useEffect(() => {
+    fetchRequest()
+  }, [params.id])
+
+  const fetchRequest = async () => {
+    try {
+      setLoading(true)
+      const response = await purchaseRequestsApi.getById(params.id as string)
+      if (response.success) {
+        setRequest(response.data)
+      } else {
+        showError(response.error || 'Talep yüklenirken hata oluştu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Talep yüklenirken hata oluştu')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleApprove = async () => {
+    try {
+      setSubmitting(true)
+      const response = await purchaseRequestsApi.approve(params.id as string, {
+        action: 'APPROVED',
+        comments: comments || undefined,
+      })
+      if (response.success) {
+        success('Talep başarıyla onaylandı!')
+        setIsApproveModalOpen(false)
+        router.push('/requests')
+      } else {
+        showError(response.error || 'Onaylama işlemi başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Onaylama işlemi başarısız oldu')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!comments) {
+      showError('Lütfen red nedeni girin')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const response = await purchaseRequestsApi.approve(params.id as string, {
+        action: 'REJECTED',
+        comments,
+      })
+      if (response.success) {
+        success('Talep reddedildi')
+        setIsRejectModalOpen(false)
+        router.push('/requests')
+      } else {
+        showError(response.error || 'Reddetme işlemi başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Reddetme işlemi başarısız oldu')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
+  }
 
   if (!request) {
     return (
@@ -53,22 +130,6 @@ export default function RequestDetailPage() {
         </div>
       </DashboardLayout>
     )
-  }
-
-  const handleApprove = () => {
-    success('Talep onaylandı!')
-    setIsApproveModalOpen(false)
-    router.push('/requests')
-  }
-
-  const handleReject = () => {
-    if (!comments) {
-      error('Lütfen red nedeni girin')
-      return
-    }
-    success('Talep reddedildi')
-    setIsRejectModalOpen(false)
-    router.push('/requests')
   }
 
   return (
@@ -357,9 +418,10 @@ export default function RequestDetailPage() {
             </button>
             <button
               onClick={handleApprove}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Onayla
+              {submitting ? 'Onaylanıyor...' : 'Onayla'}
             </button>
           </>
         }
@@ -412,9 +474,10 @@ export default function RequestDetailPage() {
             </button>
             <button
               onClick={handleReject}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Reddet
+              {submitting ? 'Reddediliyor...' : 'Reddet'}
             </button>
           </>
         }

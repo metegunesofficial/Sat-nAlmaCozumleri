@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests } from '@/lib/mockData'
+import Loading from '@/components/Loading'
+import { purchaseRequestsApi } from '@/lib/api'
+import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Filter, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -26,12 +28,42 @@ const statusLabels: Record<string, string> = {
 
 export default function RequestsPage() {
   const router = useRouter()
+  const { error: showError } = useNotification()
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [dateFilter, setDateFilter] = useState<string>('ALL')
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filteredRequests = mockPurchaseRequests.filter((req) => {
-    if (statusFilter !== 'ALL' && req.status !== statusFilter) return false
-    // Date filtering could be implemented here
+  useEffect(() => {
+    fetchRequests()
+  }, [statusFilter])
+
+  const fetchRequests = async () => {
+    try {
+      setLoading(true)
+      const params: any = {}
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter
+      }
+
+      const response = await purchaseRequestsApi.getAll(params)
+      if (response.success) {
+        const data = response.data?.requests || response.data || []
+        setRequests(Array.isArray(data) ? data : [])
+      } else {
+        showError(response.error || 'Talepler yüklenirken hata oluştu')
+        setRequests([])
+      }
+    } catch (err: any) {
+      showError(err.message || 'Talepler yüklenirken hata oluştu')
+      setRequests([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredRequests = requests.filter((req) => {
+    // Date filtering could be implemented here based on dateFilter
     return true
   })
 
@@ -99,6 +131,14 @@ export default function RequestsPage() {
       ),
     },
   ]
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
