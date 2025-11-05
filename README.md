@@ -1,305 +1,577 @@
-# Attelia Dental E-commerce Platform
+# 🏥 Attelia Dental - Enterprise Satın Alma Yönetim Platformu
 
-Modern, full-stack e-ticaret platformu - Ağız ve Diş Sağlığı ürünleri için özel olarak geliştirilmiştir.
+**Kurumsal düzeyde, multi-tenant, tam özellikli satın alma ve onay yönetim sistemi** - Birden fazla şirket/organizasyon için, çok katmanlı bütçe kontrolleri ve çok aşamalı onay süreçleri ile.
 
-## 🎯 Özellikler
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat&logo=prisma&logoColor=white)](https://www.prisma.io/)
 
-### Müşteri Özellikleri
-- ✅ Modern ve responsive tasarım
-- ✅ Gelişmiş ürün arama ve filtreleme
-- ✅ Kategori bazlı ürün listeleme
-- ✅ Detaylı ürün sayfaları
-- ✅ Sepet yönetimi
-- ✅ Kullanıcı kayıt ve giriş sistemi
-- ✅ Sipariş takibi
-- ✅ Çoklu ürün görselleri
-- ✅ Ürün değerlendirme ve yorumlama
+---
+
+## 🌟 Temel Özellikler
+
+### 🏢 Multi-Tenant Altyapı
+✅ Tek platformda birden fazla şirket/organizasyon  
+✅ Tamamen izole veri yapısı (her şirket kendi verileri)  
+✅ Şirket bazlı ayarlar ve yapılandırma  
+✅ Şirket bazlı kullanıcı, departman ve ürün yönetimi
+
+### 💰 3 Katmanlı Bütçe Yönetimi
+
+#### 1. Şirket Bazlı Bütçe
+- Şirket geneli bütçe planlama
+- Kategori bazlı bütçe tanımlama (IT, Operasyonel, Genel)
+- Aylık/yıllık bütçe takibi
+- Gerçek zamanlı harcama analizi
+
+#### 2. Departman Bazlı Bütçe
+- Her departman için ayrı bütçe
+- Hiyerarşik departman yapısı
+- Departman müdürü onay yetkisi
+- Alt departman bütçe dağılımı
+
+#### 3. Kişi/Kullanıcı Bazlı Bütçe
+- Çalışan bazında bütçe limitleri
+- Kişisel harcama takibi
+- Aylık/yıllık kişisel limit kontrolü
+
+### 📁 Satın Alım Kategori Sistemi
+
+**Hiyerarşik Kategori Yapısı:**
+```
+├── IT ve Teknoloji
+│   ├── Donanım
+│   │   ├── Bilgisayar (Limit: 100K/ay)
+│   │   ├── Server (Limit: 200K/ay)
+│   │   └── Network (Limit: 50K/ay)
+│   └── Yazılım
+│       ├── Lisanslar (Min Onay: 5K)
+│       └── SaaS (Min Onay: 1K)
+├── Ofis Malzemeleri
+│   ├── Kırtasiye (Onaysız: <500₺)
+│   └── Mobilya (Min Onay: 2K)
+└── Operasyonel Giderler
+    ├── Temizlik
+    └── Bakım-Onarım
+```
+
+**Kategori Özellikleri:**
+- ✅ Sınırsız seviye desteği
+- ✅ Kategori bazlı bütçe limitleri
+- ✅ Otomatik onay gereksinimleri
+- ✅ Minimum onay tutarı tanımlama
+- ✅ Kategori bazlı erişim kontrolü
+
+### 📋 Çok Aşamalı Onay Sistemi
+
+**Tutar Bazlı Otomatik Workflow:**
+- 0-10,000₺: Departman Müdürü
+- 10,000-50,000₺: Departman + Satın Alma Müdürü
+- 50,000₺+: Departman + Satın Alma + Finans Müdürü
+
+**Onay Özellikleri:**
+- ✅ Çok seviyeli onay zincirleri (unlimited steps)
+- ✅ Paralel ve sıralı onay desteği
+- ✅ Role-based approval (rol bazlı)
+- ✅ Onay/Red/Geri Gönderme aksiyonları
+- ✅ Yorum ve açıklama sistemi
+- ✅ Otomatik bildirimler (email ready)
+
+### 📊 Kapsamlı Raporlama
+
+#### Satın Alma Raporları
+- Durum bazlı analizler (onayda, onaylandı, reddedildi)
+- Departman bazlı harcama grafikleri
+- Öncelik bazlı talep dağılımı
+- En çok talep edilen ürünler
+- Ortalama onay süreleri
+
+#### Bütçe Raporları
+- 3 katmanlı bütçe kullanım raporları
+- Departman bazlı harcama vs bütçe
+- Kişi bazında harcama takibi
+- Kategori bazında limit kontrolü
+- Kritik/uyarı seviyeleri ve alerts
+
+#### Onay Performans Raporları
+- Onaylayıcı performans analizi
+- Onay/red oranları
+- Ortalama yanıt süreleri
+- Darboğaz (bottleneck) tespiti
+- Onay zinciri analizi
+
+### 👥 Gelişmiş Rol Yönetimi
+
+| Rol | Yetki Seviyesi | Açıklama |
+|-----|----------------|----------|
+| **SUPER_ADMIN** | Platform | Tüm şirketlere erişim |
+| **COMPANY_ADMIN** | Şirket | Şirket içi tam yetki |
+| **GENERAL_MANAGER** | Üst Düzey | Tüm onaylar, raporlar |
+| **FINANCE_MANAGER** | Mali | Mali onaylar, bütçe |
+| **PROCUREMENT_MANAGER** | Satın Alma | Tedarikçi, onay |
+| **DEPARTMENT_MANAGER** | Departman | Departman onayları |
+| **EMPLOYEE** | Temel | Talep oluşturma |
+
+### 🛒 E-Ticaret Modülü
+
+- ✅ Ürün kataloğu (şirket bazında)
+- ✅ Gelişmiş arama ve filtreleme
+- ✅ Kategori yönetimi (hiyerarşik)
+- ✅ Sepet sistemi
+- ✅ Ürün görselleri ve detay sayfaları
+- ✅ Stok takibi
 - ✅ Toptan fiyat desteği
 - ✅ Minimum sipariş adedi
-- ✅ Favorilere ekleme
-- ✅ Hızlı ürün görünümü
+- ✅ Ürün değerlendirme ve yorumlar
 
-### Admin Özellikleri
-- ✅ Ürün yönetimi (CRUD)
-- ✅ Kategori yönetimi
-- ✅ Sipariş yönetimi
-- ✅ Stok takibi
-- ✅ Kullanıcı yönetimi
-- ✅ İstatistikler ve raporlama
+---
 
-### Teknik Özellikler
-- ⚡ Next.js 14 (App Router)
-- 🎨 Tailwind CSS
-- 🔷 TypeScript
-- 🗄️ PostgreSQL + Prisma ORM
-- 🔐 JWT Authentication
-- 📱 Fully Responsive
-- 🚀 Server-Side Rendering (SSR)
-- 📦 Modern API Architecture
+## 🛠️ Teknoloji Stack
 
-## 🛠️ Teknoloji Stack'i
+| Kategori | Teknoloji |
+|----------|-----------|
+| **Frontend** | Next.js 14 (App Router), React 18, TypeScript |
+| **Styling** | Tailwind CSS, Lucide Icons |
+| **Backend** | Next.js API Routes |
+| **Database** | PostgreSQL 14+ |
+| **ORM** | Prisma |
+| **Auth** | JWT, bcryptjs |
+| **Validation** | Zod |
 
-- **Frontend:** Next.js 14, React 18, TypeScript
-- **Styling:** Tailwind CSS
-- **Backend:** Next.js API Routes
-- **Database:** PostgreSQL
-- **ORM:** Prisma
-- **Authentication:** JWT, bcryptjs
-- **Validation:** Zod
-- **Icons:** Lucide React
+---
 
-## 📋 Gereksinimler
+## 🚀 Hızlı Başlangıç
 
+### Gereksinimler
 - Node.js 18+
 - PostgreSQL 14+
 - npm veya yarn
 
-## 🚀 Kurulum
+### Kurulum
 
-### 1. Repository'yi klonlayın
-
-\`\`\`bash
+```bash
+# 1. Repoyu klonlayın
 git clone <repository-url>
 cd Sat-nAlmaCozumleri
-\`\`\`
 
-### 2. Bağımlılıkları yükleyin
-
-\`\`\`bash
+# 2. Bağımlılıkları yükleyin
 npm install
-\`\`\`
 
-### 3. PostgreSQL Database oluşturun
-
-\`\`\`bash
-# PostgreSQL'e bağlanın
+# 3. PostgreSQL database oluşturun
 psql -U postgres
-
-# Database oluşturun
 CREATE DATABASE attelia_dental;
-\`\`\`
+\q
 
-### 4. Environment variables ayarlayın
-
-\`\`\`.env dosyası oluşturun:
-
-\`\`\`bash
+# 4. Environment variables
 cp .env.example .env
-\`\`\`
+# .env dosyasını düzenleyin
 
-\`.env\` dosyasını düzenleyin:
-
-\`\`\`env
-DATABASE_URL="postgresql://user:password@localhost:5432/attelia_dental"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secret-key-here"
-JWT_SECRET="your-jwt-secret-here"
-\`\`\`
-
-### 5. Database migration
-
-\`\`\`bash
-# Prisma client oluştur
+# 5. Database migration
 npx prisma generate
-
-# Database'i migrate et
 npx prisma migrate dev --name init
-\`\`\`
 
-### 6. (Opsiyonel) Seed data ekleyin
+# 6. Seed data (2 şirket, kullanıcılar, departmanlar, ürünler, workflows)
+npm run db:seed
 
-\`\`\`bash
-# Seed scriptini çalıştırın (oluşturulacak)
-npm run seed
-\`\`\`
-
-### 7. Development sunucusunu başlatın
-
-\`\`\`bash
+# 7. Development server
 npm run dev
-\`\`\`
+```
 
-Uygulama [http://localhost:3000](http://localhost:3000) adresinde çalışacaktır.
+Uygulama: [http://localhost:3000](http://localhost:3000)
+
+---
 
 ## 📁 Proje Yapısı
 
-\`\`\`
+```
 Sat-nAlmaCozumleri/
-├── app/                        # Next.js App Router
-│   ├── api/                   # API Routes
-│   │   ├── auth/             # Authentication endpoints
-│   │   ├── products/         # Product endpoints
-│   │   ├── categories/       # Category endpoints
-│   │   ├── cart/             # Cart endpoints
-│   │   └── orders/           # Order endpoints
-│   ├── products/             # Product pages
-│   ├── cart/                 # Cart page
-│   ├── checkout/             # Checkout page
-│   ├── admin/                # Admin panel
-│   ├── layout.tsx            # Root layout
-│   ├── page.tsx              # Home page
-│   └── globals.css           # Global styles
-├── components/                # React components
+├── app/
+│   ├── api/                          # Backend API
+│   │   ├── auth/                    # Authentication
+│   │   ├── products/                # Ürün yönetimi
+│   │   ├── categories/              # Kategori yönetimi
+│   │   ├── departments/             # Departman yönetimi
+│   │   ├── purchase-requests/       # Satın alma talepleri
+│   │   │   ├── [requestId]/
+│   │   │   │   └── approve/        # Onay endpoint
+│   │   │   └── route.ts
+│   │   └── reports/                 # Raporlama
+│   │       ├── purchase-summary/
+│   │       ├── budget/
+│   │       └── approval-performance/
+│   ├── products/                    # Ürün sayfaları
+│   ├── cart/                        # Sepet
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/                       # React components
 │   ├── Header.tsx
 │   ├── Footer.tsx
-│   ├── ProductCard.tsx
-│   └── ...
-├── lib/                       # Utility functions
-│   ├── prisma.ts             # Prisma client
-│   ├── auth.ts               # Auth utilities
-│   └── utils.ts              # Helper functions
-├── types/                     # TypeScript types
-│   └── index.ts
-├── prisma/                    # Prisma schema
-│   └── schema.prisma
-├── public/                    # Static files
-└── package.json
-\`\`\`
+│   └── ProductCard.tsx
+├── lib/                             # Utilities
+│   ├── prisma.ts
+│   ├── auth.ts
+│   └── utils.ts
+├── prisma/
+│   ├── schema.prisma               # Database schema
+│   └── seed.ts                     # Seed script
+└── types/
+    └── index.ts
+```
+
+---
 
 ## 🗄️ Database Schema
 
-### Temel Modeller
+### Ana Modeller
 
-- **User** - Kullanıcılar (müşteriler, bayiler, adminler)
-- **Category** - Ürün kategorileri (hiyerarşik)
+#### Multi-Tenancy
+- **Company** - Şirket/organizasyon
+
+#### Kullanıcı Yönetimi  
+- **User** - Kullanıcılar (company scoped)
+- **Department** - Departmanlar (hiyerarşik)
+
+#### Bütçe Yönetimi (3 Katman)
+- **CompanyBudget** - Şirket bazlı bütçe
+- **Budget** - Departman bazlı bütçe
+- **UserBudget** - Kişi bazlı bütçe
+
+#### Satın Alma
+- **PurchaseRequest** - Satın alma talepleri
+- **PurchaseRequestItem** - Talep kalemleri
+- **PurchaseCategory** - Satın alım kategorileri (hiyerarşik)
+
+#### Onay Sistemi
+- **ApprovalWorkflow** - İş akışı tanımları
+- **ApprovalStep** - Onay adımları
+- **ApprovalAction** - Onay/red aksiyonları
+
+#### E-Ticaret
+- **Category** - Ürün kategorileri
 - **Product** - Ürünler
-- **CartItem** - Sepet öğeleri
+- **CartItem** - Sepet
 - **Order** - Siparişler
 - **OrderItem** - Sipariş detayları
-- **Review** - Ürün yorumları
-- **Setting** - Site ayarları
+
+---
 
 ## 🔌 API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Kullanıcı kaydı
-- `POST /api/auth/login` - Kullanıcı girişi
+```
+POST   /api/auth/register      # Kullanıcı kaydı
+POST   /api/auth/login         # Giriş
+```
+
+### Purchase Requests
+```
+GET    /api/purchase-requests              # Liste (role-based)
+POST   /api/purchase-requests              # Yeni talep
+GET    /api/purchase-requests/[id]         # Detay
+PUT    /api/purchase-requests/[id]         # Güncelle
+POST   /api/purchase-requests/[id]/approve # Onayla/Reddet
+```
+
+### Departments
+```
+GET    /api/departments        # Departman listesi
+POST   /api/departments        # Yeni departman (Admin)
+```
+
+### Reports
+```
+GET    /api/reports/purchase-summary        # Satın alma özeti
+GET    /api/reports/budget                  # Bütçe raporu
+GET    /api/reports/approval-performance    # Onay performansı
+```
 
 ### Products
-- `GET /api/products` - Tüm ürünleri listele
-- `GET /api/products/[slug]` - Tek ürün detayı
-- `POST /api/products` - Yeni ürün oluştur (Admin)
-- `PUT /api/products/[slug]` - Ürün güncelle (Admin)
-- `DELETE /api/products/[slug]` - Ürün sil (Admin)
+```
+GET    /api/products           # Ürün listesi (filtered by company)
+GET    /api/products/[slug]    # Ürün detayı
+POST   /api/products           # Yeni ürün (Admin)
+```
 
-### Categories
-- `GET /api/categories` - Tüm kategorileri listele
-- `POST /api/categories` - Yeni kategori oluştur (Admin)
+---
 
-### Cart
-- `GET /api/cart` - Kullanıcının sepetini getir
-- `POST /api/cart` - Sepete ürün ekle
-- `PUT /api/cart/[itemId]` - Sepet öğesini güncelle
-- `DELETE /api/cart/[itemId]` - Sepetten ürün çıkar
-- `DELETE /api/cart` - Sepeti temizle
+## 👤 Demo Kullanıcıları
 
-### Orders
-- `GET /api/orders` - Kullanıcının siparişlerini listele
-- `GET /api/orders/[orderId]` - Sipariş detayı
-- `POST /api/orders` - Yeni sipariş oluştur
-- `PUT /api/orders/[orderId]` - Sipariş güncelle (Admin)
+### Attelia Dental Merkez
 
-## 👤 Varsayılan Kullanıcılar
+| Rol | Email | Şifre |
+|-----|-------|-------|
+| Super Admin | superadmin@attelia.com | password123 |
+| Company Admin | admin@attelia.com | password123 |
+| IT Manager | it.manager@attelia.com | password123 |
+| Procurement | procurement@attelia.com | password123 |
+| Finance | finance@attelia.com | password123 |
+| Employee | john.doe@attelia.com | password123 |
 
-Seed script çalıştırıldıktan sonra:
+### Attelia Dental İstanbul
 
-**Admin:**
-- Email: admin@attelia.com
-- Şifre: admin123
+| Rol | Email | Şifre |
+|-----|-------|-------|
+| Company Admin | admin@attelia-istanbul.com | password123 |
 
-**Test Kullanıcı:**
-- Email: test@example.com
-- Şifre: test123
+---
+
+## 🔄 Örnek Onay Workflow'ları
+
+### Workflow 1: Standart (0-10K ₺)
+```
+Step 1: Departman Müdürü Onayı
+```
+
+### Workflow 2: İki Aşamalı (10K-50K ₺)
+```
+Step 1: Departman Müdürü Onayı
+Step 2: Satın Alma Müdürü Onayı
+```
+
+### Workflow 3: Üç Aşamalı (50K+ ₺)
+```
+Step 1: Departman Müdürü Onayı
+Step 2: Satın Alma Müdürü Onayı
+Step 3: Finans Müdürü Onayı
+```
+
+---
+
+## 💡 Kullanım Senaryoları
+
+### Senaryo 1: Kişisel Bütçe Kontrolü
+```typescript
+Çalışan: 10,000₺ laptop talebi
+
+✓ Kişisel aylık bütçe: 15,000₺
+✓ Departman bütçesi: 50,000₺  
+✓ Şirket IT bütçesi: 200,000₺
+✓ Kategori limiti: 100,000₺/ay
+
+→ Talep oluşturulabilir
+→ Workflow 2 (iki aşamalı) tetiklenir
+```
+
+### Senaryo 2: Bütçe Aşımı
+```typescript
+Çalışan: 20,000₺ talep
+
+✗ Kişisel bütçe: 15,000₺ (yetersiz!)
+  
+→ Talep oluşturulamaz
+→ "Kişisel bütçeniz aşılacak" uyarısı
+```
+
+### Senaryo 3: Kategori Bazlı Onay
+```typescript
+Kategori: IT > Donanım > Bilgisayar
+- Monthly Limit: 100,000₺
+- Min Approval: 5,000₺
+- Requires Approval: true
+
+35,000₺ talep:
+✓ Kategori limiti içinde
+✓ 5,000₺ üzeri (onay gerekli)
+  
+→ Onay süreci başlatılır
+```
+
+---
 
 ## 📝 Prisma Komutları
 
-\`\`\`bash
-# Prisma Studio'yu aç (Database GUI)
+```bash
+# Prisma Studio (Database GUI)
 npx prisma studio
 
 # Migration oluştur
-npx prisma migrate dev --name your_migration_name
+npx prisma migrate dev --name migration_name
 
-# Database'i resetle
+# Database reset
 npx prisma migrate reset
 
-# Prisma client'i yeniden oluştur
+# Client regenerate
 npx prisma generate
-\`\`\`
+
+# Seed data
+npm run db:seed
+```
+
+---
 
 ## 🎨 Özelleştirme
 
-### Renkler
+### Yeni Onay Workflow'u Ekleme
 
-\`tailwind.config.ts\` dosyasında dental teması için özel renkler tanımlanmıştır:
+```typescript
+await prisma.approvalWorkflow.create({
+  data: {
+    companyId: 'company-id',
+    name: 'Özel Workflow',
+    minAmount: 100000,
+    maxAmount: 500000,
+    departmentIds: ['dept-1', 'dept-2'],
+    steps: {
+      create: [
+        {
+          stepOrder: 0,
+          stepName: 'İlk Onay',
+          approverRole: 'DEPARTMENT_MANAGER'
+        },
+        {
+          stepOrder: 1,
+          stepName: 'İkinci Onay',
+          approverRole: 'GENERAL_MANAGER'
+        }
+      ]
+    }
+  }
+})
+```
 
-\`\`\`typescript
-colors: {
-  dental: {
-    blue: '#1e40af',
-    light: '#60a5fa',
-    dark: '#1e3a8a',
-  },
-}
-\`\`\`
+### Yeni Satın Alım Kategorisi
 
-### Logo ve Branding
+```typescript
+await prisma.purchaseCategory.create({
+  data: {
+    companyId: 'company-id',
+    name: 'Eğitim',
+    code: 'EDU',
+    monthlyLimit: 50000,
+    yearlyLimit: 600000,
+    requiresApproval: true,
+    minApprovalAmount: 1000,
+    children: {
+      create: [
+        {
+          name: 'Online Kurslar',
+          code: 'EDU-ONLINE',
+          monthlyLimit: 20000
+        },
+        {
+          name: 'Seminerler',
+          code: 'EDU-SEM',
+          monthlyLimit: 30000
+        }
+      ]
+    }
+  }
+})
+```
 
-- Logo: \`components/Header.tsx\` içinde güncelleyin
-- Favicon: \`app/favicon.ico\` dosyasını değiştirin
-- Site ismi: \`app/layout.tsx\` içindeki metadata'yı güncelleyin
+---
 
-## 🔧 Production Build
+## 🔐 Güvenlik
 
-\`\`\`bash
-# Production build oluştur
+### Role-Based Access Control (RBAC)
+- JWT token bazlı authentication
+- Rol bazlı endpoint koruması
+- Company-scoped data isolation
+- Departman bazlı veri erişimi
+
+### Multi-Tenancy Security
+- Tüm sorgularda otomatik company filtreleme
+- User-company ilişki validasyonu
+- Cross-company data leakage önleme
+
+---
+
+## 📊 Performans
+
+- **Database Indexing**: Tüm kritik alanlarda index
+- **Query Optimization**: Include/select optimization
+- **Pagination**: Tüm list endpoint'lerinde
+- **Caching Ready**: Redis integration ready
+
+---
+
+## 🚀 Deployment
+
+### Production Build
+```bash
 npm run build
-
-# Production server başlat
 npm start
-\`\`\`
+```
 
-## 📦 Deployment
+### Environment Variables (Production)
+```env
+DATABASE_URL="postgresql://..."
+JWT_SECRET="strong-secret-key"
+NEXTAUTH_SECRET="nextauth-secret"
+NODE_ENV="production"
+```
 
-### Vercel (Önerilen)
+---
 
-1. Vercel hesabınıza giriş yapın
-2. Repository'yi bağlayın
-3. Environment variables ekleyin
-4. Deploy edin
+## 📈 Roadmap
 
-### Docker
+### ✅ Tamamlandı
+- Multi-tenant altyapı
+- 3 katmanlı bütçe sistemi
+- Çok aşamalı onay sistemi
+- Satın alım kategori yönetimi
+- Detaylı raporlama API'ları
+- E-ticaret modülü
+- Sepet yönetimi
 
-\`\`\`bash
-# Docker image oluştur
-docker build -t attelia-dental .
+### 🔄 Geliştiriliyor
+- Frontend sayfaları (Dashboard, Login, Request Management)
+- Admin paneli UI
+- Bütçe yönetim ekranları
 
-# Container çalıştır
-docker run -p 3000:3000 attelia-dental
-\`\`\`
+### 📅 Planlanan
+- Email bildirimleri
+- SMS bildirimleri
+- Document/File attachments
+- Gelişmiş raporlama UI (charts, graphs)
+- Excel/PDF export
+- Audit log
+- Mobile app
+- Vendor/Supplier management
+- Contract management
+- Invoice management
+
+---
 
 ## 🤝 Katkıda Bulunma
 
 1. Fork edin
-2. Feature branch oluşturun (\`git checkout -b feature/amazing-feature\`)
-3. Değişikliklerinizi commit edin (\`git commit -m 'Add amazing feature'\`)
-4. Branch'inizi push edin (\`git push origin feature/amazing-feature\`)
+2. Feature branch oluşturun (`git checkout -b feature/amazing`)
+3. Commit edin (`git commit -m 'Add amazing feature'`)
+4. Push edin (`git push origin feature/amazing`)
 5. Pull Request oluşturun
-
-## 📄 Lisans
-
-Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır.
-
-## 📞 Destek
-
-Sorular veya sorunlar için:
-- Email: info@attelia.com
-- GitHub Issues: [Issues](https://github.com/yourusername/attelia-dental/issues)
-
-## 🎉 Teşekkürler
-
-Attelia Dental E-commerce platformunu kullandığınız için teşekkürler!
 
 ---
 
-**Not:** Bu platform Merkado.com.tr benzeri B2B/toptan satış özellikleriyle donatılmıştır ve Attelia Ağız ve Diş Sağlığı için özel olarak geliştirilmiştir.
+## 📄 Lisans
+
+MIT License - [LICENSE](LICENSE)
+
+---
+
+## 📞 İletişim
+
+- Email: info@attelia.com
+- GitHub Issues: [Issues](https://github.com/yourusername/attelia-dental/issues)
+
+---
+
+## 🙏 Teşekkürler
+
+- Next.js Team
+- Prisma Team
+- Tailwind CSS Team
+- Open Source Community
+
+---
+
+<div align="center">
+
+**⭐ Enterprise-level Satın Alma Yönetimi ⭐**
+
+Made with ❤️ by Attelia Team
+
+[Documentation](docs/) • [API Reference](docs/api/) • [Contributing](CONTRIBUTING.md)
+
+</div>
