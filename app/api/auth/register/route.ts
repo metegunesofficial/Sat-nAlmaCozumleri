@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user exists (using findFirst since email is not unique alone)
+    const existingUser = await prisma.user.findFirst({
       where: { email },
     })
 
@@ -32,23 +32,68 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create user
+    // Create or find company
+    let company
+    if (companyName) {
+      // Create a slug from company name
+      const slug = companyName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+      // Check if company exists
+      company = await prisma.company.findUnique({
+        where: { slug },
+      })
+
+      // If company doesn't exist, create it
+      if (!company) {
+        company = await prisma.company.create({
+          data: {
+            name: companyName,
+            slug,
+          },
+        })
+      }
+    } else {
+      // Find or create default company
+      company = await prisma.company.findFirst({
+        where: { slug: 'default' },
+      })
+
+      if (!company) {
+        company = await prisma.company.create({
+          data: {
+            name: 'Default Company',
+            slug: 'default',
+          },
+        })
+      }
+    }
+
+    // Create user with companyId
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
         phone,
-        companyName,
-        role: role || 'CUSTOMER',
+        companyId: company.id,
+        role: (role as any) || 'EMPLOYEE',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        companyName: true,
         phone: true,
+        company: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
       },
     })
 

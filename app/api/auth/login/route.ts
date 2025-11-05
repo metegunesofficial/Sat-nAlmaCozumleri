@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Find user (using findFirst since email is not unique alone, it's part of compound unique key with companyId)
+    const user = await prisma.user.findFirst({
       where: { email },
+      include: {
+        company: true,
+        department: true,
+      },
     })
 
     if (!user) {
