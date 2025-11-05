@@ -1,46 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
+import Loading from '@/components/Loading'
 import { useNotification } from '@/contexts/NotificationContext'
+import { workflowsApi } from '@/lib/api'
 import { Plus, Edit, Trash2, Settings, ChevronRight } from 'lucide-react'
-
-const mockWorkflows = [
-  {
-    id: 'w1',
-    name: 'Standart Onay (0-10K TL)',
-    minAmount: 0,
-    maxAmount: 10000,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-    ],
-  },
-  {
-    id: 'w2',
-    name: 'Orta Seviye Onay (10-50K TL)',
-    minAmount: 10000,
-    maxAmount: 50000,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-    ],
-  },
-  {
-    id: 'w3',
-    name: 'Üst Düzey Onay (50K+ TL)',
-    minAmount: 50000,
-    maxAmount: null,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-      { order: 2, approverRole: 'GENERAL_MANAGER', name: 'Genel Müdür' },
-    ],
-  },
-]
 
 const roles = [
   { value: 'DEPARTMENT_MANAGER', label: 'Departman Müdürü' },
@@ -51,9 +17,12 @@ const roles = [
 ]
 
 export default function WorkflowsPage() {
-  const { success, error } = useNotification()
+  const { success, error: showError } = useNotification()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkflow, setEditingWorkflow] = useState<any>(null)
+  const [workflows, setWorkflows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     minAmount: '',
@@ -61,6 +30,29 @@ export default function WorkflowsPage() {
     isActive: true,
     steps: [{ approverRole: 'DEPARTMENT_MANAGER' }],
   })
+
+  useEffect(() => {
+    fetchWorkflows()
+  }, [])
+
+  const fetchWorkflows = async () => {
+    try {
+      setLoading(true)
+      const response = await workflowsApi.getAll()
+      if (response.success) {
+        const data = response.data?.workflows || response.data || []
+        setWorkflows(Array.isArray(data) ? data : [])
+      } else {
+        showError(response.error || 'İş akışları yüklenirken hata oluştu')
+        setWorkflows([])
+      }
+    } catch (err: any) {
+      showError(err.message || 'İş akışları yüklenirken hata oluştu')
+      setWorkflows([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingWorkflow(null)
@@ -86,22 +78,60 @@ export default function WorkflowsPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.minAmount || formData.steps.length === 0) {
-      error('Lütfen tüm gerekli alanları doldurun')
+      showError('Lütfen tüm gerekli alanları doldurun')
       return
     }
-    if (editingWorkflow) {
-      success('İş akışı güncellendi!')
-    } else {
-      success('İş akışı eklendi!')
+
+    try {
+      setSubmitting(true)
+      let response
+      const data = {
+        name: formData.name,
+        minAmount: parseFloat(formData.minAmount),
+        maxAmount: formData.maxAmount ? parseFloat(formData.maxAmount) : null,
+        isActive: formData.isActive,
+        steps: formData.steps.map((step, index) => ({
+          order: index,
+          approverRole: step.approverRole,
+        })),
+      }
+      if (editingWorkflow) {
+        response = await workflowsApi.update(editingWorkflow.id, data)
+      } else {
+        response = await workflowsApi.create(data)
+      }
+
+      if (response.success) {
+        success(editingWorkflow ? 'İş akışı güncellendi!' : 'İş akışı eklendi!')
+        setIsModalOpen(false)
+        fetchWorkflows()
+      } else {
+        showError(response.error || 'İşlem başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'İşlem başarısız oldu')
+    } finally {
+      setSubmitting(false)
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (workflow: any) => {
-    if (confirm(`${workflow.name} iş akışını silmek istediğinize emin misiniz?`)) {
-      success('İş akışı silindi!')
+  const handleDelete = async (workflow: any) => {
+    if (!confirm(`${workflow.name} iş akışını silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const response = await workflowsApi.delete(workflow.id)
+      if (response.success) {
+        success('İş akışı silindi!')
+        fetchWorkflows()
+      } else {
+        showError(response.error || 'Silme işlemi başarısız oldu')
+      }
+    } catch (err: any) {
+      showError(err.message || 'Silme işlemi başarısız oldu')
     }
   }
 
@@ -123,6 +153,14 @@ export default function WorkflowsPage() {
     const newSteps = [...formData.steps]
     newSteps[index] = { approverRole: role }
     setFormData({ ...formData, steps: newSteps })
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <Loading />
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -147,7 +185,7 @@ export default function WorkflowsPage() {
             <div className="flex items-center gap-3">
               <Settings className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockWorkflows.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{workflows.length}</p>
                 <p className="text-sm text-gray-600">Toplam İş Akışı</p>
               </div>
             </div>
@@ -157,7 +195,7 @@ export default function WorkflowsPage() {
               <Settings className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockWorkflows.filter((w) => w.isActive).length}
+                  {workflows.filter((w) => w.isActive).length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif İş Akışı</p>
               </div>
@@ -168,7 +206,7 @@ export default function WorkflowsPage() {
               <Settings className="text-purple-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {Math.max(...mockWorkflows.map((w) => w.steps.length))}
+                  {workflows.length > 0 ? Math.max(...workflows.map((w) => w.steps?.length || 0)) : 0}
                 </p>
                 <p className="text-sm text-gray-600">Maksimum Adım</p>
               </div>
@@ -177,7 +215,7 @@ export default function WorkflowsPage() {
         </div>
 
         <div className="space-y-4">
-          {mockWorkflows.map((workflow) => (
+          {workflows.map((workflow) => (
             <div key={workflow.id} className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -254,9 +292,10 @@ export default function WorkflowsPage() {
             </button>
             <button
               onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingWorkflow ? 'Güncelle' : 'Ekle'}
+              {submitting ? 'İşleniyor...' : editingWorkflow ? 'Güncelle' : 'Ekle'}
             </button>
           </>
         }
