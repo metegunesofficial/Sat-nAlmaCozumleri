@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, name, phone, companyName, role } = body
+    const { email, password, name, phone, companyName, companyId, role } = body
 
     if (!email || !password || !name) {
       return NextResponse.json(
@@ -32,6 +32,25 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
+    // Get or create company
+    let finalCompanyId = companyId
+
+    if (!finalCompanyId && companyName) {
+      // Create a new company if companyName is provided but no companyId
+      const company = await prisma.company.create({
+        data: {
+          name: companyName,
+          slug: companyName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        },
+      })
+      finalCompanyId = company.id
+    } else if (!finalCompanyId) {
+      return NextResponse.json(
+        { success: false, error: 'Şirket bilgisi gerekli' },
+        { status: 400 }
+      )
+    }
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -39,16 +58,16 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        companyName,
-        role: role || 'CUSTOMER',
+        companyId: finalCompanyId,
+        role: role || 'EMPLOYEE',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        companyName: true,
         phone: true,
+        companyId: true,
       },
     })
 
