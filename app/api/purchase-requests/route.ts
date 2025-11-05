@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         status: 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
-        workflowId: workflow?.id,
+        ...(workflow?.id && { workflowId: workflow.id }),
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
