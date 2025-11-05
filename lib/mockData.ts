@@ -181,6 +181,16 @@ export const mockBudgetData = {
   ]
 }
 
+export const mockUserStats = {
+  totalUsers: 156,
+  activeUsers: 128,
+  activeToday: 45,
+  activeLast7Days: 98,
+  activeLast30Days: 128,
+  newUsersThisMonth: 12,
+  userGrowthPercent: 8.5
+}
+
 export const mockReportData = {
   purchaseSummary: {
     byStatus: [

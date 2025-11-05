@@ -1,9 +1,11 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests, mockBudgetData } from '@/lib/mockData'
+import { DashboardLoadingSkeleton } from '@/components/LoadingSkeleton'
+import { mockPurchaseRequests, mockBudgetData, mockUserStats, mockApiCall } from '@/lib/mockData'
 import {
   ShoppingCart,
   Clock,
@@ -11,6 +13,8 @@ import {
   TrendingUp,
   AlertCircle,
   DollarSign,
+  Users,
+  TrendingDown,
 } from 'lucide-react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
@@ -34,17 +38,53 @@ const statusLabels: Record<string, string> = {
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
 export default function DashboardPage() {
-  const totalRequests = mockPurchaseRequests.length
-  const pendingRequests = mockPurchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
-  const approvedRequests = mockPurchaseRequests.filter((r) => r.status === 'APPROVED').length
-  const totalSpent = mockPurchaseRequests
-    .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
-    .reduce((sum, r) => sum + r.estimatedTotal, 0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState<any>(null)
 
-  const recentRequests = mockPurchaseRequests.slice(0, 5)
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      setIsLoading(true)
+      try {
+        // Simulate API call with delay
+        const data = await mockApiCall({
+          requests: mockPurchaseRequests,
+          budget: mockBudgetData,
+          users: mockUserStats,
+        }, 1000)
+
+        setDashboardData(data)
+      } catch (error) {
+        console.error('Error loading dashboard:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadDashboardData()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <DashboardLoadingSkeleton />
+      </DashboardLayout>
+    )
+  }
+
+  const totalRequests = dashboardData.requests.length
+  const pendingRequests = dashboardData.requests.filter((r: any) => r.status === 'IN_REVIEW').length
+  const approvedRequests = dashboardData.requests.filter((r: any) => r.status === 'APPROVED').length
+  const totalSpent = dashboardData.requests
+    .filter((r: any) => r.status === 'APPROVED' || r.status === 'COMPLETED')
+    .reduce((sum: number, r: any) => sum + r.estimatedTotal, 0)
+
+  const budgetUtilization = dashboardData.budget.company.utilizationPercent
+  const activeUsers = dashboardData.users.activeUsers
+
+  const recentRequests = dashboardData.requests.slice(0, 5)
 
   // Budget utilization chart data
-  const budgetChartData = mockBudgetData.departments.map((dept) => ({
+  const budgetChartData = dashboardData.budget.departments.map((dept: any) => ({
     name: dept.name,
     budget: dept.budget,
     spent: dept.spent,
@@ -53,7 +93,7 @@ export default function DashboardPage() {
 
   // Status distribution pie chart data
   const statusDistribution = Object.entries(
-    mockPurchaseRequests.reduce((acc, req) => {
+    dashboardData.requests.reduce((acc: any, req: any) => {
       acc[req.status] = (acc[req.status] || 0) + 1
       return acc
     }, {} as Record<string, number>)
@@ -121,7 +161,7 @@ export default function DashboardPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
-            title="Toplam Talepler"
+            title="Toplam Satın Alma Talepleri"
             value={totalRequests}
             subtitle="Tüm zamanlar"
             icon={ShoppingCart}
@@ -136,19 +176,20 @@ export default function DashboardPage() {
             color="yellow"
           />
           <StatCard
-            title="Onaylanan"
-            value={approvedRequests}
-            subtitle="Bu ay"
-            icon={CheckCircle}
-            color="green"
-            trend={{ value: 8, isPositive: true }}
+            title="Bütçe Kullanımı"
+            value={`${budgetUtilization.toFixed(1)}%`}
+            subtitle={`${dashboardData.budget.company.spent.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} / ${dashboardData.budget.company.total.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}`}
+            icon={budgetUtilization > 75 ? TrendingDown : TrendingUp}
+            color={budgetUtilization > 75 ? 'red' : 'green'}
+            trend={{ value: 5.2, isPositive: budgetUtilization < 75 }}
           />
           <StatCard
-            title="Toplam Harcama"
-            value={totalSpent.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle="Onaylanan talepler"
-            icon={TrendingUp}
+            title="Aktif Kullanıcılar"
+            value={activeUsers}
+            subtitle={`${dashboardData.users.activeToday} bugün aktif`}
+            icon={Users}
             color="purple"
+            trend={{ value: dashboardData.users.userGrowthPercent, isPositive: true }}
           />
         </div>
 
