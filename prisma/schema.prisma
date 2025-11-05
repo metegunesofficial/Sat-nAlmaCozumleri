@@ -1,0 +1,229 @@
+// Attelia Dental E-commerce Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Kullanıcı Modeli
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+  companyName   String?
+  taxNumber     String?
+  address       String?
+  city          String?
+  district      String?
+  postalCode    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orders        Order[]
+  cart          CartItem[]
+  reviews       Review[]
+
+  @@index([email])
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+  DEALER
+}
+
+// Kategori Modeli
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  parentId    String?
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[]
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([parentId])
+}
+
+// Ürün Modeli
+model Product {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  description     String?
+  shortDesc       String?
+  sku             String        @unique
+  barcode         String?
+  price           Decimal       @db.Decimal(10, 2)
+  discountPrice   Decimal?      @db.Decimal(10, 2)
+  wholesalePrice  Decimal?      @db.Decimal(10, 2)
+  minOrderQty     Int           @default(1)
+  stock           Int           @default(0)
+  unit            String        @default("adet")
+  weight          Decimal?      @db.Decimal(10, 2)
+  dimensions      String?
+  images          String[]
+  categoryId      String
+  category        Category      @relation(fields: [categoryId], references: [id])
+  brand           String?
+  manufacturer    String?
+  tags            String[]
+  isActive        Boolean       @default(true)
+  isFeatured      Boolean       @default(false)
+  isNew           Boolean       @default(false)
+  viewCount       Int           @default(0)
+  salesCount      Int           @default(0)
+  rating          Decimal?      @db.Decimal(3, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  reviews         Review[]
+
+  @@index([slug])
+  @@index([sku])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+// Sepet Modeli
+model CartItem {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity    Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// Sipariş Modeli
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  status          OrderStatus   @default(PENDING)
+
+  // Fatura Bilgileri
+  billingName     String
+  billingEmail    String
+  billingPhone    String
+  billingAddress  String
+  billingCity     String
+  billingDistrict String
+  billingPostal   String?
+
+  // Teslimat Bilgileri
+  shippingName    String
+  shippingPhone   String
+  shippingAddress String
+  shippingCity    String
+  shippingDistrict String
+  shippingPostal  String?
+
+  // Fiyat Bilgileri
+  subtotal        Decimal       @db.Decimal(10, 2)
+  shippingCost    Decimal       @db.Decimal(10, 2)
+  tax             Decimal       @db.Decimal(10, 2)
+  discount        Decimal       @db.Decimal(10, 2) @default(0)
+  total           Decimal       @db.Decimal(10, 2)
+
+  paymentMethod   String
+  paymentStatus   PaymentStatus @default(PENDING)
+
+  notes           String?
+  trackingNumber  String?
+
+  items           OrderItem[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([orderNumber])
+  @@index([userId])
+  @@index([status])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// Sipariş Ürün Modeli
+model OrderItem {
+  id          String    @id @default(cuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  productName String
+  productSku  String
+  quantity    Int
+  price       Decimal   @db.Decimal(10, 2)
+  total       Decimal   @db.Decimal(10, 2)
+
+  @@index([orderId])
+}
+
+// Ürün Yorumları
+model Review {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating      Int
+  comment     String?
+  isApproved  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([productId])
+  @@index([userId])
+}
+
+// Site Ayarları
+model Setting {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  value       String
+  type        String    @default("text")
+  group       String    @default("general")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([key])
+  @@index([group])
+}
