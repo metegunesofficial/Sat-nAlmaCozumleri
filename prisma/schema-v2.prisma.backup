@@ -34,8 +34,6 @@ model Company {
   orders        Order[]
   purchaseRequests PurchaseRequest[]
   workflows     ApprovalWorkflow[]
-  companyBudgets CompanyBudget[]
-  purchaseCategories PurchaseCategory[]
 
   @@index([slug])
 }
@@ -73,7 +71,6 @@ model User {
   purchaseRequests    PurchaseRequest[]
   approvalActions     ApprovalAction[]
   managedDepartments  Department[] @relation("DepartmentManager")
-  userBudgets         UserBudget[]
 
   @@unique([email, companyId])
   @@index([email])
@@ -124,7 +121,7 @@ model Department {
   @@index([managerId])
 }
 
-// Bütçe Yönetimi - Departman Bazlı
+// Bütçe Yönetimi
 model Budget {
   id              String      @id @default(cuid())
   departmentId    String
@@ -143,84 +140,6 @@ model Budget {
   @@unique([departmentId, year, month])
   @@index([departmentId])
   @@index([year])
-}
-
-// Şirket Bazlı Bütçe
-model CompanyBudget {
-  id              String      @id @default(cuid())
-  companyId       String
-  company         Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  year            Int
-  month           Int?
-  amount          Decimal     @db.Decimal(12, 2)
-  spent           Decimal     @db.Decimal(12, 2) @default(0)
-  reserved        Decimal     @db.Decimal(12, 2) @default(0)
-  notes           String?
-  category        String?     // Genel, IT, Operasyonel, vs.
-
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@unique([companyId, year, month, category])
-  @@index([companyId])
-  @@index([year])
-}
-
-// Kullanıcı/Kişi Bazlı Bütçe
-model UserBudget {
-  id              String      @id @default(cuid())
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  year            Int
-  month           Int?
-  amount          Decimal     @db.Decimal(12, 2)
-  spent           Decimal     @db.Decimal(12, 2) @default(0)
-  reserved        Decimal     @db.Decimal(12, 2) @default(0)
-  notes           String?
-
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@unique([userId, year, month])
-  @@index([userId])
-  @@index([year])
-}
-
-// Satın Alım Kategori Tanımlamaları (Hiyerarşik)
-model PurchaseCategory {
-  id              String              @id @default(cuid())
-  companyId       String
-  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  name            String
-  code            String
-  description     String?
-  parentId        String?
-  parent          PurchaseCategory?   @relation("PurchaseCategoryHierarchy", fields: [parentId], references: [id])
-  children        PurchaseCategory[]  @relation("PurchaseCategoryHierarchy")
-
-  // Bütçe limitleri
-  monthlyLimit    Decimal?            @db.Decimal(12, 2)
-  yearlyLimit     Decimal?            @db.Decimal(12, 2)
-
-  // Onay gereksinimleri
-  requiresApproval Boolean            @default(true)
-  minApprovalAmount Decimal?          @db.Decimal(12, 2)
-
-  isActive        Boolean             @default(true)
-  order           Int                 @default(0)
-
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  purchaseRequests PurchaseRequest[]
-
-  @@unique([companyId, code])
-  @@index([companyId])
-  @@index([code])
-  @@index([parentId])
 }
 
 // Kategori Modeli
@@ -430,10 +349,6 @@ model PurchaseRequest {
   departmentId    String
   department      Department          @relation(fields: [departmentId], references: [id])
 
-  // Satın alım kategorisi
-  purchaseCategoryId String?
-  purchaseCategory   PurchaseCategory? @relation(fields: [purchaseCategoryId], references: [id])
-
   title           String
   description     String?
   priority        RequestPriority     @default(NORMAL)
@@ -462,7 +377,6 @@ model PurchaseRequest {
   @@index([requestNumber])
   @@index([requesterId])
   @@index([departmentId])
-  @@index([purchaseCategoryId])
   @@index([status])
 }
 
