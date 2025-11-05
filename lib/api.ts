@@ -97,13 +97,19 @@ export const productsApi = {
 // Categories API
 export const categoriesApi = {
   getAll: () => fetchWithAuth('/api/categories'),
+  getById: (id: string) => fetchWithAuth(`/api/categories/${id}`),
   create: (data: any) => fetchWithAuth('/api/categories', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => fetchWithAuth(`/api/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => fetchWithAuth(`/api/categories/${id}`, { method: 'DELETE' }),
 }
 
 // Departments API
 export const departmentsApi = {
   getAll: () => fetchWithAuth('/api/departments'),
+  getById: (id: string) => fetchWithAuth(`/api/departments/${id}`),
   create: (data: any) => fetchWithAuth('/api/departments', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => fetchWithAuth(`/api/departments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => fetchWithAuth(`/api/departments/${id}`, { method: 'DELETE' }),
 }
 
 // Purchase Requests API
