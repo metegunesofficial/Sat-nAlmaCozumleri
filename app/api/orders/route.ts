@@ -125,11 +125,29 @@ export async function POST(request: NextRequest) {
     const tax = subtotal * 0.18 // 18% KDV
     const total = subtotal + shippingCost + tax
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Create order
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
-        userId: decoded.userId,
+        user: {
+          connect: { id: decoded.userId }
+        },
+        company: {
+          connect: { id: user.companyId }
+        },
         billingName: body.billingName,
         billingEmail: body.billingEmail,
         billingPhone: body.billingPhone,
