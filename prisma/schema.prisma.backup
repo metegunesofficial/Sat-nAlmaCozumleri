@@ -1,4 +1,4 @@
-// Attelia Dental Multi-Tenant E-commerce Database Schema
+// Attelia Dental E-commerce Database Schema
 
 generator client {
   provider = "prisma-client-js"
@@ -9,58 +9,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Şirket/Organizasyon Modeli (Multi-tenant)
-model Company {
-  id            String    @id @default(cuid())
-  name          String
-  slug          String    @unique
-  taxNumber     String?   @unique
-  address       String?
-  city          String?
-  phone         String?
-  email         String?
-  website       String?
-  logo          String?
-  isActive      Boolean   @default(true)
-  settings      Json?
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  users         User[]
-  departments   Department[]
-  categories    Category[]
-  products      Product[]
-  orders        Order[]
-  purchaseRequests PurchaseRequest[]
-  workflows     ApprovalWorkflow[]
-
-  @@index([slug])
-}
-
 // Kullanıcı Modeli
 model User {
   id            String    @id @default(cuid())
-  email         String
+  email         String    @unique
   name          String
   password      String
   phone         String?
-  role          UserRole  @default(EMPLOYEE)
-
-  // Multi-tenant
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role          UserRole  @default(CUSTOMER)
+  companyName   String?
+  taxNumber     String?
+  address       String?
+  city          String?
+  district      String?
+  postalCode    String?
 
   // Departman bilgileri
   departmentId  String?
   department    Department? @relation(fields: [departmentId], references: [id])
   position      String?
-  employeeId    String?
-
-  address       String?
-  city          String?
-  district      String?
-  postalCode    String?
+  employeeId    String?     @unique
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -72,84 +40,26 @@ model User {
   approvalActions     ApprovalAction[]
   managedDepartments  Department[] @relation("DepartmentManager")
 
-  @@unique([email, companyId])
   @@index([email])
-  @@index([companyId])
   @@index([departmentId])
   @@index([employeeId])
 }
 
 enum UserRole {
-  SUPER_ADMIN        // Platform admin
-  COMPANY_ADMIN      // Şirket admin'i
+  ADMIN
+  CUSTOMER
+  DEALER
   EMPLOYEE
   DEPARTMENT_MANAGER
   FINANCE_MANAGER
   GENERAL_MANAGER
-  PROCUREMENT_MANAGER
-}
-
-// Departman Modeli
-model Department {
-  id              String    @id @default(cuid())
-  companyId       String
-  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  name            String
-  code            String
-  description     String?
-  managerId       String?
-  manager         User?     @relation("DepartmentManager", fields: [managerId], references: [id])
-  parentId        String?
-  parent          Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
-  children        Department[] @relation("DepartmentHierarchy")
-
-  monthlyBudget   Decimal?  @db.Decimal(12, 2)
-  yearlyBudget    Decimal?  @db.Decimal(12, 2)
-
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  employees           User[]
-  purchaseRequests    PurchaseRequest[]
-  budgets             Budget[]
-
-  @@unique([companyId, code])
-  @@index([companyId])
-  @@index([code])
-  @@index([managerId])
-}
-
-// Bütçe Yönetimi
-model Budget {
-  id              String      @id @default(cuid())
-  departmentId    String
-  department      Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-
-  year            Int
-  month           Int?
-  amount          Decimal     @db.Decimal(12, 2)
-  spent           Decimal     @db.Decimal(12, 2) @default(0)
-  reserved        Decimal     @db.Decimal(12, 2) @default(0)
-  notes           String?
-
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-
-  @@unique([departmentId, year, month])
-  @@index([departmentId])
-  @@index([year])
 }
 
 // Kategori Modeli
 model Category {
   id          String    @id @default(cuid())
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
   name        String
-  slug        String
+  slug        String    @unique
   description String?
   image       String?
   parentId    String?
@@ -158,12 +68,9 @@ model Category {
   products    Product[]
   order       Int       @default(0)
   isActive    Boolean   @default(true)
-
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@unique([companyId, slug])
-  @@index([companyId])
   @@index([slug])
   @@index([parentId])
 }
@@ -171,14 +78,11 @@ model Category {
 // Ürün Modeli
 model Product {
   id              String        @id @default(cuid())
-  companyId       String
-  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
   name            String
-  slug            String
+  slug            String        @unique
   description     String?
   shortDesc       String?
-  sku             String
+  sku             String        @unique
   barcode         String?
   price           Decimal       @db.Decimal(10, 2)
   discountPrice   Decimal?      @db.Decimal(10, 2)
@@ -189,10 +93,8 @@ model Product {
   weight          Decimal?      @db.Decimal(10, 2)
   dimensions      String?
   images          String[]
-
   categoryId      String
   category        Category      @relation(fields: [categoryId], references: [id])
-
   brand           String?
   manufacturer    String?
   tags            String[]
@@ -202,7 +104,6 @@ model Product {
   viewCount       Int           @default(0)
   salesCount      Int           @default(0)
   rating          Decimal?      @db.Decimal(3, 2)
-
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -211,8 +112,6 @@ model Product {
   reviews               Review[]
   purchaseRequestItems  PurchaseRequestItem[]
 
-  @@unique([companyId, sku])
-  @@index([companyId])
   @@index([slug])
   @@index([sku])
   @@index([categoryId])
@@ -227,7 +126,6 @@ model CartItem {
   productId   String
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   quantity    Int
-
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -238,14 +136,12 @@ model CartItem {
 // Sipariş Modeli
 model Order {
   id              String        @id @default(cuid())
-  companyId       String
-  company         Company       @relation(fields: [companyId], references: [id])
-
-  orderNumber     String
+  orderNumber     String        @unique
   userId          String
   user            User          @relation(fields: [userId], references: [id])
   status          OrderStatus   @default(PENDING)
 
+  // Fatura Bilgileri
   billingName     String
   billingEmail    String
   billingPhone    String
@@ -254,6 +150,7 @@ model Order {
   billingDistrict String
   billingPostal   String?
 
+  // Teslimat Bilgileri
   shippingName    String
   shippingPhone   String
   shippingAddress String
@@ -261,6 +158,7 @@ model Order {
   shippingDistrict String
   shippingPostal  String?
 
+  // Fiyat Bilgileri
   subtotal        Decimal       @db.Decimal(10, 2)
   shippingCost    Decimal       @db.Decimal(10, 2)
   tax             Decimal       @db.Decimal(10, 2)
@@ -279,8 +177,6 @@ model Order {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  @@unique([companyId, orderNumber])
-  @@index([companyId])
   @@index([orderNumber])
   @@index([userId])
   @@index([status])
@@ -329,7 +225,6 @@ model Review {
   rating      Int
   comment     String?
   isApproved  Boolean   @default(false)
-
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -337,13 +232,72 @@ model Review {
   @@index([userId])
 }
 
+// Site Ayarları
+model Setting {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  value       String
+  type        String    @default("text")
+  group       String    @default("general")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([key])
+  @@index([group])
+}
+
+// Departman Modeli
+model Department {
+  id              String    @id @default(cuid())
+  name            String
+  code            String    @unique
+  description     String?
+  managerId       String?
+  manager         User?     @relation("DepartmentManager", fields: [managerId], references: [id])
+  parentId        String?
+  parent          Department? @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children        Department[] @relation("DepartmentHierarchy")
+
+  // Bütçe bilgileri
+  monthlyBudget   Decimal?  @db.Decimal(12, 2)
+  yearlyBudget    Decimal?  @db.Decimal(12, 2)
+
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  employees           User[]
+  purchaseRequests    PurchaseRequest[]
+  budgets             Budget[]
+
+  @@index([code])
+  @@index([managerId])
+  @@index([parentId])
+}
+
+// Bütçe Yönetimi
+model Budget {
+  id              String      @id @default(cuid())
+  departmentId    String
+  department      Department  @relation(fields: [departmentId], references: [id])
+  year            Int
+  month           Int?
+  amount          Decimal     @db.Decimal(12, 2)
+  spent           Decimal     @db.Decimal(12, 2) @default(0)
+  reserved        Decimal     @db.Decimal(12, 2) @default(0)
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([departmentId, year, month])
+  @@index([departmentId])
+  @@index([year])
+}
+
 // Satın Alma Talebi
 model PurchaseRequest {
   id              String              @id @default(cuid())
-  companyId       String
-  company         Company             @relation(fields: [companyId], references: [id])
-
-  requestNumber   String
+  requestNumber   String              @unique
   requesterId     String
   requester       User                @relation(fields: [requesterId], references: [id])
   departmentId    String
@@ -354,15 +308,19 @@ model PurchaseRequest {
   priority        RequestPriority     @default(NORMAL)
   status          RequestStatus       @default(DRAFT)
 
+  // Talep tutarı
   estimatedTotal  Decimal             @db.Decimal(12, 2)
   actualTotal     Decimal?            @db.Decimal(12, 2)
 
+  // İhtiyaç tarihi
   requiredDate    DateTime?
 
+  // Onay bilgileri
   currentStep     Int                 @default(0)
   workflowId      String?
   workflow        ApprovalWorkflow?   @relation(fields: [workflowId], references: [id])
 
+  // Sipariş ile ilişki
   orderId         String?             @unique
   order           Order?              @relation(fields: [orderId], references: [id])
 
@@ -372,12 +330,11 @@ model PurchaseRequest {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  @@unique([companyId, requestNumber])
-  @@index([companyId])
   @@index([requestNumber])
   @@index([requesterId])
   @@index([departmentId])
   @@index([status])
+  @@index([workflowId])
 }
 
 // Satın Alma Talep Ürünleri
@@ -388,6 +345,7 @@ model PurchaseRequestItem {
   productId         String?
   product           Product?        @relation(fields: [productId], references: [id])
 
+  // Manuel ürün girişi için
   productName       String
   productSku        String?
   quantity          Int
@@ -405,16 +363,14 @@ model PurchaseRequestItem {
 // Onay İş Akışı Tanımları
 model ApprovalWorkflow {
   id              String        @id @default(cuid())
-  companyId       String
-  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
   name            String
   description     String?
   isActive        Boolean       @default(true)
 
+  // Koşullar
   minAmount       Decimal?      @db.Decimal(12, 2)
   maxAmount       Decimal?      @db.Decimal(12, 2)
-  departmentIds   String[]
+  departmentIds   String[]      // Hangi departmanlar için geçerli
 
   steps           ApprovalStep[]
   purchaseRequests PurchaseRequest[]
@@ -422,7 +378,6 @@ model ApprovalWorkflow {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  @@index([companyId])
   @@index([isActive])
 }
 
@@ -435,9 +390,11 @@ model ApprovalStep {
   stepOrder       Int
   stepName        String
   approverRole    UserRole?
-  approverId      String?
+  approverId      String?             // Specific user or role
   requiredAction  StepAction          @default(APPROVE)
   isOptional      Boolean             @default(false)
+
+  // Paralel onay (aynı anda birden fazla onaylayıcı)
   isParallel      Boolean             @default(false)
 
   createdAt       DateTime            @default(now())
@@ -465,21 +422,6 @@ model ApprovalAction {
 
   @@index([requestId])
   @@index([approverId])
-}
-
-// Site Ayarları
-model Setting {
-  id          String    @id @default(cuid())
-  key         String    @unique
-  value       String
-  type        String    @default("text")
-  group       String    @default("general")
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([key])
-  @@index([group])
 }
 
 // Enums
