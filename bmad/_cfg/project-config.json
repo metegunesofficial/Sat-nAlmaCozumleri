@@ -1,0 +1,272 @@
+{
+  "project": {
+    "name": "Attelia Dental",
+    "fullName": "Enterprise Satın Alma Yönetim Platformu",
+    "version": "1.0.0",
+    "description": "Multi-tenant B2B purchase and approval management system",
+    "repository": "https://github.com/metegunesofficial/Sat-nAlmaCozumleri"
+  },
+  "bmad": {
+    "version": "1.0",
+    "track": "BMad Method Track",
+    "planning": "Full Planning",
+    "dateInitialized": "2025-11-05",
+    "status": "Planning Complete"
+  },
+  "team": {
+    "agents": {
+      "enabled": [
+        "Product Manager",
+        "Business Analyst",
+        "Solutions Architect",
+        "Technical Lead",
+        "Frontend Developer",
+        "Backend Developer",
+        "Database Engineer",
+        "UX Designer",
+        "QA Engineer",
+        "Security Auditor",
+        "DevOps Engineer",
+        "Performance Engineer"
+      ],
+      "total": 12
+    },
+    "roles": {
+      "productLead": "Product Manager Agent",
+      "techLead": "Technical Lead Agent",
+      "architectureLead": "Solutions Architect Agent"
+    }
+  },
+  "technology": {
+    "frontend": {
+      "framework": "Next.js 14",
+      "runtime": "React 18",
+      "language": "TypeScript 5.4+",
+      "styling": "Tailwind CSS 3.4+",
+      "icons": "Lucide React"
+    },
+    "backend": {
+      "framework": "Next.js API Routes",
+      "language": "TypeScript 5.4+",
+      "orm": "Prisma 5.11+",
+      "validation": "Zod 3.22+"
+    },
+    "database": {
+      "type": "PostgreSQL",
+      "version": "14+",
+      "orm": "Prisma"
+    },
+    "auth": {
+      "method": "JWT",
+      "library": "jsonwebtoken",
+      "passwordHashing": "bcryptjs"
+    },
+    "devOps": {
+      "cicd": "GitHub Actions",
+      "hosting": {
+        "development": "Local",
+        "staging": "Vercel",
+        "production": "TBD (AWS/Azure)"
+      }
+    }
+  },
+  "architecture": {
+    "pattern": "Monolithic with Modular Design",
+    "style": "Server-Side Rendering (SSR)",
+    "multiTenant": true,
+    "tenantIsolation": "Discriminator Column (companyId)",
+    "scalability": "Horizontal scaling ready"
+  },
+  "features": {
+    "core": [
+      "Multi-tenant architecture",
+      "3-tier budget management",
+      "Multi-step approval workflows",
+      "Purchase request management",
+      "Role-based access control",
+      "Product catalog",
+      "Reporting & analytics"
+    ],
+    "planned": [
+      "Email notifications",
+      "File attachments",
+      "Advanced reporting UI",
+      "Excel/PDF export",
+      "Audit logging",
+      "Mobile app",
+      "Supplier portal"
+    ]
+  },
+  "phases": {
+    "current": "Planning Complete / Implementation Starting",
+    "completed": [
+      {
+        "phase": "Planning",
+        "startDate": "2025-11-05",
+        "endDate": "2025-11-05",
+        "deliverables": [
+          "Product Requirements Document",
+          "Technical Architecture Document",
+          "UX/UI Design Guide",
+          "Agent Definitions",
+          "Workflow Documentation"
+        ]
+      }
+    ],
+    "upcoming": [
+      {
+        "phase": "Implementation",
+        "startDate": "2025-11-06",
+        "duration": "12 weeks",
+        "sprints": 6
+      },
+      {
+        "phase": "Quality Assurance",
+        "duration": "2 weeks"
+      },
+      {
+        "phase": "Deployment",
+        "duration": "1 week"
+      }
+    ]
+  },
+  "metrics": {
+    "development": {
+      "testCoverage": {
+        "target": 80,
+        "current": 0,
+        "unit": "percentage"
+      },
+      "codeQuality": {
+        "lintErrors": 0,
+        "typeErrors": 0
+      },
+      "velocity": {
+        "sprintCapacity": 40,
+        "unit": "story points"
+      }
+    },
+    "performance": {
+      "apiResponseTime": {
+        "target": 500,
+        "unit": "ms",
+        "percentile": "p95"
+      },
+      "pageLoadTime": {
+        "target": 2000,
+        "unit": "ms"
+      }
+    },
+    "business": {
+      "activeUsers": {
+        "target": 100,
+        "unit": "users"
+      },
+      "userSatisfaction": {
+        "target": 4.0,
+        "scale": "5.0"
+      }
+    }
+  },
+  "compliance": {
+    "standards": [
+      "GDPR (EU)",
+      "KVKK (Turkey)"
+    ],
+    "planned": [
+      "SOC 2 Type II",
+      "ISO 27001"
+    ]
+  },
+  "documentation": {
+    "mainDocs": [
+      "bmad/README.md",
+      "bmad/planning/prd/product-requirements.md",
+      "bmad/planning/architecture/technical-architecture.md",
+      "bmad/planning/ux/ux-design-guide.md"
+    ],
+    "agents": "bmad/agents/README.md",
+    "workflows": [
+      "bmad/workflows/planning/planning-workflows.md",
+      "bmad/workflows/implementation/implementation-workflows.md"
+    ]
+  },
+  "conventions": {
+    "git": {
+      "branchNaming": "feature/*, fix/*, docs/*, refactor/*",
+      "commitMessages": "Conventional Commits (feat, fix, docs, etc.)"
+    },
+    "code": {
+      "typescript": {
+        "strict": true,
+        "noImplicitAny": true,
+        "explicitReturnTypes": true
+      },
+      "react": {
+        "componentType": "Functional only",
+        "hooks": "Required",
+        "serverComponents": "Default (Next.js 14)"
+      }
+    },
+    "api": {
+      "design": "RESTful",
+      "versioning": "URL-based (future: /api/v2/)",
+      "authentication": "JWT Bearer Token"
+    }
+  },
+  "quality": {
+    "codeReview": {
+      "required": true,
+      "minApprovers": 1,
+      "agents": [
+        "Technical Lead",
+        "Security Auditor",
+        "Performance Engineer"
+      ]
+    },
+    "testing": {
+      "levels": [
+        "Unit (70%)",
+        "Integration (20%)",
+        "E2E (10%)"
+      ],
+      "tools": [
+        "Jest/Vitest",
+        "React Testing Library",
+        "Playwright/Cypress"
+      ]
+    },
+    "security": {
+      "audit": "Per release",
+      "dependencies": "Weekly scan",
+      "penetrationTesting": "Quarterly"
+    }
+  },
+  "deployment": {
+    "environments": [
+      "development",
+      "staging",
+      "production"
+    ],
+    "cicd": {
+      "enabled": true,
+      "platform": "GitHub Actions",
+      "autoDeployStaging": true,
+      "autoDeployProduction": false
+    },
+    "monitoring": {
+      "enabled": false,
+      "planned": true,
+      "tools": [
+        "Application monitoring (future)",
+        "Error tracking (future)",
+        "Performance monitoring (future)"
+      ]
+    }
+  },
+  "meta": {
+    "configVersion": "1.0",
+    "lastUpdated": "2025-11-05",
+    "maintainer": "BMAD Team"
+  }
+}
