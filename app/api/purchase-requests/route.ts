@@ -135,6 +135,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
+    // Get user with companyId and departmentId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, departmentId: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const targetDepartmentId = departmentId || user.departmentId
+
+    if (!targetDepartmentId) {
+      return NextResponse.json(
+        { success: false, error: 'Departman bilgisi gerekli' },
+        { status: 400 }
+      )
+    }
+
     // Calculate estimated total
     const estimatedTotal = items.reduce((sum: number, item: any) => {
       return sum + (item.unitPrice * item.quantity)
@@ -164,7 +186,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         departmentIds: {
-          has: departmentId
+          has: targetDepartmentId
         }
       },
       include: {
@@ -179,15 +201,24 @@ export async function POST(request: NextRequest) {
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
         requestNumber,
-        requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        requester: {
+          connect: { id: user.id }
+        },
+        department: {
+          connect: { id: targetDepartmentId }
+        },
+        company: {
+          connect: { id: user.companyId }
+        },
         title,
         description,
         priority: priority || 'NORMAL',
         status: 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
-        workflowId: workflow?.id,
+        workflow: workflow ? {
+          connect: { id: workflow.id }
+        } : undefined,
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
