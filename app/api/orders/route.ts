@@ -142,8 +142,12 @@ export async function POST(request: NextRequest) {
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
-        companyId: user.companyId,
-        userId: decoded.userId,
+        company: {
+          connect: { id: user.companyId },
+        },
+        user: {
+          connect: { id: decoded.userId },
+        },
         billingName: body.billingName,
         billingEmail: body.billingEmail,
         billingPhone: body.billingPhone,
