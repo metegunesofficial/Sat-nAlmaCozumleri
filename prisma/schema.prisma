@@ -439,15 +439,48 @@ model PurchaseRequest {
   purchaseCategoryId String?
   purchaseCategory   PurchaseCategory? @relation(fields: [purchaseCategoryId], references: [id])
 
+  // Tedarikçi bilgisi
+  supplierId      String?
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id])
+
   title           String
   description     String?
   priority        RequestPriority     @default(NORMAL)
   status          RequestStatus       @default(DRAFT)
+  requestType     RequestType         @default(REGULAR)
 
   estimatedTotal  Decimal             @db.Decimal(12, 2)
   actualTotal     Decimal?            @db.Decimal(12, 2)
 
   requiredDate    DateTime?
+
+  // Teslimat bilgileri
+  deliveryAddress String?
+  estimatedDeliveryDate DateTime?
+  actualDeliveryDate    DateTime?
+
+  // Maliyet merkezi ve proje takibi
+  costCenter      String?
+  projectCode     String?
+
+  // Durum değişiklik tarihleri
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  cancelledAt     DateTime?
+  completedAt     DateTime?
+
+  // Onay bilgileri
+  approvedById    String?
+  rejectedById    String?
+
+  // Red/İptal nedenleri
+  rejectionReason    String?
+  cancellationReason String?
+
+  // Notlar ve belgeler
+  internalNotes   String?             // Dahili notlar (onaylayanlar için)
+  attachments     String[]            // Belge URL'leri
 
   currentStep     Int                 @default(0)
   workflowId      String?
@@ -468,7 +501,11 @@ model PurchaseRequest {
   @@index([requesterId])
   @@index([departmentId])
   @@index([purchaseCategoryId])
+  @@index([supplierId])
   @@index([status])
+  @@index([requestType])
+  @@index([costCenter])
+  @@index([projectCode])
 }
 
 // Satın Alma Talep Ürünleri
@@ -591,6 +628,15 @@ enum RequestStatus {
   COMPLETED
 }
 
+enum RequestType {
+  REGULAR           // Normal satın alma
+  URGENT            // Acil satın alma
+  TENDER            // İhale
+  FRAMEWORK_AGREEMENT // Çerçeve anlaşma
+  SPOT_PURCHASE     // Spot satın alma
+  RECURRING         // Düzenli/Tekrarlayan
+}
+
 enum StepAction {
   APPROVE
   REVIEW
@@ -628,7 +674,8 @@ model Supplier {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  products      Product[]
+  products         Product[]
+  purchaseRequests PurchaseRequest[]
 
   @@unique([companyId, email])
   @@index([companyId])
