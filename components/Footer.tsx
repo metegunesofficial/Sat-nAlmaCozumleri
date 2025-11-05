@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Facebook, Instagram, Twitter, Linkedin, Mail, Phone, MapPin } from 'lucide-react'
 
 export default function Footer() {
@@ -129,10 +130,10 @@ export default function Footer() {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center text-sm">
             <p>&copy; 2024 Attelia. Tüm hakları saklıdır.</p>
-            <div className="flex gap-4 mt-4 md:mt-0">
-              <img src="/payment-visa.png" alt="Visa" className="h-6" />
-              <img src="/payment-mastercard.png" alt="Mastercard" className="h-6" />
-              <img src="/payment-amex.png" alt="American Express" className="h-6" />
+            <div className="flex gap-4 mt-4 md:mt-0 items-center">
+              <Image src="/payment-visa.png" alt="Visa" width={48} height={24} className="h-6 w-auto" />
+              <Image src="/payment-mastercard.png" alt="Mastercard" width={48} height={24} className="h-6 w-auto" />
+              <Image src="/payment-amex.png" alt="American Express" width={48} height={24} className="h-6 w-auto" />
             </div>
           </div>
         </div>

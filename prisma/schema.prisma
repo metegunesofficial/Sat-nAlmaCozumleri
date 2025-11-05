@@ -36,6 +36,7 @@ model Company {
   workflows     ApprovalWorkflow[]
   companyBudgets CompanyBudget[]
   purchaseCategories PurchaseCategory[]
+  suppliers     Supplier[]
 
   @@index([slug])
 }
@@ -274,6 +275,9 @@ model Product {
   categoryId      String
   category        Category      @relation(fields: [categoryId], references: [id])
 
+  supplierId      String?
+  supplier        Supplier?     @relation(fields: [supplierId], references: [id])
+
   brand           String?
   manufacturer    String?
   tags            String[]
@@ -297,6 +301,7 @@ model Product {
   @@index([slug])
   @@index([sku])
   @@index([categoryId])
+  @@index([supplierId])
   @@index([isActive])
 }
 
@@ -597,4 +602,41 @@ enum ActionType {
   REJECTED
   RETURNED
   COMMENTED
+}
+
+// Tedarikçi Modeli
+model Supplier {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name          String
+  contactPerson String?
+  email         String
+  phone         String?
+  address       String?
+  city          String?
+  taxNumber     String?
+
+  rating        Float?   @default(0)
+  totalOrders   Int      @default(0)
+  status        SupplierStatus @default(ACTIVE)
+
+  notes         String?
+  website       String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products      Product[]
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@index([status])
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
