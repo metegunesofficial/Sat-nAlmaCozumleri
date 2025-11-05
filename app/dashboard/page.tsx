@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-import Loading from '@/components/Loading'
+import { DashboardSkeleton } from '@/components/skeletons'
 import { purchaseRequestsApi, reportsApi } from '@/lib/api'
 import { useNotification } from '@/contexts/NotificationContext'
 import {
@@ -82,7 +82,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <Loading />
+        <DashboardSkeleton />
       </DashboardLayout>
     )
   }

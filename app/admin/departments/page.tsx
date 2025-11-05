@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
-import Loading from '@/components/Loading'
+import { AdminPageSkeleton } from '@/components/skeletons'
 import { useNotification } from '@/contexts/NotificationContext'
 import { departmentsApi } from '@/lib/api'
 import { Plus, Edit, Trash2, Building2, TrendingUp } from 'lucide-react'
@@ -225,7 +225,7 @@ export default function DepartmentsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <Loading />
+        <AdminPageSkeleton statCards={4} tableColumns={7} />
       </DashboardLayout>
     )
   }

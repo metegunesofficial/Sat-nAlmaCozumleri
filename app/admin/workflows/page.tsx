@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
-import Loading from '@/components/Loading'
+import { AdminPageSkeleton } from '@/components/skeletons'
 import { useNotification } from '@/contexts/NotificationContext'
 import { workflowsApi } from '@/lib/api'
 import { Plus, Edit, Trash2, Settings, ChevronRight } from 'lucide-react'
@@ -158,7 +158,7 @@ export default function WorkflowsPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <Loading />
+        <AdminPageSkeleton statCards={3} tableColumns={4} />
       </DashboardLayout>
     )
   }

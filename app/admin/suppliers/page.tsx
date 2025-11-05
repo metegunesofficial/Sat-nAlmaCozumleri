@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
-import Loading from '@/components/Loading'
+import { AdminPageSkeleton } from '@/components/skeletons'
 import EmptyState from '@/components/EmptyState'
 import { useNotification } from '@/contexts/NotificationContext'
 import { suppliersApi, ApiError } from '@/lib/api'
@@ -280,7 +280,7 @@ export default function SuppliersPage() {
         )}
 
         {isLoading ? (
-          <Loading message="Tedarikçiler yükleniyor..." />
+          <AdminPageSkeleton statCards={2} tableColumns={5} />
         ) : suppliers.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 p-8">
             <EmptyState
