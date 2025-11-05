@@ -24,22 +24,37 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get user's company
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user?.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'Şirket bilgisi bulunamadı' },
+        { status: 400 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {}
+    const where: any = {
+      companyId: user.companyId
+    }
 
     // Role-based filtering
     if (decoded.role === 'EMPLOYEE') {
       where.requesterId = decoded.userId
     } else if (decoded.role === 'DEPARTMENT_MANAGER') {
       // Get user's managed departments
-      const user = await prisma.user.findUnique({
+      const userWithDepts = await prisma.user.findUnique({
         where: { id: decoded.userId },
         include: { managedDepartments: true }
       })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
+      const deptIds = userWithDepts?.managedDepartments.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
     // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
@@ -132,6 +147,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get user's company
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user?.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'Şirket bilgisi bulunamadı' },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
@@ -150,6 +178,7 @@ export async function POST(request: NextRequest) {
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
         requestNumber,
+        companyId: user.companyId,
         requesterId: decoded.userId,
         departmentId: departmentId || decoded.departmentId,
         title,
