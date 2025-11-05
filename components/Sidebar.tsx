@@ -143,7 +143,7 @@ export default function Sidebar() {
                     </button>
                     {isExpanded && (
                       <ul className="mt-1 ml-4 space-y-1">
-                        {item.children.map((child) => {
+                        {item.children?.map((child) => {
                           const ChildIcon = child.icon
                           return (
                             <li key={child.href}>

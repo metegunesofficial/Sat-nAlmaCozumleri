@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ProductCard from '@/components/ProductCard'
 import { Filter, Grid, List, ChevronDown } from 'lucide-react'
 import { Product } from '@/types'
@@ -12,11 +12,7 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState('createdAt')
   const [filterOpen, setFilterOpen] = useState(false)
 
-  useEffect(() => {
-    fetchProducts()
-  }, [sortBy])
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/products?sort=${sortBy}&order=desc&limit=20`)
@@ -30,7 +26,11 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [sortBy])
+
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
 
   return (
     <div className="bg-gray-50 min-h-screen">

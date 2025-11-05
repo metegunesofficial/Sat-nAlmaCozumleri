@@ -183,7 +183,7 @@ export default function DashboardPage() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -204,7 +204,7 @@ export default function DashboardPage() {
           <div className="flex-1">
             <h4 className="font-semibold text-yellow-900">Bütçe Uyarısı</h4>
             <p className="text-sm text-yellow-800 mt-1">
-              Bilgi İşlem departmanı bütçesinin %90'ı kullanıldı. Yeni talepler için bütçe artırımı gerekebilir.
+              Bilgi İşlem departmanı bütçesinin %90&apos;ı kullanıldı. Yeni talepler için bütçe artırımı gerekebilir.
             </p>
           </div>
         </div>

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// Force dynamic rendering to skip static optimization during build
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
         where: { id: decoded.userId },
         include: { managedDepartments: true }
       })
-      const deptIds = user?.managedDepartments.map(d => d.id) || []
+      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
     // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all

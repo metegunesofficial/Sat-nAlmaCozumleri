@@ -190,7 +190,7 @@ export default function ReportsPage() {
                 Bütçe Uyarısı
               </h4>
               <p className={`text-sm mt-1 ${utilizationPercentage > 90 ? 'text-red-800' : 'text-yellow-800'}`}>
-                Yıllık bütçenizin %{utilizationPercentage.toFixed(1)}'i kullanıldı veya rezerve edildi.
+                Yıllık bütçenizin %{utilizationPercentage.toFixed(1)}&apos;i kullanıldı veya rezerve edildi.
                 {utilizationPercentage > 90
                   ? ' Bütçe artırımı için yönetim ile görüşün.'
                   : ' Harcamalarınızı yakından takip edin.'}
@@ -243,7 +243,7 @@ export default function ReportsPage() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: %${(percent * 100).toFixed(0)}`}
+                  label={({ name, percent }: any) => `${name}: %${(percent * 100).toFixed(0)}`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"

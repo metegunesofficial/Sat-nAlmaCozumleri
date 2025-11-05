@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -50,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate spending by department
     const departmentSpending = await Promise.all(
-      budgets.map(async (budget) => {
+      budgets.map(async (budget: any) => {
         // Get approved requests total
         const approvedRequests = await prisma.purchaseRequest.aggregate({
           where: {
@@ -90,9 +93,9 @@ export async function GET(request: NextRequest) {
     )
 
     // Overall summary
-    const totalBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0)
-    const totalSpent = departmentSpending.reduce((sum, d) => sum + d.spent, 0)
-    const totalReserved = departmentSpending.reduce((sum, d) => sum + d.reserved, 0)
+    const totalBudget = budgets.reduce((sum: number, b: any) => sum + Number(b.amount), 0)
+    const totalSpent = departmentSpending.reduce((sum: number, d: any) => sum + d.spent, 0)
+    const totalReserved = departmentSpending.reduce((sum: number, d: any) => sum + d.reserved, 0)
     const totalAvailable = totalBudget - totalSpent - totalReserved
 
     return NextResponse.json({

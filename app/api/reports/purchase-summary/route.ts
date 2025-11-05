@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -68,9 +71,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const departmentMap = new Map(departments.map(d => [d.id, d]))
+    const departmentMap = new Map(departments.map((d: any) => [d.id, d]))
 
-    const requestsByDeptWithNames = requestsByDepartment.map(item => ({
+    const requestsByDeptWithNames = requestsByDepartment.map((item: any) => ({
       department: departmentMap.get(item.departmentId),
       count: item._count,
       totalAmount: item._sum.estimatedTotal || 0
@@ -96,7 +99,7 @@ export async function GET(request: NextRequest) {
     })
 
     const avgApprovalTime = approvedRequests.length > 0
-      ? approvedRequests.reduce((sum, req) => {
+      ? approvedRequests.reduce((sum: number, req: any) => {
           const diff = new Date(req.updatedAt).getTime() - new Date(req.createdAt).getTime()
           return sum + diff
         }, 0) / approvedRequests.length / (1000 * 60 * 60) // hours
@@ -120,7 +123,7 @@ export async function GET(request: NextRequest) {
       take: 10
     })
 
-    const productIds = topProducts.map(p => p.productId).filter(Boolean) as string[]
+    const productIds = topProducts.map((p: any) => p.productId).filter(Boolean) as string[]
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds }
@@ -133,11 +136,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const productMap = new Map(products.map(p => [p.id, p]))
+    const productMap = new Map(products.map((p: any) => [p.id, p]))
 
     const topProductsWithDetails = topProducts
-      .filter(p => p.productId)
-      .map(item => ({
+      .filter((p: any) => p.productId)
+      .map((item: any) => ({
         product: productMap.get(item.productId!),
         totalQuantity: item._sum.quantity || 0,
         totalAmount: item._sum.totalPrice || 0

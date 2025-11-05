@@ -11,7 +11,7 @@ import ProductCard from '@/components/ProductCard'
 
 export default function ProductDetailPage() {
   const params = useParams()
-  const [product, setProduct] = useState<Product | null>(null)
+  const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
@@ -125,7 +125,7 @@ export default function ProductDetailPage() {
               {/* Thumbnails */}
               {product.images && product.images.length > 1 && (
                 <div className="grid grid-cols-4 gap-2">
-                  {product.images.map((image, index) => (
+                  {product.images.map((image: any, index: number) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}

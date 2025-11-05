@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       _count: true
     })
 
-    const approverIds = [...new Set(approverActions.map(a => a.approverId))]
+    const approverIds = [...new Set(approverActions.map((a: any) => a.approverId))]
     const approvers = await prisma.user.findMany({
       where: {
         id: { in: approverIds }
@@ -57,14 +60,14 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const approverMap = new Map(approvers.map(a => [a.id, a]))
+    const approverMap = new Map(approvers.map((a: any) => [a.id, a]))
 
     // Group by approver
-    const performanceByApprover = approverIds.map(approverId => {
-      const actions = approverActions.filter(a => a.approverId === approverId)
-      const approved = actions.find(a => a.action === 'APPROVED')?._count || 0
-      const rejected = actions.find(a => a.action === 'REJECTED')?._count || 0
-      const returned = actions.find(a => a.action === 'RETURNED')?._count || 0
+    const performanceByApprover = approverIds.map((approverId: any) => {
+      const actions = approverActions.filter((a: any) => a.approverId === approverId)
+      const approved = actions.find((a: any) => a.action === 'APPROVED')?._count || 0
+      const rejected = actions.find((a: any) => a.action === 'REJECTED')?._count || 0
+      const returned = actions.find((a: any) => a.action === 'RETURNED')?._count || 0
       const total = approved + rejected + returned
 
       return {
@@ -88,9 +91,9 @@ export async function GET(request: NextRequest) {
       GROUP BY aa."approverId"
     ` as any[]
 
-    const responseTimeMap = new Map(avgResponseTimes.map(rt => [rt.approverId, Number(rt.avg_hours)]))
+    const responseTimeMap = new Map(avgResponseTimes.map((rt: any) => [rt.approverId, Number(rt.avg_hours)]))
 
-    const performanceWithResponseTime = performanceByApprover.map(perf => ({
+    const performanceWithResponseTime = performanceByApprover.map((perf: any) => ({
       ...perf,
       avgResponseTimeHours: responseTimeMap.get(perf.approver?.id || '') || 0
     }))
@@ -111,8 +114,8 @@ export async function GET(request: NextRequest) {
         requestsByStep,
         summary: {
           totalApprovers: approverIds.length,
-          avgApprovalRate: performanceByApprover.reduce((sum, p) => sum + p.approvalRate, 0) / performanceByApprover.length,
-          avgResponseTime: avgResponseTimes.reduce((sum, rt) => sum + Number(rt.avg_hours), 0) / avgResponseTimes.length
+          avgApprovalRate: performanceByApprover.reduce((sum: number, p: any) => sum + p.approvalRate, 0) / performanceByApprover.length,
+          avgResponseTime: avgResponseTimes.reduce((sum: number, rt: any) => sum + Number(rt.avg_hours), 0) / avgResponseTimes.length
         }
       }
     })

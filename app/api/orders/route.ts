@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { generateOrderNumber } from '@/lib/utils'
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
@@ -103,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals
     let subtotal = 0
-    const orderItems = cartItems.map((item) => {
+    const orderItems = cartItems.map((item: any) => {
       const price = Number(item.product.discountPrice || item.product.price)
       const total = price * item.quantity
       subtotal += total
