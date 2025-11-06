@@ -1,33 +1,72 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Package } from 'lucide-react'
 
-const mockProducts = [
-  { id: 'p1', name: 'Dell Latitude 5430 Laptop', sku: 'DL-5430', price: 35000, category: 'Bilgisayar', stock: 12, status: 'active' },
-  { id: 'p2', name: 'HP LaserJet Pro Printer', sku: 'HP-LJ-PRO', price: 8500, category: 'Yazıcı', stock: 8, status: 'active' },
-  { id: 'p3', name: 'Logitech MX Master Mouse', sku: 'LG-MXM', price: 1200, category: 'Aksesuar', stock: 45, status: 'active' },
-  { id: 'p4', name: 'Samsung 27" Monitor', sku: 'SM-27-MON', price: 6500, category: 'Monitör', stock: 15, status: 'active' },
-  { id: 'p5', name: 'Microsoft Office 365 Lisans', sku: 'MS-O365', price: 450, category: 'Yazılım', stock: 0, status: 'inactive' },
-]
-
 export default function ProductsPage() {
   const { success, error } = useNotification()
+  const [products, setProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
     price: '',
-    category: '',
+    categoryId: '',
     stock: '',
-    status: 'active',
+    isActive: true,
     description: '',
   })
+
+  useEffect(() => {
+    fetchProducts()
+    fetchCategories()
+  }, [])
+
+  const fetchProducts = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/products', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setProducts(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching products:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const res = await fetch('/api/categories', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCategories(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingProduct(null)
@@ -35,9 +74,9 @@ export default function ProductsPage() {
       name: '',
       sku: '',
       price: '',
-      category: '',
+      categoryId: '',
       stock: '',
-      status: 'active',
+      isActive: true,
       description: '',
     })
     setIsModalOpen(true)
@@ -49,41 +88,76 @@ export default function ProductsPage() {
       name: product.name,
       sku: product.sku,
       price: product.price.toString(),
-      category: product.category,
+      categoryId: product.categoryId,
       stock: product.stock.toString(),
-      status: product.status,
+      isActive: product.isActive,
       description: product.description || '',
     })
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.sku || !formData.price) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
     }
 
-    if (editingProduct) {
-      success('Ürün güncellendi!')
-    } else {
-      success('Ürün eklendi!')
+    try {
+      const token = localStorage.getItem('token')
+      const url = editingProduct
+        ? `/api/products/${editingProduct.id}`
+        : '/api/products'
+
+      const res = await fetch(url, {
+        method: editingProduct ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          price: parseFloat(formData.price),
+          stock: parseInt(formData.stock) || 0,
+        })
+      })
+
+      if (res.ok) {
+        success(editingProduct ? 'Ürün güncellendi!' : 'Ürün eklendi!')
+        setIsModalOpen(false)
+        fetchProducts()
+      } else {
+        const data = await res.json()
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (product: any) => {
-    if (confirm(`${product.name} ürününü silmek istediğinize emin misiniz?`)) {
-      success('Ürün silindi!')
+  const handleDelete = async (product: any) => {
+    if (!confirm(`${product.name} ürününü silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        success('Ürün silindi!')
+        fetchProducts()
+      } else {
+        error('Silme işlemi başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
   }
 
   const columns = [
-    {
-      key: 'sku',
-      label: 'SKU',
-      sortable: true,
-      render: (value: string) => <span className="font-mono text-sm">{value}</span>,
-    },
     {
       key: 'name',
       label: 'Ürün Adı',
@@ -91,17 +165,22 @@ export default function ProductsPage() {
       render: (value: string) => <span className="font-medium">{value}</span>,
     },
     {
+      key: 'sku',
+      label: 'SKU',
+      render: (value: string) => <code className="text-sm bg-gray-100 px-2 py-1 rounded">{value}</code>,
+    },
+    {
       key: 'category',
       label: 'Kategori',
-      sortable: true,
+      render: (value: any) => value?.name || 'N/A',
     },
     {
       key: 'price',
       label: 'Fiyat',
       sortable: true,
       render: (value: number) => (
-        <span className="font-semibold">
-          {value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+        <span className="font-semibold text-green-600">
+          {Number(value).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
         </span>
       ),
     },
@@ -110,31 +189,17 @@ export default function ProductsPage() {
       label: 'Stok',
       sortable: true,
       render: (value: number) => (
-        <span
-          className={`inline-flex items-center justify-center w-12 h-8 rounded-full text-sm font-semibold ${
-            value === 0
-              ? 'bg-red-100 text-red-800'
-              : value < 10
-              ? 'bg-yellow-100 text-yellow-800'
-              : 'bg-green-100 text-green-800'
-          }`}
-        >
+        <span className={`px-2 py-1 rounded text-sm ${value > 10 ? 'bg-green-100 text-green-800' : value > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
           {value}
         </span>
       ),
     },
     {
-      key: 'status',
+      key: 'isActive',
       label: 'Durum',
-      render: (value: string) => (
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${
-            value === 'active'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-800'
-          }`}
-        >
-          {value === 'active' ? 'Aktif' : 'Pasif'}
+      render: (value: boolean) => (
+        <span className={`px-2 py-1 rounded text-xs font-medium ${value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+          {value ? 'Aktif' : 'Pasif'}
         </span>
       ),
     },
@@ -144,27 +209,33 @@ export default function ProductsPage() {
       render: (_: any, row: any) => (
         <div className="flex gap-2">
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              openEditModal(row)
-            }}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            onClick={() => openEditModal(row)}
+            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+            title="Düzenle"
           >
-            <Edit size={18} />
+            <Edit size={16} />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleDelete(row)
-            }}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            onClick={() => handleDelete(row)}
+            className="p-1 text-red-600 hover:bg-red-50 rounded"
+            title="Sil"
           >
-            <Trash2 size={18} />
+            <Trash2 size={16} />
           </button>
         </div>
       ),
     },
   ]
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -172,7 +243,7 @@ export default function ProductsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Ürün Yönetimi</h1>
-            <p className="text-gray-600 mt-1">Sistemdeki ürünleri görüntüle ve yönet</p>
+            <p className="text-gray-600 mt-1">Ürünleri görüntüle, ekle ve düzenle</p>
           </div>
           <button
             onClick={openCreateModal}
@@ -183,168 +254,150 @@ export default function ProductsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Package className="text-blue-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{mockProducts.length}</p>
-                <p className="text-sm text-gray-600">Toplam Ürün</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Package className="text-green-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.status === 'active').length}
-                </p>
-                <p className="text-sm text-gray-600">Aktif Ürün</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Package className="text-yellow-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.stock < 10 && p.stock > 0).length}
-                </p>
-                <p className="text-sm text-gray-600">Düşük Stok</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Package className="text-red-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.stock === 0).length}
-                </p>
-                <p className="text-sm text-gray-600">Stokta Yok</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <DataTable
-          data={mockProducts}
-          columns={columns}
-          searchable
-          searchPlaceholder="Ürün ara..."
-        />
-      </div>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingProduct ? 'Ürün Düzenle' : 'Yeni Ürün Ekle'}
-        size="lg"
-        footer={
-          <>
+        {products.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <Package size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Henüz ürün yok</h3>
+            <p className="text-gray-600 mb-4">
+              Yeni ürün eklemek için yukarıdaki butonu kullanın
+            </p>
             <button
-              onClick={() => setIsModalOpen(false)}
-              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
             >
-              İptal
+              <Plus size={20} />
+              İlk Ürünü Ekle
             </button>
-            <button
-              onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-            >
-              {editingProduct ? 'Güncelle' : 'Ekle'}
-            </button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          </div>
+        ) : (
+          <DataTable
+            data={products}
+            columns={columns}
+            searchable
+            searchPlaceholder="Ürün ara..."
+          />
+        )}
+
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={editingProduct ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'}
+        >
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Ürün Adı *
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ürün adını girin"
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">SKU *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                SKU *
+              </label>
               <input
                 type="text"
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ürün kodu"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Fiyat (TL) *
+                </label>
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Stok Miktarı
+                </label>
+                <input
+                  type="number"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Fiyat (TL) *
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kategori
               </label>
-              <input
-                type="number"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Stok</label>
-              <input
-                type="number"
-                value={formData.stock}
-                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
               <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={formData.categoryId}
+                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Kategori Seçin</option>
-                <option value="Bilgisayar">Bilgisayar</option>
-                <option value="Yazıcı">Yazıcı</option>
-                <option value="Aksesuar">Aksesuar</option>
-                <option value="Monitör">Monitör</option>
-                <option value="Yazılım">Yazılım</option>
+                <option value="">Kategori seçin</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Durum</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Açıklama
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ürün açıklaması"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isActive"
+                checked={formData.isActive}
+                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                className="rounded"
+              />
+              <label htmlFor="isActive" className="text-sm text-gray-700">
+                Aktif ürün
+              </label>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50"
               >
-                <option value="active">Aktif</option>
-                <option value="inactive">Pasif</option>
-              </select>
+                İptal
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                {editingProduct ? 'Güncelle' : 'Ekle'}
+              </button>
             </div>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Açıklama</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-      </Modal>
+        </Modal>
+      </div>
     </DashboardLayout>
   )
 }
