@@ -27,11 +27,11 @@ export default function CategoriesPage() {
     minApprovalAmount: '',
   })
 
-  const openCreateModal = () => {
+  const openCreateModal = (parentCategoryId?: string) => {
     setEditingCategory(null)
     setFormData({
       name: '',
-      parentId: '',
+      parentId: parentCategoryId || '',
       monthlyLimit: '',
       requiresApproval: false,
       minApprovalAmount: '',
@@ -154,6 +154,14 @@ export default function CategoriesPage() {
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => openCreateModal(rootCat.id)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                        title="Alt kategori ekle"
+                      >
+                        <Plus size={16} />
+                        Alt Kategori
+                      </button>
+                      <button
                         onClick={() => openEditModal(rootCat)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       >
@@ -228,7 +236,13 @@ export default function CategoriesPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingCategory ? 'Kategori Düzenle' : 'Yeni Kategori Ekle'}
+        title={
+          editingCategory
+            ? 'Kategori Düzenle'
+            : formData.parentId
+              ? `Alt Kategori Ekle (${rootCategories.find(c => c.id === formData.parentId)?.name})`
+              : 'Yeni Ana Kategori Ekle'
+        }
         footer={
           <>
             <button
@@ -247,6 +261,16 @@ export default function CategoriesPage() {
         }
       >
         <div className="space-y-4">
+          {formData.parentId && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>Alt Kategori:</strong> Bu kategori{' '}
+                <strong>{rootCategories.find(c => c.id === formData.parentId)?.name}</strong>{' '}
+                kategorisinin altında oluşturulacak.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Kategori Adı *
@@ -255,6 +279,7 @@ export default function CategoriesPage() {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Örn: Bilgi İşlem, Laptop, Yazıcı..."
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -268,13 +293,16 @@ export default function CategoriesPage() {
               onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Ana Kategori</option>
+              <option value="">Ana Kategori (Üst kategori yok)</option>
               {rootCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Alt kategori oluşturmak için üst kategoriyi seçin
+            </p>
           </div>
 
           <div>
