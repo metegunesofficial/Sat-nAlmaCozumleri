@@ -42,7 +42,7 @@ export async function PUT(
       message: 'Sepet güncellendi',
     })
   } catch (error) {
-    console.error('Cart update error:', error)
+    console.error('Cart update error:')
     return NextResponse.json(
       { success: false, error: 'Sepet güncellenemedi' },
       { status: 500 }
@@ -81,7 +81,7 @@ export async function DELETE(
       message: 'Ürün sepetten kaldırıldı',
     })
   } catch (error) {
-    console.error('Cart item delete error:', error)
+    console.error('Cart item delete error:')
     return NextResponse.json(
       { success: false, error: 'Ürün sepetten kaldırılamadı' },
       { status: 500 }

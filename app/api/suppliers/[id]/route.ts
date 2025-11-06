@@ -72,7 +72,7 @@ export async function GET(
       data: supplier,
     })
   } catch (error) {
-    console.error('Supplier fetch error:', error)
+    console.error('Supplier fetch error:')
     return NextResponse.json(
       { success: false, error: 'Tedarikçi yüklenemedi' },
       { status: 500 }
@@ -180,7 +180,7 @@ export async function PUT(
       message: 'Tedarikçi başarıyla güncellendi',
     })
   } catch (error) {
-    console.error('Supplier update error:', error)
+    console.error('Supplier update error:')
     return NextResponse.json(
       { success: false, error: 'Tedarikçi güncellenemedi' },
       { status: 500 }
@@ -269,7 +269,7 @@ export async function DELETE(
       message: 'Tedarikçi başarıyla silindi',
     })
   } catch (error) {
-    console.error('Supplier delete error:', error)
+    console.error('Supplier delete error:')
     return NextResponse.json(
       { success: false, error: 'Tedarikçi silinemedi' },
       { status: 500 }

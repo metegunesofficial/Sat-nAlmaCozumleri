@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const skip = (page - 1) * limit
 
     const where: any = {}
 
@@ -52,60 +55,71 @@ export async function GET(request: NextRequest) {
       where.departmentId = departmentId
     }
 
-    const requests = await prisma.purchaseRequest.findMany({
-      where,
-      include: {
-        requester: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        department: {
-          select: {
-            id: true,
-            name: true,
-            code: true
-          }
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                images: true
-              }
+    const [requests, total] = await Promise.all([
+      prisma.purchaseRequest.findMany({
+        where,
+        include: {
+          requester: {
+            select: {
+              id: true,
+              name: true,
+              email: true
             }
-          }
-        },
-        approvalActions: {
-          include: {
-            approver: {
-              select: {
-                id: true,
-                name: true,
-                role: true
+          },
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true
+            }
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  images: true
+                }
               }
             }
           },
-          orderBy: {
-            createdAt: 'desc'
+          approvalActions: {
+            include: {
+              approver: {
+                select: {
+                  id: true,
+                  name: true,
+                  role: true
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            }
           }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      }),
+      prisma.purchaseRequest.count({ where })
+    ])
 
     return NextResponse.json({
       success: true,
-      data: requests
+      data: requests,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     })
   } catch (error) {
-    console.error('Purchase requests fetch error:', error)
+    console.error('Purchase requests fetch error:')
     return NextResponse.json(
       { success: false, error: 'Talepler yüklenemedi' },
       { status: 500 }
@@ -216,7 +230,7 @@ export async function POST(request: NextRequest) {
       message: 'Satın alma talebi oluşturuldu'
     })
   } catch (error) {
-    console.error('Purchase request create error:', error)
+    console.error('Purchase request create error:')
     return NextResponse.json(
       { success: false, error: 'Talep oluşturulamadı' },
       { status: 500 }

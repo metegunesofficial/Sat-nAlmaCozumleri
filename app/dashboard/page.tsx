@@ -223,7 +223,6 @@ export default function DashboardPage() {
           <DataTable
             data={recentRequests}
             columns={columns}
-            onRowClick={(row) => console.log('Clicked:', row)}
           />
         </div>
 

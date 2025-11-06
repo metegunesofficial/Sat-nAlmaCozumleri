@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser } from '@/lib/middleware'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    // Build where clause
+    // Build where clause with proper typing
     const where: any = { isActive: true }
 
     if (category) {
@@ -42,8 +43,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Build orderBy
-    const orderBy: any = {}
-    orderBy[sort] = order
+    const orderBy: any = {
+      [sort]: order,
+    }
 
     // Get products
     const [products, total] = await Promise.all([
@@ -76,7 +78,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Products fetch error:', error)
+    console.error('Products fetch error')
     return NextResponse.json(
       { success: false, error: 'Ürünler yüklenemedi' },
       { status: 500 }
@@ -86,6 +88,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const user = getAuthUser(request)
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user has permission (admin or procurement manager)
+    const allowedRoles = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROCUREMENT_MANAGER']
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const product = await prisma.product.create({
@@ -101,7 +122,7 @@ export async function POST(request: NextRequest) {
       message: 'Ürün oluşturuldu',
     })
   } catch (error) {
-    console.error('Product create error:', error)
+    console.error('Product create error')
     return NextResponse.json(
       { success: false, error: 'Ürün oluşturulamadı' },
       { status: 500 }

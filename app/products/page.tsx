@@ -22,7 +22,7 @@ export default function ProductsPage() {
         setProducts(data.data)
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
+      console.error('Error fetching products')
     } finally {
       setLoading(false)
     }

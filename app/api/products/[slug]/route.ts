@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser } from '@/lib/middleware'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -53,7 +54,7 @@ export async function GET(
       data: product,
     })
   } catch (error) {
-    console.error('Product fetch error:', error)
+    console.error('Product fetch error')
     return NextResponse.json(
       { success: false, error: 'Ürün yüklenemedi' },
       { status: 500 }
@@ -66,6 +67,25 @@ export async function PUT(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // Check authentication
+    const user = getAuthUser(request)
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user has permission
+    const allowedRoles = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROCUREMENT_MANAGER']
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const product = await prisma.product.update({
@@ -82,7 +102,7 @@ export async function PUT(
       message: 'Ürün güncellendi',
     })
   } catch (error) {
-    console.error('Product update error:', error)
+    console.error('Product update error')
     return NextResponse.json(
       { success: false, error: 'Ürün güncellenemedi' },
       { status: 500 }
@@ -95,6 +115,25 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
+    // Check authentication
+    const user = getAuthUser(request)
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user has permission
+    const allowedRoles = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROCUREMENT_MANAGER']
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
     await prisma.product.delete({
       where: { slug: params.slug },
     })
@@ -104,7 +143,7 @@ export async function DELETE(
       message: 'Ürün silindi',
     })
   } catch (error) {
-    console.error('Product delete error:', error)
+    console.error('Product delete error')
     return NextResponse.json(
       { success: false, error: 'Ürün silinemedi' },
       { status: 500 }

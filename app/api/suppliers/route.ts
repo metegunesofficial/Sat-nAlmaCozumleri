@@ -47,31 +47,45 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const skip = (page - 1) * limit
 
     const where: any = {
       companyId: user.companyId,
     }
 
     if (status) {
-      where.status = status
+      where.status = status as any
     }
 
-    const suppliers = await prisma.supplier.findMany({
-      where,
-      include: {
-        _count: {
-          select: { products: true },
+    const [suppliers, total] = await Promise.all([
+      prisma.supplier.findMany({
+        where,
+        include: {
+          _count: {
+            select: { products: true },
+          },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.supplier.count({ where })
+    ])
 
     return NextResponse.json({
       success: true,
       data: suppliers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     })
   } catch (error) {
-    console.error('Suppliers fetch error:', error)
+    console.error('Suppliers fetch error:')
     return NextResponse.json(
       { success: false, error: 'Tedarikçiler yüklenemedi' },
       { status: 500 }
@@ -165,7 +179,7 @@ export async function POST(request: NextRequest) {
       message: 'Tedarikçi başarıyla oluşturuldu',
     }, { status: 201 })
   } catch (error) {
-    console.error('Supplier creation error:', error)
+    console.error('Supplier creation error:')
     return NextResponse.json(
       { success: false, error: 'Tedarikçi oluşturulamadı' },
       { status: 500 }

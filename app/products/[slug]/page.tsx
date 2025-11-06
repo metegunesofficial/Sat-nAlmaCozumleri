@@ -33,7 +33,7 @@ export default function ProductDetailPage() {
         setProduct(data.data)
       }
     } catch (error) {
-      console.error('Error fetching product:', error)
+      console.error('Error fetching product')
     } finally {
       setLoading(false)
     }

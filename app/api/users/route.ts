@@ -48,48 +48,62 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const role = searchParams.get('role')
     const departmentId = searchParams.get('departmentId')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const skip = (page - 1) * limit
 
     const where: any = {
       companyId: user.companyId,
     }
 
     if (role) {
-      where.role = role
+      where.role = role as any
     }
 
     if (departmentId) {
       where.departmentId = departmentId
     }
 
-    const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        phone: true,
-        role: true,
-        departmentId: true,
-        department: {
-          select: {
-            id: true,
-            name: true,
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          role: true,
+          departmentId: true,
+          department: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
+          position: true,
+          employeeId: true,
+          createdAt: true,
+          updatedAt: true,
         },
-        position: true,
-        employeeId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where })
+    ])
 
     return NextResponse.json({
       success: true,
       data: users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     })
   } catch (error) {
-    console.error('Users fetch error:', error)
+    console.error('Users fetch error:')
     return NextResponse.json(
       { success: false, error: 'Kullanıcılar yüklenemedi' },
       { status: 500 }
@@ -218,7 +232,7 @@ export async function POST(request: NextRequest) {
       message: 'Kullanıcı başarıyla oluşturuldu',
     }, { status: 201 })
   } catch (error) {
-    console.error('User creation error:', error)
+    console.error('User creation error:')
     return NextResponse.json(
       { success: false, error: 'Kullanıcı oluşturulamadı' },
       { status: 500 }

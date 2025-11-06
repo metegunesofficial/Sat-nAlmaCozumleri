@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       data: orders,
     })
   } catch (error) {
-    console.error('Orders fetch error:', error)
+    console.error('Orders fetch error:')
     return NextResponse.json(
       { success: false, error: 'Siparişler yüklenemedi' },
       { status: 500 }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       message: 'Sipariş oluşturuldu',
     })
   } catch (error) {
-    console.error('Order create error:', error)
+    console.error('Order create error:')
     return NextResponse.json(
       { success: false, error: 'Sipariş oluşturulamadı' },
       { status: 500 }

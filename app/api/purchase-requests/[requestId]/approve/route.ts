@@ -144,7 +144,7 @@ export async function POST(
                'Talep geri gönderildi'
     })
   } catch (error) {
-    console.error('Approval action error:', error)
+    console.error('Approval action error:')
     return NextResponse.json(
       { success: false, error: 'Onay işlemi başarısız' },
       { status: 500 }

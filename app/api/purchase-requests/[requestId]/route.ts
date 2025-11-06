@@ -98,7 +98,7 @@ export async function GET(
       data: purchaseRequest
     })
   } catch (error) {
-    console.error('Purchase request fetch error:', error)
+    console.error('Purchase request fetch error:')
     return NextResponse.json(
       { success: false, error: 'Talep yüklenemedi' },
       { status: 500 }
@@ -164,7 +164,7 @@ export async function PUT(
       message: 'Talep güncellendi'
     })
   } catch (error) {
-    console.error('Purchase request update error:', error)
+    console.error('Purchase request update error:')
     return NextResponse.json(
       { success: false, error: 'Talep güncellenemedi' },
       { status: 500 }

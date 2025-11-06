@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Budget report error:', error)
+    console.error('Budget report error:')
     return NextResponse.json(
       { success: false, error: 'Bütçe raporu yüklenemedi' },
       { status: 500 }

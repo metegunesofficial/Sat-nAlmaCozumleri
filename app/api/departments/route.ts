@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       data: departments
     })
   } catch (error) {
-    console.error('Departments fetch error:', error)
+    console.error('Departments fetch error:')
     return NextResponse.json(
       { success: false, error: 'Departmanlar yüklenemedi' },
       { status: 500 }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       message: 'Departman oluşturuldu'
     })
   } catch (error) {
-    console.error('Department create error:', error)
+    console.error('Department create error:')
     return NextResponse.json(
       { success: false, error: 'Departman oluşturulamadı' },
       { status: 500 }

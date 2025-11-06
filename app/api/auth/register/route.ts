@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       message: 'Kayıt başarılı',
     })
   } catch (error) {
-    console.error('Register error:', error)
+    console.error('Register error')
     return NextResponse.json(
       { success: false, error: 'Kayıt işlemi başarısız' },
       { status: 500 }

@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Approval performance report error:', error)
+    console.error('Approval performance report error:')
     return NextResponse.json(
       { success: false, error: 'Onay performans raporu yüklenemedi' },
       { status: 500 }

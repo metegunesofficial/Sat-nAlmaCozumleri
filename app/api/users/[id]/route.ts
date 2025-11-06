@@ -87,7 +87,7 @@ export async function GET(
       data: user,
     })
   } catch (error) {
-    console.error('User fetch error:', error)
+    console.error('User fetch error:')
     return NextResponse.json(
       { success: false, error: 'Kullanıcı yüklenemedi' },
       { status: 500 }
@@ -232,7 +232,7 @@ export async function PUT(
       message: 'Kullanıcı başarıyla güncellendi',
     })
   } catch (error) {
-    console.error('User update error:', error)
+    console.error('User update error:')
     return NextResponse.json(
       { success: false, error: 'Kullanıcı güncellenemedi' },
       { status: 500 }
@@ -332,7 +332,7 @@ export async function DELETE(
       message: 'Kullanıcı başarıyla silindi',
     })
   } catch (error) {
-    console.error('User delete error:', error)
+    console.error('User delete error:')
     return NextResponse.json(
       { success: false, error: 'Kullanıcı silinemedi' },
       { status: 500 }

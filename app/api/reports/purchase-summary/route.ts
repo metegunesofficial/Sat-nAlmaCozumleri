@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Report fetch error:', error)
+    console.error('Report fetch error:')
     return NextResponse.json(
       { success: false, error: 'Rapor yüklenemedi' },
       { status: 500 }

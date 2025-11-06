@@ -84,7 +84,7 @@ export async function GET(
       data: workflow,
     })
   } catch (error) {
-    console.error('Workflow fetch error:', error)
+    console.error('Workflow fetch error:')
     return NextResponse.json(
       { success: false, error: 'İş akışı yüklenemedi' },
       { status: 500 }
@@ -262,7 +262,7 @@ export async function PUT(
       message: 'İş akışı başarıyla güncellendi',
     })
   } catch (error) {
-    console.error('Workflow update error:', error)
+    console.error('Workflow update error:')
     return NextResponse.json(
       { success: false, error: 'İş akışı güncellenemedi' },
       { status: 500 }
@@ -358,7 +358,7 @@ export async function DELETE(
       message: 'İş akışı başarıyla silindi',
     })
   } catch (error) {
-    console.error('Workflow delete error:', error)
+    console.error('Workflow delete error:')
     return NextResponse.json(
       { success: false, error: 'İş akışı silinemedi' },
       { status: 500 }

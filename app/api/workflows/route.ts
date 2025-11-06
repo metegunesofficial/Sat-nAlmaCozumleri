@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const isActive = searchParams.get('isActive')
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
+    const skip = (page - 1) * limit
 
     const where: any = {
       companyId: user.companyId,
@@ -55,37 +58,48 @@ export async function GET(request: NextRequest) {
       where.isActive = isActive === 'true'
     }
 
-    const workflows = await prisma.approvalWorkflow.findMany({
-      where,
-      include: {
-        steps: {
-          include: {
-            approvers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
+    const [workflows, total] = await Promise.all([
+      prisma.approvalWorkflow.findMany({
+        where,
+        include: {
+          steps: {
+            include: {
+              approvers: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
               },
             },
+            orderBy: { order: 'asc' },
           },
-          orderBy: { order: 'asc' },
-        },
-        _count: {
-          select: {
-            purchaseRequests: true,
+          _count: {
+            select: {
+              purchaseRequests: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.approvalWorkflow.count({ where })
+    ])
 
     return NextResponse.json({
       success: true,
       data: workflows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     })
   } catch (error) {
-    console.error('Workflows fetch error:', error)
+    console.error('Workflows fetch error:')
     return NextResponse.json(
       { success: false, error: 'İş akışları yüklenemedi' },
       { status: 500 }
@@ -222,7 +236,7 @@ export async function POST(request: NextRequest) {
       message: 'İş akışı başarıyla oluşturuldu',
     }, { status: 201 })
   } catch (error) {
-    console.error('Workflow creation error:', error)
+    console.error('Workflow creation error:')
     return NextResponse.json(
       { success: false, error: 'İş akışı oluşturulamadı' },
       { status: 500 }

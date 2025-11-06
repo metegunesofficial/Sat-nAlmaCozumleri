@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       message: 'Giriş başarılı',
     })
   } catch (error) {
-    console.error('Login error:', error)
+    console.error('Login error')
     return NextResponse.json(
       { success: false, error: 'Giriş işlemi başarısız' },
       { status: 500 }

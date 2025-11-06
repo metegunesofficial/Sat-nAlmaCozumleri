@@ -65,7 +65,7 @@ export async function GET(
       data: order,
     })
   } catch (error) {
-    console.error('Order fetch error:', error)
+    console.error('Order fetch error:')
     return NextResponse.json(
       { success: false, error: 'Sipariş yüklenemedi' },
       { status: 500 }
@@ -111,7 +111,7 @@ export async function PUT(
       message: 'Sipariş güncellendi',
     })
   } catch (error) {
-    console.error('Order update error:', error)
+    console.error('Order update error:')
     return NextResponse.json(
       { success: false, error: 'Sipariş güncellenemedi' },
       { status: 500 }

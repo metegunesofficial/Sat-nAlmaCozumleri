@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       data: cartItems,
     })
   } catch (error) {
-    console.error('Cart fetch error:', error)
+    console.error('Cart fetch error:')
     return NextResponse.json(
       { success: false, error: 'Sepet yüklenemedi' },
       { status: 500 }
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       message: 'Ürün sepete eklendi',
     })
   } catch (error) {
-    console.error('Cart add error:', error)
+    console.error('Cart add error:')
     return NextResponse.json(
       { success: false, error: 'Ürün sepete eklenemedi' },
       { status: 500 }
@@ -147,7 +147,7 @@ export async function DELETE(request: NextRequest) {
       message: 'Sepet temizlendi',
     })
   } catch (error) {
-    console.error('Cart clear error:', error)
+    console.error('Cart clear error:')
     return NextResponse.json(
       { success: false, error: 'Sepet temizlenemedi' },
       { status: 500 }

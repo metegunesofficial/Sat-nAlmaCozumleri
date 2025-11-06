@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getAuthUser } from '@/lib/middleware'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
       data: categories,
     })
   } catch (error) {
-    console.error('Categories fetch error:', error)
+    console.error('Categories fetch error')
     return NextResponse.json(
       { success: false, error: 'Kategoriler yüklenemedi' },
       { status: 500 }
@@ -39,6 +40,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const user = getAuthUser(request)
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user has permission
+    const allowedRoles = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROCUREMENT_MANAGER']
+    if (!allowedRoles.includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Insufficient permissions' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const category = await prisma.category.create({
@@ -51,7 +71,7 @@ export async function POST(request: NextRequest) {
       message: 'Kategori oluşturuldu',
     })
   } catch (error) {
-    console.error('Category create error:', error)
+    console.error('Category create error')
     return NextResponse.json(
       { success: false, error: 'Kategori oluşturulamadı' },
       { status: 500 }
