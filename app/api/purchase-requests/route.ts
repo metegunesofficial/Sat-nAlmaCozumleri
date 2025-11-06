@@ -28,21 +28,32 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {}
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, role: true },
+      include: { managedDepartments: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const where: any = {
+      companyId: user.companyId
+    }
 
     // Role-based filtering
     if (decoded.role === 'EMPLOYEE') {
       where.requesterId = decoded.userId
     } else if (decoded.role === 'DEPARTMENT_MANAGER') {
-      // Get user's managed departments
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { managedDepartments: true }
-      })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
+      const deptIds = user.managedDepartments.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
-    // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
+    // COMPANY_ADMIN, SUPER_ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all in their company
 
     if (status) {
       where.status = status
@@ -135,6 +146,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, departmentId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Calculate estimated total
     const estimatedTotal = items.reduce((sum: number, item: any) => {
       return sum + (item.unitPrice * item.quantity)
@@ -146,6 +170,16 @@ export async function POST(request: NextRequest) {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const count = await prisma.purchaseRequest.count() + 1
     const requestNumber = `PR${year}${month}${String(count).padStart(4, '0')}`
+
+    // Use user's departmentId or provided departmentId
+    const finalDepartmentId = departmentId || user.departmentId
+
+    if (!finalDepartmentId) {
+      return NextResponse.json(
+        { success: false, error: 'Departman ID gerekli' },
+        { status: 400 }
+      )
+    }
 
     // Find appropriate workflow
     const workflow = await prisma.approvalWorkflow.findFirst({
@@ -163,8 +197,9 @@ export async function POST(request: NextRequest) {
             maxAmount: null
           }
         ],
+        companyId: user.companyId,
         departmentIds: {
-          has: departmentId
+          has: finalDepartmentId
         }
       },
       include: {
@@ -178,16 +213,17 @@ export async function POST(request: NextRequest) {
 
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
+        companyId: user.companyId,
         requestNumber,
         requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        departmentId: finalDepartmentId,
         title,
         description,
         priority: priority || 'NORMAL',
         status: 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
-        workflowId: workflow?.id,
+        workflowId: workflow?.id || null,
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,

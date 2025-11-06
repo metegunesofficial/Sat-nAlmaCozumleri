@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyToken } from '@/lib/auth'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -39,10 +40,51 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Token gerekli' },
+        { status: 401 }
+      )
+    }
+
+    const decoded = verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, role: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Check admin permissions
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Yetkisiz erişim' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     const category = await prisma.category.create({
-      data: body,
+      data: {
+        ...body,
+        companyId: user.companyId,
+      },
     })
 
     return NextResponse.json({
