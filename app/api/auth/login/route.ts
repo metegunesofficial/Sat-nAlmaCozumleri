@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Find user (using findFirst because email+companyId is the unique constraint)
+    const user = await prisma.user.findFirst({
       where: { email },
     })
 
