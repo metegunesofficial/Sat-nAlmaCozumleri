@@ -135,6 +135,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, departmentId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Calculate estimated total
     const estimatedTotal = items.reduce((sum: number, item: any) => {
       return sum + (item.unitPrice * item.quantity)
@@ -179,15 +192,16 @@ export async function POST(request: NextRequest) {
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
         requestNumber,
+        companyId: user.companyId,
         requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        departmentId: departmentId || user.departmentId,
         title,
         description,
         priority: priority || 'NORMAL',
         status: 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
-        workflowId: workflow?.id,
+        ...(workflow?.id && { workflowId: workflow.id }),
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
