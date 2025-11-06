@@ -1,40 +1,55 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, ChevronRight, GitBranch } from 'lucide-react'
 
-const mockCategories = [
-  { id: '1', name: 'Bilgi İşlem', parent: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
-  { id: '2', name: 'Bilgisayarlar', parent: 'Bilgi İşlem', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
-  { id: '3', name: 'Yazıcılar', parent: 'Bilgi İşlem', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
-  { id: '4', name: 'Ofis Malzemeleri', parent: null, productCount: 78, monthlyLimit: 15000, requiresApproval: false },
-  { id: '5', name: 'Kırtasiye', parent: 'Ofis Malzemeleri', productCount: 45, monthlyLimit: 5000, requiresApproval: false },
-  { id: '6', name: 'Mobilya', parent: null, productCount: 23, monthlyLimit: 75000, requiresApproval: true },
-]
-
 export default function CategoriesPage() {
   const { success, error } = useNotification()
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
     parentId: '',
-    monthlyLimit: '',
-    requiresApproval: false,
-    minApprovalAmount: '',
+    description: '',
   })
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/categories', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCategories(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingCategory(null)
     setFormData({
       name: '',
       parentId: '',
-      monthlyLimit: '',
-      requiresApproval: false,
-      minApprovalAmount: '',
+      description: '',
     })
     setIsModalOpen(true)
   }
@@ -43,37 +58,84 @@ export default function CategoriesPage() {
     setEditingCategory(category)
     setFormData({
       name: category.name,
-      parentId: category.parent || '',
-      monthlyLimit: category.monthlyLimit?.toString() || '',
-      requiresApproval: category.requiresApproval,
-      minApprovalAmount: category.minApprovalAmount?.toString() || '',
+      parentId: category.parentId || '',
+      description: category.description || '',
     })
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name) {
       error('Kategori adı gereklidir')
       return
     }
 
-    if (editingCategory) {
-      success('Kategori güncellendi!')
-    } else {
-      success('Kategori eklendi!')
+    try {
+      const token = localStorage.getItem('token')
+      const url = editingCategory ? `/api/categories/${editingCategory.id}` : '/api/categories'
+
+      const res = await fetch(url, {
+        method: editingCategory ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          parentId: formData.parentId || null,
+          description: formData.description || null,
+        })
+      })
+
+      if (res.ok) {
+        success(editingCategory ? 'Kategori güncellendi!' : 'Kategori eklendi!')
+        setIsModalOpen(false)
+        fetchCategories()
+      } else {
+        const data = await res.json()
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (category: any) => {
-    if (confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
-      success('Kategori silindi!')
+  const handleDelete = async (category: any) => {
+    if (!confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/categories/${category.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        success('Kategori silindi!')
+        fetchCategories()
+      } else {
+        error('Silme işlemi başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
   }
 
   // Group categories by parent
-  const rootCategories = mockCategories.filter((c) => !c.parent)
-  const childCategories = mockCategories.filter((c) => c.parent)
+  const rootCategories = categories.filter((c) => !c.parentId)
+  const childCategories = categories.filter((c) => c.parentId)
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -97,7 +159,7 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-3">
               <GitBranch className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockCategories.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kategori</p>
               </div>
             </div>
@@ -122,10 +184,26 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 space-y-4">
-            {rootCategories.map((rootCat) => {
-              const children = childCategories.filter((c) => c.parent === rootCat.name)
+        {categories.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <GitBranch size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Henüz kategori yok</h3>
+            <p className="text-gray-600 mb-4">
+              Yeni kategori eklemek için yukarıdaki butonu kullanın
+            </p>
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              <Plus size={20} />
+              İlk Kategoriyi Ekle
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200">
+            <div className="p-6 space-y-4">
+              {rootCategories.map((rootCat) => {
+                const children = childCategories.filter((c) => c.parentId === rootCat.id)
               return (
                 <div key={rootCat.id} className="border border-gray-200 rounded-lg">
                   {/* Root Category */}
@@ -134,21 +212,11 @@ export default function CategoriesPage() {
                       <GitBranch className="text-blue-600" size={20} />
                       <div className="flex-1">
                         <h3 className="font-semibold text-gray-900">{rootCat.name}</h3>
+                        {rootCat.description && (
+                          <p className="text-sm text-gray-600 mt-1">{rootCat.description}</p>
+                        )}
                         <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                          <span>{rootCat.productCount} ürün</span>
-                          <span>
-                            Limit:{' '}
-                            {rootCat.monthlyLimit.toLocaleString('tr-TR', {
-                              style: 'currency',
-                              currency: 'TRY',
-                            })}
-                            /ay
-                          </span>
-                          {rootCat.requiresApproval && (
-                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                              Onay Gerekli
-                            </span>
-                          )}
+                          <span>{rootCat._count?.products || 0} ürün</span>
                         </div>
                       </div>
                     </div>
@@ -180,23 +248,11 @@ export default function CategoriesPage() {
                             <ChevronRight className="text-gray-400" size={16} />
                             <div className="flex-1">
                               <h4 className="font-medium text-gray-900">{child.name}</h4>
+                              {child.description && (
+                                <p className="text-sm text-gray-600 mt-1">{child.description}</p>
+                              )}
                               <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                                <span>{child.productCount} ürün</span>
-                                {child.monthlyLimit && (
-                                  <span>
-                                    Limit:{' '}
-                                    {child.monthlyLimit.toLocaleString('tr-TR', {
-                                      style: 'currency',
-                                      currency: 'TRY',
-                                    })}
-                                    /ay
-                                  </span>
-                                )}
-                                {child.requiresApproval && (
-                                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                                    Onay Gerekli
-                                  </span>
-                                )}
+                                <span>{child._count?.products || 0} ürün</span>
                               </div>
                             </div>
                           </div>
@@ -223,6 +279,7 @@ export default function CategoriesPage() {
             })}
           </div>
         </div>
+        )}
       </div>
 
       <Modal
@@ -279,46 +336,16 @@ export default function CategoriesPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Aylık Limit (TL)
+              Açıklama
             </label>
-            <input
-              type="number"
-              value={formData.monthlyLimit}
-              onChange={(e) => setFormData({ ...formData, monthlyLimit: e.target.value })}
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Kategori açıklaması (opsiyonel)"
             />
           </div>
-
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="requiresApproval"
-              checked={formData.requiresApproval}
-              onChange={(e) =>
-                setFormData({ ...formData, requiresApproval: e.target.checked })
-              }
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="requiresApproval" className="text-sm font-medium text-gray-700">
-              Bu kategorideki talepler için onay gerekli
-            </label>
-          </div>
-
-          {formData.requiresApproval && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Minimum Onay Tutarı (TL)
-              </label>
-              <input
-                type="number"
-                value={formData.minApprovalAmount}
-                onChange={(e) =>
-                  setFormData({ ...formData, minApprovalAmount: e.target.value })
-                }
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          )}
         </div>
       </Modal>
     </DashboardLayout>

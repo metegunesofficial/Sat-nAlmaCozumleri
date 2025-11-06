@@ -1,22 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Building2, TrendingUp } from 'lucide-react'
 
-const mockDepartments = [
-  { id: 'd1', name: 'Bilgi İşlem', code: 'IT', budget: 500000, spent: 145000, employeeCount: 12, status: 'active' },
-  { id: 'd2', name: 'İnsan Kaynakları', code: 'HR', budget: 200000, spent: 85000, employeeCount: 5, status: 'active' },
-  { id: 'd3', name: 'Muhasebe', code: 'ACC', budget: 150000, spent: 65000, employeeCount: 8, status: 'active' },
-  { id: 'd4', name: 'Satış', code: 'SALES', budget: 300000, spent: 195000, employeeCount: 15, status: 'active' },
-  { id: 'd5', name: 'Pazarlama', code: 'MKT', budget: 250000, spent: 180000, employeeCount: 10, status: 'active' },
-]
-
 export default function DepartmentsPage() {
   const { success, error } = useNotification()
+  const [departments, setDepartments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDept, setEditingDept] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -25,6 +19,32 @@ export default function DepartmentsPage() {
     budget: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    fetchDepartments()
+  }, [])
+
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/departments', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDepartments(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching departments:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingDept(null)
@@ -38,27 +58,68 @@ export default function DepartmentsPage() {
       name: dept.name,
       code: dept.code,
       budget: dept.budget.toString(),
-      status: dept.status,
+      status: dept.isActive ? 'active' : 'inactive',
     })
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.code || !formData.budget) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
     }
-    if (editingDept) {
-      success('Departman güncellendi!')
-    } else {
-      success('Departman eklendi!')
+
+    try {
+      const token = localStorage.getItem('token')
+      const url = editingDept ? `/api/departments/${editingDept.id}` : '/api/departments'
+
+      const res = await fetch(url, {
+        method: editingDept ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          code: formData.code,
+          budget: parseFloat(formData.budget),
+          isActive: formData.status === 'active'
+        })
+      })
+
+      if (res.ok) {
+        success(editingDept ? 'Departman güncellendi!' : 'Departman eklendi!')
+        setIsModalOpen(false)
+        fetchDepartments()
+      } else {
+        const data = await res.json()
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (dept: any) => {
-    if (confirm(`${dept.name} departmanını silmek istediğinize emin misiniz?`)) {
-      success('Departman silindi!')
+  const handleDelete = async (dept: any) => {
+    if (!confirm(`${dept.name} departmanını silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/departments/${dept.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        success('Departman silindi!')
+        fetchDepartments()
+      } else {
+        error('Silme işlemi başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
   }
 
@@ -76,12 +137,12 @@ export default function DepartmentsPage() {
       render: (value: string) => <span className="font-medium">{value}</span>,
     },
     {
-      key: 'employeeCount',
+      key: '_count',
       label: 'Çalışan Sayısı',
-      sortable: true,
-      render: (value: number) => (
+      sortable: false,
+      render: (value: any) => (
         <span className="inline-flex items-center justify-center w-10 h-8 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm">
-          {value}
+          {value?.users || 0}
         </span>
       ),
     },
@@ -96,45 +157,15 @@ export default function DepartmentsPage() {
       ),
     },
     {
-      key: 'spent',
-      label: 'Harcanan',
-      sortable: true,
-      render: (value: number) => (
-        <span className="text-gray-700">
-          {value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-        </span>
-      ),
-    },
-    {
-      key: 'utilization',
-      label: 'Kullanım',
-      render: (_: any, row: any) => {
-        const util = (row.spent / row.budget) * 100
-        return (
-          <div className="flex items-center gap-2">
-            <div className="flex-1 bg-gray-200 rounded-full h-2 w-20">
-              <div
-                className={`h-2 rounded-full ${
-                  util > 90 ? 'bg-red-500' : util > 75 ? 'bg-yellow-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min(util, 100)}%` }}
-              />
-            </div>
-            <span className="text-sm font-medium text-gray-700">{util.toFixed(0)}%</span>
-          </div>
-        )
-      },
-    },
-    {
-      key: 'status',
+      key: 'isActive',
       label: 'Durum',
-      render: (value: string) => (
+      render: (value: boolean) => (
         <span
           className={`px-3 py-1 rounded-full text-xs font-medium ${
-            value === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+            value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
           }`}
         >
-          {value === 'active' ? 'Aktif' : 'Pasif'}
+          {value ? 'Aktif' : 'Pasif'}
         </span>
       ),
     },
@@ -166,9 +197,18 @@ export default function DepartmentsPage() {
     },
   ]
 
-  const totalBudget = mockDepartments.reduce((sum, d) => sum + d.budget, 0)
-  const totalSpent = mockDepartments.reduce((sum, d) => sum + d.spent, 0)
-  const totalEmployees = mockDepartments.reduce((sum, d) => sum + d.employeeCount, 0)
+  const totalBudget = departments.reduce((sum, d) => sum + (d.budget || 0), 0)
+  const totalEmployees = departments.reduce((sum, d) => sum + (d._count?.users || 0), 0)
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -187,12 +227,12 @@ export default function DepartmentsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <Building2 className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockDepartments.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{departments.length}</p>
                 <p className="text-sm text-gray-600">Toplam Departman</p>
               </div>
             </div>
@@ -210,17 +250,6 @@ export default function DepartmentsPage() {
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
-              <TrendingUp className="text-yellow-600" size={24} />
-              <div>
-                <p className="text-xl font-bold text-gray-900">
-                  {totalSpent.toLocaleString('tr-TR')} TL
-                </p>
-                <p className="text-sm text-gray-600">Toplam Harcama</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
               <Building2 className="text-purple-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
@@ -230,7 +259,24 @@ export default function DepartmentsPage() {
           </div>
         </div>
 
-        <DataTable data={mockDepartments} columns={columns} searchable searchPlaceholder="Departman ara..." />
+        {departments.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <Building2 size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Henüz departman yok</h3>
+            <p className="text-gray-600 mb-4">
+              Yeni departman eklemek için yukarıdaki butonu kullanın
+            </p>
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              <Plus size={20} />
+              İlk Departmanı Ekle
+            </button>
+          </div>
+        ) : (
+          <DataTable data={departments} columns={columns} searchable searchPlaceholder="Departman ara..." />
+        )}
       </div>
 
       <Modal
