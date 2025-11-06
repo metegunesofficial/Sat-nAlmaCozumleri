@@ -25,10 +25,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const where: any = {}
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, role: true },
+    })
 
-    // Admin can see all orders
-    if (decoded.role !== 'ADMIN') {
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const where: any = {
+      companyId: user.companyId, // Multi-tenant filter
+    }
+
+    // Non-admin users can only see their own orders
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'COMPANY_ADMIN') {
       where.userId = decoded.userId
     }
 
@@ -91,6 +106,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Get cart items
     const cartItems = await prisma.cartItem.findMany({
       where: { userId: decoded.userId },
@@ -128,6 +156,7 @@ export async function POST(request: NextRequest) {
     // Create order
     const order = await prisma.order.create({
       data: {
+        companyId: user.companyId,
         orderNumber: generateOrderNumber(),
         userId: decoded.userId,
         billingName: body.billingName,
