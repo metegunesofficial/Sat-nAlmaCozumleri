@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import jwt from 'jsonwebtoken'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -10,18 +11,13 @@ export async function GET(request: NextRequest) {
     const includeProducts = searchParams.get('includeProducts') === 'true'
 
     const categories = await prisma.category.findMany({
-      where: {
-        isActive: true,
-        parentId: null, // Only get root categories
-      },
       include: {
         children: {
-          where: { isActive: true },
-          orderBy: { order: 'asc' },
+          orderBy: { name: 'asc' },
         },
-        _count: includeProducts ? { select: { products: true } } : undefined,
+        _count: includeProducts ? { select: { products: true } } : { select: { products: true } },
       },
-      orderBy: { order: 'asc' },
+      orderBy: { name: 'asc' },
     })
 
     return NextResponse.json({
@@ -39,10 +35,41 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     const body = await request.json()
 
+    // Validate required fields
+    if (!body.name) {
+      return NextResponse.json(
+        { error: 'Name is required' },
+        { status: 400 }
+      )
+    }
+
+    // Create category with companyId
     const category = await prisma.category.create({
-      data: body,
+      data: {
+        name: body.name,
+        slug: body.name.toLowerCase().replace(/\s+/g, '-'),
+        description: body.description || null,
+        parentId: body.parentId || null,
+        companyId: user.companyId,
+      },
     })
 
     return NextResponse.json({
@@ -50,10 +77,10 @@ export async function POST(request: NextRequest) {
       data: category,
       message: 'Kategori oluşturuldu',
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Category create error:', error)
     return NextResponse.json(
-      { success: false, error: 'Kategori oluşturulamadı' },
+      { success: false, error: error.message || 'Kategori oluşturulamadı' },
       { status: 500 }
     )
   }

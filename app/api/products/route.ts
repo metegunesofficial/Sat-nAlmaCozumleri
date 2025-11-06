@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import jwt from 'jsonwebtoken'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -86,10 +87,45 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     const body = await request.json()
 
+    // Validate required fields
+    if (!body.name || !body.sku || body.price === undefined) {
+      return NextResponse.json(
+        { error: 'Name, SKU and price are required' },
+        { status: 400 }
+      )
+    }
+
+    // Create product with companyId
     const product = await prisma.product.create({
-      data: body,
+      data: {
+        name: body.name,
+        sku: body.sku,
+        slug: body.name.toLowerCase().replace(/\s+/g, '-'),
+        description: body.description || null,
+        price: parseFloat(body.price),
+        stock: parseInt(body.stock) || 0,
+        categoryId: body.categoryId || null,
+        isActive: body.isActive !== undefined ? body.isActive : true,
+        companyId: user.companyId,
+      },
       include: {
         category: true,
       },
@@ -100,10 +136,10 @@ export async function POST(request: NextRequest) {
       data: product,
       message: 'Ürün oluşturuldu',
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Product create error:', error)
     return NextResponse.json(
-      { success: false, error: 'Ürün oluşturulamadı' },
+      { success: false, error: error.message || 'Ürün oluşturulamadı' },
       { status: 500 }
     )
   }
