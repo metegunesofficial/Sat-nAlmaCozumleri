@@ -4,7 +4,7 @@ import { useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
-import { Plus, Trash2, Search, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Plus, Trash2, Search, ChevronRight, ChevronLeft, Upload, FileText, X } from 'lucide-react'
 import Modal from '@/components/Modal'
 
 interface RequestItem {
@@ -15,6 +15,16 @@ interface RequestItem {
   unitPrice: number
   total: number
   notes?: string
+  quotations?: Quotation[]
+}
+
+interface Quotation {
+  id: string
+  supplierName: string
+  price: number
+  fileName: string
+  fileUrl: string
+  uploadedAt: string
 }
 
 const mockProducts = [
@@ -37,6 +47,8 @@ export default function NewRequestPage() {
   const { success, error } = useNotification()
   const [step, setStep] = useState(1)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false)
+  const [selectedItemForQuotation, setSelectedItemForQuotation] = useState<string | null>(null)
 
   // Form state
   const [title, setTitle] = useState('')
@@ -53,10 +65,42 @@ export default function NewRequestPage() {
       quantity: 1,
       unitPrice: product.price,
       total: product.price,
+      quotations: []
     }
     setItems([...items, newItem])
     setIsProductModalOpen(false)
     success('Ürün eklendi')
+  }
+
+  const addQuotation = (itemId: string, quotation: Omit<Quotation, 'id' | 'uploadedAt'>) => {
+    setItems(items.map(item => {
+      if (item.id === itemId) {
+        const newQuotation: Quotation = {
+          ...quotation,
+          id: Math.random().toString(36).substr(2, 9),
+          uploadedAt: new Date().toISOString()
+        }
+        return {
+          ...item,
+          quotations: [...(item.quotations || []), newQuotation]
+        }
+      }
+      return item
+    }))
+    success('Teklif eklendi')
+  }
+
+  const removeQuotation = (itemId: string, quotationId: string) => {
+    setItems(items.map(item => {
+      if (item.id === itemId) {
+        return {
+          ...item,
+          quotations: (item.quotations || []).filter(q => q.id !== quotationId)
+        }
+      }
+      return item
+    }))
+    success('Teklif kaldırıldı')
   }
 
   const updateItem = (id: string, field: keyof RequestItem, value: any) => {
@@ -112,7 +156,8 @@ export default function NewRequestPage() {
             {[
               { num: 1, label: 'Genel Bilgiler' },
               { num: 2, label: 'Ürünler' },
-              { num: 3, label: 'Özet & Gönder' },
+              { num: 3, label: 'Teklifler' },
+              { num: 4, label: 'Özet & Gönder' },
             ].map((s, idx) => (
               <div key={s.num} className="flex items-center flex-1">
                 <div className="flex items-center gap-3">
@@ -133,7 +178,7 @@ export default function NewRequestPage() {
                     {s.label}
                   </span>
                 </div>
-                {idx < 2 && (
+                {idx < 3 && (
                   <div
                     className={`flex-1 h-1 mx-4 ${
                       step > s.num ? 'bg-blue-600' : 'bg-gray-200'
@@ -301,8 +346,108 @@ export default function NewRequestPage() {
           </div>
         )}
 
-        {/* Step 3: Summary */}
+        {/* Step 3: Quotations */}
         {step === 3 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Teklifler</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Her ürün için minimum 3 teklif yüklemeniz önerilir (zorunlu değil)
+                </p>
+              </div>
+            </div>
+
+            {items.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>Henüz ürün eklenmedi</p>
+                <p className="text-sm mt-1">Önce ürün ekleyiniz</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {items.map((item) => {
+                  const quotationCount = item.quotations?.length || 0
+                  const hasEnoughQuotations = quotationCount >= 3
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="border border-gray-200 rounded-lg p-4 space-y-4"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">{item.productName}</h4>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {item.quantity} adet × {item.unitPrice.toLocaleString('tr-TR')} TL
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              hasEnoughQuotations
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}
+                          >
+                            {quotationCount}/3 Teklif
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedItemForQuotation(item.id)
+                              setIsQuotationModalOpen(true)
+                            }}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <Upload size={16} />
+                            Teklif Ekle
+                          </button>
+                        </div>
+                      </div>
+
+                      {item.quotations && item.quotations.length > 0 && (
+                        <div className="space-y-2">
+                          {item.quotations.map((quotation) => (
+                            <div
+                              key={quotation.id}
+                              className="flex items-center justify-between bg-gray-50 rounded p-3"
+                            >
+                              <div className="flex items-center gap-3">
+                                <FileText size={20} className="text-blue-600" />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {quotation.supplierName}
+                                  </p>
+                                  <p className="text-xs text-gray-500">{quotation.fileName}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-semibold text-gray-900">
+                                  {quotation.price.toLocaleString('tr-TR', {
+                                    style: 'currency',
+                                    currency: 'TRY',
+                                  })}
+                                </span>
+                                <button
+                                  onClick={() => removeQuotation(item.id, quotation.id)}
+                                  className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                >
+                                  <X size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Summary */}
+        {step === 4 && (
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">Talep Özeti</h2>
 
@@ -389,10 +534,10 @@ export default function NewRequestPage() {
           </div>
 
           <div className="flex gap-3">
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 1 && (!title || !categoryId)}
+                disabled={(step === 1 && (!title || !categoryId)) || (step === 2 && items.length === 0)}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 İleri
@@ -439,6 +584,109 @@ export default function NewRequestPage() {
             </div>
           ))}
         </div>
+      </Modal>
+
+      {/* Quotation Upload Modal */}
+      <Modal
+        isOpen={isQuotationModalOpen}
+        onClose={() => {
+          setIsQuotationModalOpen(false)
+          setSelectedItemForQuotation(null)
+        }}
+        title="Teklif Yükle"
+        size="md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            const formData = new FormData(e.currentTarget)
+            const supplierName = formData.get('supplierName') as string
+            const price = parseFloat(formData.get('price') as string)
+            const file = formData.get('file') as File
+
+            if (!supplierName || !price || !file) {
+              error('Lütfen tüm alanları doldurun')
+              return
+            }
+
+            if (selectedItemForQuotation) {
+              // Simulate file upload - in real app would upload to server
+              addQuotation(selectedItemForQuotation, {
+                supplierName,
+                price,
+                fileName: file.name,
+                fileUrl: URL.createObjectURL(file)
+              })
+              setIsQuotationModalOpen(false)
+              setSelectedItemForQuotation(null)
+              e.currentTarget.reset()
+            }
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tedarikçi Adı *
+            </label>
+            <input
+              type="text"
+              name="supplierName"
+              placeholder="Örn: ABC Bilgisayar"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Teklif Fiyatı (TL) *
+            </label>
+            <input
+              type="number"
+              name="price"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Teklif Dosyası (PDF, Excel, Word) *
+            </label>
+            <input
+              type="file"
+              name="file"
+              accept=".pdf,.xlsx,.xls,.doc,.docx"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Maksimum dosya boyutu: 5MB
+            </p>
+          </div>
+
+          <div className="flex gap-3 justify-end pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setIsQuotationModalOpen(false)
+                setSelectedItemForQuotation(null)
+              }}
+              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            >
+              Teklif Ekle
+            </button>
+          </div>
+        </form>
       </Modal>
     </DashboardLayout>
   )
