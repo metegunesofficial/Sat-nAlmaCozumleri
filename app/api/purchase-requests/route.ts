@@ -28,21 +28,32 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {}
+    // Get user for multi-tenant filtering
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, role: true },
+      include: { managedDepartments: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const where: any = {
+      companyId: user.companyId, // Multi-tenant filter
+    }
 
     // Role-based filtering
     if (decoded.role === 'EMPLOYEE') {
       where.requesterId = decoded.userId
     } else if (decoded.role === 'DEPARTMENT_MANAGER') {
-      // Get user's managed departments
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { managedDepartments: true }
-      })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
+      const deptIds = user.managedDepartments.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
-    // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
+    // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all from their company
 
     if (status) {
       where.status = status
@@ -132,6 +143,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get user with companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, departmentId: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
@@ -178,9 +202,10 @@ export async function POST(request: NextRequest) {
 
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
+        companyId: user.companyId,
         requestNumber,
         requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        departmentId: departmentId || user.departmentId,
         title,
         description,
         priority: priority || 'NORMAL',
