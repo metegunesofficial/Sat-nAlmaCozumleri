@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Find user (multi-tenant: find first user with this email)
+    const user = await prisma.user.findFirst({
       where: { email },
+      include: {
+        company: true,
+        department: true,
+      },
     })
 
     if (!user) {

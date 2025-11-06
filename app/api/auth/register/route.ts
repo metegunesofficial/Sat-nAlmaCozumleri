@@ -8,23 +8,38 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, name, phone, companyName, role } = body
+    const { email, password, name, phone, companyId, role } = body
 
-    if (!email || !password || !name) {
+    if (!email || !password || !name || !companyId) {
       return NextResponse.json(
-        { success: false, error: 'Gerekli alanlar eksik' },
+        { success: false, error: 'Email, şifre, isim ve şirket ID gerekli' },
         { status: 400 }
       )
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    // Check if company exists
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    })
+
+    if (!company) {
+      return NextResponse.json(
+        { success: false, error: 'Şirket bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Check if user exists in this company
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email,
+        companyId,
+      },
     })
 
     if (existingUser) {
       return NextResponse.json(
-        { success: false, error: 'Bu email zaten kullanılıyor' },
+        { success: false, error: 'Bu email bu şirkette zaten kullanılıyor' },
         { status: 400 }
       )
     }
@@ -39,16 +54,16 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        companyName,
-        role: role || 'CUSTOMER',
+        companyId,
+        role: role || 'EMPLOYEE',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        companyName: true,
         phone: true,
+        companyId: true,
       },
     })
 
