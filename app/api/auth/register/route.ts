@@ -32,23 +32,55 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create user
+    // For multi-tenant: Create company first, then user
+    // If companyName is provided, create a new company; otherwise use a default
+    let companyId = ''
+
+    if (companyName) {
+      // Create a new company for this user
+      const company = await prisma.company.create({
+        data: {
+          name: companyName,
+          slug: companyName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+        },
+      })
+      companyId = company.id
+    } else {
+      // Find or create a default company for users without a company
+      const defaultCompany = await prisma.company.findFirst({
+        where: { slug: 'default-company' },
+      })
+
+      if (defaultCompany) {
+        companyId = defaultCompany.id
+      } else {
+        const newDefaultCompany = await prisma.company.create({
+          data: {
+            name: 'Default Company',
+            slug: 'default-company',
+          },
+        })
+        companyId = newDefaultCompany.id
+      }
+    }
+
+    // Create user with companyId
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
         phone,
-        companyName,
-        role: role || 'CUSTOMER',
+        companyId,
+        role: role || 'EMPLOYEE',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        companyName: true,
         phone: true,
+        companyId: true,
       },
     })
 
