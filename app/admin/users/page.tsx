@@ -1,19 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from 'lucide-react'
-
-const mockUsers = [
-  { id: 'u1', name: 'Ahmet Yıldırım', email: 'admin@attelia.com', role: 'COMPANY_ADMIN', department: 'Yönetim', status: 'active' },
-  { id: 'u2', name: 'John Doe', email: 'john.doe@attelia.com', role: 'EMPLOYEE', department: 'Bilgi İşlem', status: 'active' },
-  { id: 'u3', name: 'Jane Smith', email: 'jane.smith@attelia.com', role: 'DEPARTMENT_MANAGER', department: 'İnsan Kaynakları', status: 'active' },
-  { id: 'u4', name: 'Mehmet Kaya', email: 'finance@attelia.com', role: 'FINANCE_MANAGER', department: 'Muhasebe', status: 'active' },
-  { id: 'u5', name: 'Ayşe Demir', email: 'general@attelia.com', role: 'GENERAL_MANAGER', department: 'Yönetim', status: 'active' },
-]
 
 const roles = [
   { value: 'SUPER_ADMIN', label: 'Süper Admin' },
@@ -27,16 +19,63 @@ const roles = [
 
 export default function UsersPage() {
   const { success, error } = useNotification()
+  const [users, setUsers] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     role: 'EMPLOYEE',
-    department: '',
+    departmentId: '',
+    phone: '',
     password: '',
-    status: 'active',
   })
+
+  useEffect(() => {
+    fetchUsers()
+    fetchDepartments()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch('/api/users', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setUsers(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const res = await fetch('/api/departments', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDepartments(data.data || [])
+      }
+    } catch (err) {
+      console.error('Error fetching departments:', err)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingUser(null)
@@ -44,9 +83,9 @@ export default function UsersPage() {
       name: '',
       email: '',
       role: 'EMPLOYEE',
-      department: '',
+      departmentId: '',
+      phone: '',
       password: '',
-      status: 'active',
     })
     setIsModalOpen(true)
   }
@@ -57,14 +96,14 @@ export default function UsersPage() {
       name: user.name,
       email: user.email,
       role: user.role,
-      department: user.department,
+      departmentId: user.departmentId || '',
+      phone: user.phone || '',
       password: '',
-      status: user.status,
     })
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.email || !formData.role) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
@@ -73,17 +112,65 @@ export default function UsersPage() {
       error('Yeni kullanıcı için şifre gereklidir')
       return
     }
-    if (editingUser) {
-      success('Kullanıcı güncellendi!')
-    } else {
-      success('Kullanıcı eklendi!')
+
+    try {
+      const token = localStorage.getItem('token')
+      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users'
+
+      const payload: any = {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        departmentId: formData.departmentId || null,
+        phone: formData.phone || null,
+      }
+
+      if (formData.password) {
+        payload.password = formData.password
+      }
+
+      const res = await fetch(url, {
+        method: editingUser ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        success(editingUser ? 'Kullanıcı güncellendi!' : 'Kullanıcı eklendi!')
+        setIsModalOpen(false)
+        fetchUsers()
+      } else {
+        const data = await res.json()
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (user: any) => {
-    if (confirm(`${user.name} kullanıcısını silmek istediğinize emin misiniz?`)) {
-      success('Kullanıcı silindi!')
+  const handleDelete = async (user: any) => {
+    if (!confirm(`${user.name} kullanıcısını silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      if (res.ok) {
+        success('Kullanıcı silindi!')
+        fetchUsers()
+      } else {
+        error('Silme işlemi başarısız')
+      }
+    } catch (err) {
+      error('Bir hata oluştu')
     }
   }
 
@@ -112,20 +199,8 @@ export default function UsersPage() {
     {
       key: 'department',
       label: 'Departman',
-      sortable: true,
-    },
-    {
-      key: 'status',
-      label: 'Durum',
-      render: (value: string) => (
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${
-            value === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-          }`}
-        >
-          {value === 'active' ? 'Aktif' : 'Pasif'}
-        </span>
-      ),
+      sortable: false,
+      render: (value: any) => value?.name || '-',
     },
     {
       key: 'actions',
@@ -155,6 +230,16 @@ export default function UsersPage() {
     },
   ]
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -172,12 +257,12 @@ export default function UsersPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="flex items-center gap-3">
               <Users className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockUsers.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kullanıcı</p>
               </div>
             </div>
@@ -186,27 +271,31 @@ export default function UsersPage() {
             <div className="flex items-center gap-3">
               <UserCheck className="text-green-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status === 'active').length}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
                 <p className="text-sm text-gray-600">Aktif Kullanıcı</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <UserX className="text-gray-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status !== 'active').length}
-                </p>
-                <p className="text-sm text-gray-600">Pasif Kullanıcı</p>
               </div>
             </div>
           </div>
         </div>
 
-        <DataTable data={mockUsers} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        {users.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <Users size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Henüz kullanıcı yok</h3>
+            <p className="text-gray-600 mb-4">
+              Yeni kullanıcı eklemek için yukarıdaki butonu kullanın
+            </p>
+            <button
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              <Plus size={20} />
+              İlk Kullanıcıyı Ekle
+            </button>
+          </div>
+        ) : (
+          <DataTable data={users} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        )}
       </div>
 
       <Modal
@@ -269,14 +358,31 @@ export default function UsersPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Departman</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Telefon</label>
               <input
-                type="text"
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0555 123 4567"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Departman</label>
+            <select
+              value={formData.departmentId}
+              onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Departman seçin (opsiyonel)</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -290,18 +396,6 @@ export default function UsersPage() {
               placeholder={editingUser ? 'Yeni şifre' : 'Şifre'}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Durum</label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="active">Aktif</option>
-              <option value="inactive">Pasif</option>
-            </select>
           </div>
         </div>
       </Modal>
