@@ -27,11 +27,27 @@ export async function POST(
       )
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { action, comments } = body // action: APPROVED, REJECTED, RETURNED
 
-    const purchaseRequest = await prisma.purchaseRequest.findUnique({
-      where: { id: params.requestId },
+    const purchaseRequest = await prisma.purchaseRequest.findFirst({
+      where: {
+        id: params.requestId,
+        companyId: user.companyId
+      },
       include: {
         workflow: {
           include: {

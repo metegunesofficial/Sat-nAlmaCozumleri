@@ -24,8 +24,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const cartItems = await prisma.cartItem.findMany({
-      where: { userId: decoded.userId },
+      where: {
+        userId: decoded.userId,
+        product: {
+          companyId: user.companyId
+        }
+      },
       include: {
         product: {
           include: {
@@ -72,8 +90,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { productId, quantity } = body
+
+    // Verify product belongs to user's company
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        companyId: user.companyId
+      }
+    })
+
+    if (!product) {
+      return NextResponse.json(
+        { success: false, error: 'Ürün bulunamadı' },
+        { status: 404 }
+      )
+    }
 
     // Check if item already in cart
     const existingItem = await prisma.cartItem.findUnique({

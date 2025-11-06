@@ -24,22 +24,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, managedDepartments: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {}
+    const where: any = {
+      companyId: user.companyId
+    }
 
     // Role-based filtering
     if (decoded.role === 'EMPLOYEE') {
       where.requesterId = decoded.userId
     } else if (decoded.role === 'DEPARTMENT_MANAGER') {
       // Get user's managed departments
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { managedDepartments: true }
-      })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
+      const deptIds = user.managedDepartments?.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
     // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
@@ -163,6 +174,7 @@ export async function POST(request: NextRequest) {
     // Find appropriate workflow
     const workflow = await prisma.approvalWorkflow.findFirst({
       where: {
+        companyId: user.companyId,
         isActive: true,
         OR: [
           {

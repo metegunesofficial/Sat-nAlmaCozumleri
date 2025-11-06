@@ -25,9 +25,24 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const where: any = {}
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
 
-    // Admin can see all orders
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const where: any = {
+      companyId: user.companyId
+    }
+
+    // Admin can see all orders in their company
     if (decoded.role !== 'ADMIN') {
       where.userId = decoded.userId
     }
@@ -104,9 +119,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get cart items
+    // Get cart items (with companyId filter on products)
     const cartItems = await prisma.cartItem.findMany({
-      where: { userId: decoded.userId },
+      where: {
+        userId: decoded.userId,
+        product: {
+          companyId: user.companyId
+        }
+      },
       include: { product: true },
     })
 

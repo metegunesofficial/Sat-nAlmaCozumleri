@@ -27,8 +27,24 @@ export async function GET(
       )
     }
 
-    const purchaseRequest = await prisma.purchaseRequest.findUnique({
-      where: { id: params.requestId },
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const purchaseRequest = await prisma.purchaseRequest.findFirst({
+      where: {
+        id: params.requestId,
+        companyId: user.companyId
+      },
       include: {
         requester: {
           select: {
@@ -128,10 +144,26 @@ export async function PUT(
       )
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
 
-    const purchaseRequest = await prisma.purchaseRequest.findUnique({
-      where: { id: params.requestId }
+    const purchaseRequest = await prisma.purchaseRequest.findFirst({
+      where: {
+        id: params.requestId,
+        companyId: user.companyId
+      }
     })
 
     if (!purchaseRequest) {

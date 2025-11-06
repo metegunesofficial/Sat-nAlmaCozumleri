@@ -27,8 +27,24 @@ export async function GET(
       )
     }
 
-    const order = await prisma.order.findUnique({
-      where: { id: params.orderId },
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const order = await prisma.order.findFirst({
+      where: {
+        id: params.orderId,
+        companyId: user.companyId
+      },
       include: {
         items: {
           include: {
@@ -92,6 +108,34 @@ export async function PUT(
       return NextResponse.json(
         { success: false, error: 'Yetkisiz erişim' },
         { status: 403 }
+      )
+    }
+
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Verify order belongs to user's company
+    const existingOrder = await prisma.order.findFirst({
+      where: {
+        id: params.orderId,
+        companyId: user.companyId
+      }
+    })
+
+    if (!existingOrder) {
+      return NextResponse.json(
+        { success: false, error: 'Sipariş bulunamadı' },
+        { status: 404 }
       )
     }
 

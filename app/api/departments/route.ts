@@ -24,8 +24,22 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const departments = await prisma.department.findMany({
       where: {
+        companyId: user.companyId,
         isActive: true
       },
       include: {
@@ -80,7 +94,28 @@ export async function POST(request: NextRequest) {
     }
 
     const decoded = verifyToken(token)
-    if (!decoded || decoded.role !== 'ADMIN') {
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, role: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Check admin permissions
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { success: false, error: 'Yetkisiz erişim' },
         { status: 403 }
@@ -89,14 +124,35 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // Validate required fields
+    if (!body.name || !body.code) {
+      return NextResponse.json(
+        { success: false, error: 'İsim ve kod gereklidir' },
+        { status: 400 }
+      )
+    }
+
     const department = await prisma.department.create({
-      data: body,
+      data: {
+        companyId: user.companyId,
+        name: body.name,
+        code: body.code,
+        description: body.description || null,
+        budget: body.budget ? parseFloat(body.budget) : null,
+        managerId: body.managerId || null,
+        isActive: body.isActive !== undefined ? body.isActive : true,
+      },
       include: {
         manager: {
           select: {
             id: true,
             name: true,
             email: true
+          }
+        },
+        _count: {
+          select: {
+            employees: true
           }
         }
       }
@@ -107,10 +163,10 @@ export async function POST(request: NextRequest) {
       data: department,
       message: 'Departman oluşturuldu'
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Department create error:', error)
     return NextResponse.json(
-      { success: false, error: 'Departman oluşturulamadı' },
+      { success: false, error: error.message || 'Departman oluşturulamadı' },
       { status: 500 }
     )
   }
