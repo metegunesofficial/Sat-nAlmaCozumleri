@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user exists (email is not unique alone, use findFirst)
+    const existingUser = await prisma.user.findFirst({
       where: { email },
     })
 
@@ -32,6 +32,35 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
+    // Handle company - create new or use existing
+    let companyId: string
+
+    if (companyName) {
+      // Create new company
+      const company = await prisma.company.create({
+        data: {
+          name: companyName,
+          slug: companyName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        },
+      })
+      companyId = company.id
+    } else {
+      // Find or create a default company
+      let defaultCompany = await prisma.company.findFirst({
+        where: { slug: 'default' }
+      })
+
+      if (!defaultCompany) {
+        defaultCompany = await prisma.company.create({
+          data: {
+            name: 'Default Company',
+            slug: 'default',
+          },
+        })
+      }
+      companyId = defaultCompany.id
+    }
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -39,16 +68,23 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        companyName,
-        role: role || 'CUSTOMER',
+        companyId,
+        role: role || 'EMPLOYEE',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        companyName: true,
         phone: true,
+        companyId: true,
+        company: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
       },
     })
 
