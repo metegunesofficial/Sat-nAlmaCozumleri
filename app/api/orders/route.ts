@@ -25,10 +25,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const where: any = {}
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, role: true }
+    })
 
-    // Admin can see all orders
-    if (decoded.role !== 'ADMIN') {
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const where: any = {
+      companyId: user.companyId
+    }
+
+    // Non-admin users can only see their own orders
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       where.userId = decoded.userId
     }
 
@@ -91,6 +106,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // Get user's companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Get cart items
     const cartItems = await prisma.cartItem.findMany({
       where: { userId: decoded.userId },
@@ -128,6 +156,7 @@ export async function POST(request: NextRequest) {
     // Create order
     const order = await prisma.order.create({
       data: {
+        companyId: user.companyId,
         orderNumber: generateOrderNumber(),
         userId: decoded.userId,
         billingName: body.billingName,
@@ -136,20 +165,20 @@ export async function POST(request: NextRequest) {
         billingAddress: body.billingAddress,
         billingCity: body.billingCity,
         billingDistrict: body.billingDistrict,
-        billingPostal: body.billingPostal,
+        billingPostal: body.billingPostal || null,
         shippingName: body.shippingName || body.billingName,
         shippingPhone: body.shippingPhone || body.billingPhone,
         shippingAddress: body.shippingAddress || body.billingAddress,
         shippingCity: body.shippingCity || body.billingCity,
         shippingDistrict: body.shippingDistrict || body.billingDistrict,
-        shippingPostal: body.shippingPostal || body.billingPostal,
+        shippingPostal: body.shippingPostal || body.billingPostal || null,
         subtotal,
         shippingCost,
         tax,
         discount: 0,
         total,
         paymentMethod: body.paymentMethod,
-        notes: body.notes,
+        notes: body.notes || null,
         items: {
           create: orderItems,
         },
