@@ -4,9 +4,10 @@ import { useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import { mockPurchaseRequests } from '@/lib/mockData'
-import { Plus, Filter, Download } from 'lucide-react'
+import { Plus, Filter, Download, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useNotification } from '@/contexts/NotificationContext'
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -26,14 +27,87 @@ const statusLabels: Record<string, string> = {
 
 export default function RequestsPage() {
   const router = useRouter()
+  const { success, error } = useNotification()
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [dateFilter, setDateFilter] = useState<string>('ALL')
+  const [customDateRange, setCustomDateRange] = useState<{start: string, end: string}>({start: '', end: ''})
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false)
+
+  // Helper function to calculate date ranges
+  const getDateRange = (filterType: string) => {
+    const now = new Date()
+    const start = new Date()
+
+    switch (filterType) {
+      case 'TODAY':
+        start.setHours(0, 0, 0, 0)
+        return { start, end: now }
+      case 'WEEK':
+        start.setDate(now.getDate() - 7)
+        return { start, end: now }
+      case 'MONTH':
+        start.setMonth(now.getMonth() - 1)
+        return { start, end: now }
+      case 'QUARTER':
+        start.setMonth(now.getMonth() - 3)
+        return { start, end: now }
+      case 'YEAR':
+        start.setFullYear(now.getFullYear() - 1)
+        return { start, end: now }
+      case 'CUSTOM':
+        if (customDateRange.start && customDateRange.end) {
+          return {
+            start: new Date(customDateRange.start),
+            end: new Date(customDateRange.end)
+          }
+        }
+        return null
+      default:
+        return null
+    }
+  }
 
   const filteredRequests = mockPurchaseRequests.filter((req) => {
     if (statusFilter !== 'ALL' && req.status !== statusFilter) return false
-    // Date filtering could be implemented here
+
+    // Date filtering
+    if (dateFilter !== 'ALL') {
+      const range = getDateRange(dateFilter)
+      if (range) {
+        const reqDate = new Date(req.createdAt)
+        if (reqDate < range.start || reqDate > range.end) return false
+      }
+    }
+
     return true
   })
+
+  // Export function
+  const handleExport = () => {
+    try {
+      const csvContent = [
+        ['Talep No', 'Başlık', 'Talep Eden', 'Departman', 'Durum', 'Toplam Tutar', 'Tarih'],
+        ...filteredRequests.map(req => [
+          req.requestNumber,
+          req.title,
+          req.requester.name,
+          req.requester.department,
+          statusLabels[req.status],
+          req.estimatedTotal.toLocaleString('tr-TR'),
+          new Date(req.createdAt).toLocaleDateString('tr-TR')
+        ])
+      ].map(row => row.join(',')).join('\n')
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `talepler_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+      success('Talepler başarıyla dışa aktarıldı')
+    } catch (err) {
+      error('Dışa aktarma sırasında bir hata oluştu')
+    }
+  }
 
   const columns = [
     {
@@ -94,9 +168,20 @@ export default function RequestsPage() {
       key: 'createdAt',
       label: 'Oluşturma Tarihi',
       sortable: true,
-      render: (value: string) => (
-        <div className="text-sm text-gray-600">{value}</div>
-      ),
+      render: (value: string) => {
+        const date = new Date(value)
+        return (
+          <div className="text-sm text-gray-600">
+            {date.toLocaleDateString('tr-TR', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
+        )
+      },
     },
   ]
 
@@ -119,7 +204,7 @@ export default function RequestsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
           <div className="flex items-center gap-4">
             <Filter size={20} className="text-gray-500" />
             <div className="flex gap-4 flex-1">
@@ -146,22 +231,76 @@ export default function RequestsPage() {
                 </label>
                 <select
                   value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
+                  onChange={(e) => {
+                    setDateFilter(e.target.value)
+                    if (e.target.value !== 'CUSTOM') {
+                      setShowCustomDatePicker(false)
+                    } else {
+                      setShowCustomDatePicker(true)
+                    }
+                  }}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="ALL">Tüm Tarihler</option>
                   <option value="TODAY">Bugün</option>
-                  <option value="WEEK">Bu Hafta</option>
-                  <option value="MONTH">Bu Ay</option>
-                  <option value="QUARTER">Bu Çeyrek</option>
+                  <option value="WEEK">Son 1 Hafta</option>
+                  <option value="MONTH">Son 1 Ay</option>
+                  <option value="QUARTER">Son 1 Çeyrek</option>
+                  <option value="YEAR">Son 1 Yıl</option>
+                  <option value="CUSTOM">Özel Tarih Aralığı</option>
                 </select>
               </div>
             </div>
-            <button className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               <Download size={18} />
               <span className="font-medium">Dışa Aktar</span>
             </button>
           </div>
+
+          {/* Custom Date Range Picker */}
+          {dateFilter === 'CUSTOM' && showCustomDatePicker && (
+            <div className="flex items-center gap-4 pl-9">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Başlangıç Tarihi
+                  </label>
+                  <input
+                    type="date"
+                    value={customDateRange.start}
+                    onChange={(e) => setCustomDateRange({...customDateRange, start: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Bitiş Tarihi
+                  </label>
+                  <input
+                    type="date"
+                    value={customDateRange.end}
+                    onChange={(e) => setCustomDateRange({...customDateRange, end: e.target.value})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    if (!customDateRange.start || !customDateRange.end) {
+                      error('Lütfen başlangıç ve bitiş tarihlerini seçin')
+                      return
+                    }
+                    success('Tarih aralığı uygulandı')
+                  }}
+                  className="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Uygula
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stats Summary */}
