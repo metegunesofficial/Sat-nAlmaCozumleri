@@ -30,13 +30,6 @@ export default function LoginPage() {
     }
   }
 
-  const quickLogins = [
-    { email: 'admin@attelia.com', role: 'Company Admin' },
-    { email: 'john.doe@attelia.com', role: 'Employee' },
-    { email: 'it.manager@attelia.com', role: 'IT Manager' },
-    { email: 'finance@attelia.com', role: 'Finance Manager' },
-  ]
-
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
@@ -150,42 +143,11 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Demo Hesaplar (password123)</span>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {quickLogins.map((account) => (
-                  <button
-                    key={account.email}
-                    onClick={() => {
-                      setEmail(account.email)
-                      setPassword('password123')
-                    }}
-                    className="text-xs p-2 border border-gray-300 rounded hover:bg-gray-50 text-left"
-                  >
-                    <div className="font-semibold text-dental-blue truncate">{account.role}</div>
-                    <div className="text-gray-500 truncate">{account.email}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="mt-6 text-center text-sm text-gray-600">
               <Link href="/register" className="text-dental-blue hover:underline">
                 Hesabınız yok mu? Kayıt olun
               </Link>
             </div>
-          </div>
-
-          <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Tüm demo hesaplar için şifre: <code className="bg-gray-200 px-2 py-1 rounded">password123</code></p>
           </div>
         </div>
       </div>
