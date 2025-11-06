@@ -1,19 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from 'lucide-react'
-
-const mockUsers = [
-  { id: 'u1', name: 'Ahmet Yıldırım', email: 'admin@attelia.com', role: 'COMPANY_ADMIN', department: 'Yönetim', status: 'active' },
-  { id: 'u2', name: 'John Doe', email: 'john.doe@attelia.com', role: 'EMPLOYEE', department: 'Bilgi İşlem', status: 'active' },
-  { id: 'u3', name: 'Jane Smith', email: 'jane.smith@attelia.com', role: 'DEPARTMENT_MANAGER', department: 'İnsan Kaynakları', status: 'active' },
-  { id: 'u4', name: 'Mehmet Kaya', email: 'finance@attelia.com', role: 'FINANCE_MANAGER', department: 'Muhasebe', status: 'active' },
-  { id: 'u5', name: 'Ayşe Demir', email: 'general@attelia.com', role: 'GENERAL_MANAGER', department: 'Yönetim', status: 'active' },
-]
 
 const roles = [
   { value: 'SUPER_ADMIN', label: 'Süper Admin' },
@@ -26,7 +19,10 @@ const roles = [
 ]
 
 export default function UsersPage() {
+  const router = useRouter()
   const { success, error } = useNotification()
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -37,6 +33,39 @@ export default function UsersPage() {
     password: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setUsers(data.data || [])
+      } else {
+        error(data.error || 'Kullanıcılar yüklenemedi')
+      }
+    } catch (err) {
+      console.error('Fetch users error:', err)
+      error('Bir hata oluştu')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingUser(null)
@@ -64,7 +93,7 @@ export default function UsersPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.email || !formData.role) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
@@ -73,17 +102,71 @@ export default function UsersPage() {
       error('Yeni kullanıcı için şifre gereklidir')
       return
     }
-    if (editingUser) {
-      success('Kullanıcı güncellendi!')
-    } else {
-      success('Kullanıcı eklendi!')
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users'
+      const method = editingUser ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        success(editingUser ? 'Kullanıcı güncellendi!' : 'Kullanıcı eklendi!')
+        setIsModalOpen(false)
+        fetchUsers()
+      } else {
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      console.error('Submit error:', err)
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (user: any) => {
-    if (confirm(`${user.name} kullanıcısını silmek istediğinize emin misiniz?`)) {
-      success('Kullanıcı silindi!')
+  const handleDelete = async (user: any) => {
+    if (!confirm(`${user.name} kullanıcısını silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        success('Kullanıcı silindi!')
+        fetchUsers()
+      } else {
+        error(data.error || 'Silme işlemi başarısız')
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+      error('Bir hata oluştu')
     }
   }
 
@@ -177,7 +260,7 @@ export default function UsersPage() {
             <div className="flex items-center gap-3">
               <Users className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockUsers.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kullanıcı</p>
               </div>
             </div>
@@ -187,7 +270,7 @@ export default function UsersPage() {
               <UserCheck className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status === 'active').length}
+                  {users.filter((u) => u.status === 'active').length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif Kullanıcı</p>
               </div>
@@ -198,7 +281,7 @@ export default function UsersPage() {
               <UserX className="text-gray-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status !== 'active').length}
+                  {users.filter((u) => u.status !== 'active').length}
                 </p>
                 <p className="text-sm text-gray-600">Pasif Kullanıcı</p>
               </div>
@@ -206,7 +289,13 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <DataTable data={mockUsers} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-600">Kullanıcılar yükleniyor...</p>
+          </div>
+        ) : (
+          <DataTable data={users} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        )}
       </div>
 
       <Modal

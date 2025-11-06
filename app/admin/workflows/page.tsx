@@ -1,46 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Settings, ChevronRight } from 'lucide-react'
-
-const mockWorkflows = [
-  {
-    id: 'w1',
-    name: 'Standart Onay (0-10K TL)',
-    minAmount: 0,
-    maxAmount: 10000,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-    ],
-  },
-  {
-    id: 'w2',
-    name: 'Orta Seviye Onay (10-50K TL)',
-    minAmount: 10000,
-    maxAmount: 50000,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-    ],
-  },
-  {
-    id: 'w3',
-    name: 'Üst Düzey Onay (50K+ TL)',
-    minAmount: 50000,
-    maxAmount: null,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-      { order: 2, approverRole: 'GENERAL_MANAGER', name: 'Genel Müdür' },
-    ],
-  },
-]
 
 const roles = [
   { value: 'DEPARTMENT_MANAGER', label: 'Departman Müdürü' },
@@ -51,7 +16,10 @@ const roles = [
 ]
 
 export default function WorkflowsPage() {
+  const router = useRouter()
   const { success, error } = useNotification()
+  const [workflows, setWorkflows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkflow, setEditingWorkflow] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -61,6 +29,39 @@ export default function WorkflowsPage() {
     isActive: true,
     steps: [{ approverRole: 'DEPARTMENT_MANAGER' }],
   })
+
+  useEffect(() => {
+    fetchWorkflows()
+  }, [])
+
+  const fetchWorkflows = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/workflows', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setWorkflows(data.data || [])
+      } else {
+        error(data.error || 'İş akışları yüklenemedi')
+      }
+    } catch (err) {
+      console.error('Fetch workflows error:', err)
+      error('Bir hata oluştu')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingWorkflow(null)
@@ -86,22 +87,76 @@ export default function WorkflowsPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name || !formData.minAmount || formData.steps.length === 0) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
     }
-    if (editingWorkflow) {
-      success('İş akışı güncellendi!')
-    } else {
-      success('İş akışı eklendi!')
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const url = editingWorkflow ? `/api/workflows/${editingWorkflow.id}` : '/api/workflows'
+      const method = editingWorkflow ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        success(editingWorkflow ? 'İş akışı güncellendi!' : 'İş akışı eklendi!')
+        setIsModalOpen(false)
+        fetchWorkflows()
+      } else {
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      console.error('Submit error:', err)
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (workflow: any) => {
-    if (confirm(`${workflow.name} iş akışını silmek istediğinize emin misiniz?`)) {
-      success('İş akışı silindi!')
+  const handleDelete = async (workflow: any) => {
+    if (!confirm(`${workflow.name} iş akışını silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`/api/workflows/${workflow.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        success('İş akışı silindi!')
+        fetchWorkflows()
+      } else {
+        error(data.error || 'Silme işlemi başarısız')
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+      error('Bir hata oluştu')
     }
   }
 
@@ -123,6 +178,11 @@ export default function WorkflowsPage() {
     const newSteps = [...formData.steps]
     newSteps[index] = { approverRole: role }
     setFormData({ ...formData, steps: newSteps })
+  }
+
+  const getRoleLabel = (roleValue: string) => {
+    const role = roles.find((r) => r.value === roleValue)
+    return role?.label || roleValue
   }
 
   return (
@@ -147,7 +207,7 @@ export default function WorkflowsPage() {
             <div className="flex items-center gap-3">
               <Settings className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockWorkflows.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{workflows.length}</p>
                 <p className="text-sm text-gray-600">Toplam İş Akışı</p>
               </div>
             </div>
@@ -157,7 +217,7 @@ export default function WorkflowsPage() {
               <Settings className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockWorkflows.filter((w) => w.isActive).length}
+                  {workflows.filter((w) => w.isActive).length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif İş Akışı</p>
               </div>
@@ -168,7 +228,7 @@ export default function WorkflowsPage() {
               <Settings className="text-purple-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {Math.max(...mockWorkflows.map((w) => w.steps.length))}
+                  {workflows.length > 0 ? Math.max(...workflows.map((w) => w.steps?.length || 0)) : 0}
                 </p>
                 <p className="text-sm text-gray-600">Maksimum Adım</p>
               </div>
@@ -176,8 +236,13 @@ export default function WorkflowsPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {mockWorkflows.map((workflow) => (
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-600">İş akışları yükleniyor...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {workflows.map((workflow) => (
             <div key={workflow.id} className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -219,13 +284,13 @@ export default function WorkflowsPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Onay Adımları:</h4>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {workflow.steps.map((step, idx) => (
+                  {workflow.steps?.map((step: any, idx: number) => (
                     <div key={idx} className="flex items-center gap-2">
                       <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2">
                         <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
                           {idx + 1}
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{step.name}</span>
+                        <span className="text-sm font-medium text-gray-900">{getRoleLabel(step.approverRole)}</span>
                       </div>
                       {idx < workflow.steps.length - 1 && (
                         <ChevronRight size={20} className="text-gray-400" />
@@ -236,7 +301,8 @@ export default function WorkflowsPage() {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       <Modal

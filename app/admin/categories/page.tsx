@@ -1,22 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, ChevronRight, GitBranch } from 'lucide-react'
 
-const mockCategories = [
-  { id: '1', name: 'Bilgi İşlem', parent: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
-  { id: '2', name: 'Bilgisayarlar', parent: 'Bilgi İşlem', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
-  { id: '3', name: 'Yazıcılar', parent: 'Bilgi İşlem', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
-  { id: '4', name: 'Ofis Malzemeleri', parent: null, productCount: 78, monthlyLimit: 15000, requiresApproval: false },
-  { id: '5', name: 'Kırtasiye', parent: 'Ofis Malzemeleri', productCount: 45, monthlyLimit: 5000, requiresApproval: false },
-  { id: '6', name: 'Mobilya', parent: null, productCount: 23, monthlyLimit: 75000, requiresApproval: true },
-]
-
 export default function CategoriesPage() {
+  const router = useRouter()
   const { success, error } = useNotification()
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -26,6 +21,39 @@ export default function CategoriesPage() {
     requiresApproval: false,
     minApprovalAmount: '',
   })
+
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setCategories(data.data || [])
+      } else {
+        error(data.error || 'Kategoriler yüklenemedi')
+      }
+    } catch (err) {
+      console.error('Fetch categories error:', err)
+      error('Bir hata oluştu')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingCategory(null)
@@ -51,29 +79,82 @@ export default function CategoriesPage() {
     setIsModalOpen(true)
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.name) {
       error('Kategori adı gereklidir')
       return
     }
 
-    if (editingCategory) {
-      success('Kategori güncellendi!')
-    } else {
-      success('Kategori eklendi!')
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const url = editingCategory ? `/api/categories/${editingCategory.id}` : '/api/categories'
+      const method = editingCategory ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        success(editingCategory ? 'Kategori güncellendi!' : 'Kategori eklendi!')
+        setIsModalOpen(false)
+        fetchCategories()
+      } else {
+        error(data.error || 'İşlem başarısız')
+      }
+    } catch (err) {
+      console.error('Submit error:', err)
+      error('Bir hata oluştu')
     }
-    setIsModalOpen(false)
   }
 
-  const handleDelete = (category: any) => {
-    if (confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
-      success('Kategori silindi!')
+  const handleDelete = async (category: any) => {
+    if (!confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch(`/api/categories/${category.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        success('Kategori silindi!')
+        fetchCategories()
+      } else {
+        error(data.error || 'Silme işlemi başarısız')
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+      error('Bir hata oluştu')
     }
   }
 
   // Group categories by parent
-  const rootCategories = mockCategories.filter((c) => !c.parent)
-  const childCategories = mockCategories.filter((c) => c.parent)
+  const rootCategories = categories.filter((c) => !c.parentId)
+  const childCategories = categories.filter((c) => c.parentId)
 
   return (
     <DashboardLayout>
@@ -97,7 +178,7 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-3">
               <GitBranch className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockCategories.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kategori</p>
               </div>
             </div>
@@ -122,10 +203,15 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 space-y-4">
-            {rootCategories.map((rootCat) => {
-              const children = childCategories.filter((c) => c.parent === rootCat.name)
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-600">Kategoriler yükleniyor...</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-gray-200">
+            <div className="p-6 space-y-4">
+              {rootCategories.map((rootCat) => {
+                const children = childCategories.filter((c) => c.parentId === rootCat.id)
               return (
                 <div key={rootCat.id} className="border border-gray-200 rounded-lg">
                   {/* Root Category */}
@@ -221,8 +307,9 @@ export default function CategoriesPage() {
                 </div>
               )
             })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <Modal

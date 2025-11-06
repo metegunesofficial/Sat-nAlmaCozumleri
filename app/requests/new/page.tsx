@@ -1,62 +1,140 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
-import { Plus, Trash2, Search, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronLeft } from 'lucide-react'
 import Modal from '@/components/Modal'
 
 interface RequestItem {
   id: string
-  productId: string
+  productId?: string
   productName: string
+  productSku?: string
   quantity: number
   unitPrice: number
-  total: number
+  totalPrice: number
   notes?: string
 }
 
-const mockProducts = [
-  { id: 'p1', name: 'Dell Latitude 5430 Laptop', price: 35000, category: 'Bilgisayar' },
-  { id: 'p2', name: 'HP LaserJet Pro Printer', price: 8500, category: 'Yazıcı' },
-  { id: 'p3', name: 'Logitech MX Master Mouse', price: 1200, category: 'Aksesuar' },
-  { id: 'p4', name: 'Samsung 27" Monitor', price: 6500, category: 'Monitör' },
-  { id: 'p5', name: 'Microsoft Office 365 Lisans', price: 450, category: 'Yazılım' },
-]
+interface Category {
+  id: string
+  name: string
+  slug: string
+}
 
-const mockCategories = [
-  { id: 'cat1', name: 'Bilgi İşlem', requiresApproval: true },
-  { id: 'cat2', name: 'Ofis Malzemeleri', requiresApproval: false },
-  { id: 'cat3', name: 'Mobilya', requiresApproval: true },
-  { id: 'cat4', name: 'Yazılım Lisansları', requiresApproval: true },
-]
+interface Product {
+  id: string
+  name: string
+  sku: string
+  price: number
+  stock: number
+  category: {
+    name: string
+  }
+}
 
 export default function NewRequestPage() {
   const router = useRouter()
   const { success, error } = useNotification()
   const [step, setStep] = useState(1)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Data state
+  const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
   // Form state
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [categoryId, setCategoryId] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
   const [priority, setPriority] = useState('NORMAL')
+  const [requiredDate, setRequiredDate] = useState('')
   const [items, setItems] = useState<RequestItem[]>([])
 
-  const addItem = (product: any) => {
+  // Fetch categories on mount
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş, lütfen tekrar giriş yapın')
+        router.push('/login')
+        return
+      }
+
+      const response = await fetch('/api/categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setCategories(data.data || [])
+      }
+    } catch (err) {
+      console.error('Category fetch error:', err)
+    } finally {
+      setLoadingCategories(false)
+    }
+  }
+
+  const fetchProducts = async () => {
+    try {
+      setLoadingProducts(true)
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch('/api/products', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        setProducts(data.data || [])
+      }
+    } catch (err) {
+      console.error('Products fetch error:', err)
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
+  const addItem = (product: Product) => {
     const newItem: RequestItem = {
       id: Math.random().toString(36).substr(2, 9),
       productId: product.id,
       productName: product.name,
+      productSku: product.sku,
       quantity: 1,
-      unitPrice: product.price,
-      total: product.price,
+      unitPrice: Number(product.price),
+      totalPrice: Number(product.price),
     }
     setItems([...items, newItem])
     setIsProductModalOpen(false)
     success('Ürün eklendi')
+  }
+
+  const addCustomItem = () => {
+    const newItem: RequestItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      productName: '',
+      quantity: 1,
+      unitPrice: 0,
+      totalPrice: 0,
+    }
+    setItems([...items, newItem])
+    success('Ürün eklendi - detayları doldurun')
   }
 
   const updateItem = (id: string, field: keyof RequestItem, value: any) => {
@@ -65,7 +143,7 @@ export default function NewRequestPage() {
         if (item.id === id) {
           const updated = { ...item, [field]: value }
           if (field === 'quantity' || field === 'unitPrice') {
-            updated.total = updated.quantity * updated.unitPrice
+            updated.totalPrice = updated.quantity * updated.unitPrice
           }
           return updated
         }
@@ -79,22 +157,60 @@ export default function NewRequestPage() {
     success('Ürün kaldırıldı')
   }
 
-  const totalAmount = items.reduce((sum, item) => sum + item.total, 0)
+  const totalAmount = items.reduce((sum, item) => sum + item.totalPrice, 0)
 
-  const handleSubmit = () => {
-    if (!title || !categoryId || items.length === 0) {
-      error('Lütfen tüm gerekli alanları doldurun')
+  const handleSubmit = async () => {
+    if (!title || items.length === 0) {
+      error('Lütfen başlık girin ve en az bir ürün ekleyin')
       return
     }
 
-    // Here would be API call
-    success('Satın alma talebi başarıyla oluşturuldu!')
-    router.push('/requests')
-  }
+    setIsLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        error('Oturum süreniz dolmuş, lütfen tekrar giriş yapın')
+        router.push('/login')
+        return
+      }
 
-  const saveDraft = () => {
-    success('Taslak kaydedildi')
-    router.push('/requests')
+      const response = await fetch('/api/purchase-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          priority,
+          departmentId,
+          requiredDate: requiredDate || null,
+          items: items.map(item => ({
+            productId: item.productId || null,
+            productName: item.productName,
+            productSku: item.productSku || null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            notes: item.notes || null
+          }))
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        success('Satın alma talebi başarıyla oluşturuldu!')
+        router.push('/requests')
+      } else {
+        error(data.error || 'Talep oluşturulamadı')
+      }
+    } catch (err) {
+      console.error('Submit error:', err)
+      error('Bir hata oluştu, lütfen tekrar deneyin')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -179,24 +295,6 @@ export default function NewRequestPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kategori *
-                </label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Kategori Seçin</option>
-                  {mockCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Öncelik
                 </label>
                 <select
@@ -210,6 +308,18 @@ export default function NewRequestPage() {
                   <option value="URGENT">Acil</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Talep Tarihi (Opsiyonel)
+                </label>
+                <input
+                  type="date"
+                  value={requiredDate}
+                  onChange={(e) => setRequiredDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -219,71 +329,94 @@ export default function NewRequestPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">Ürünler</h2>
-              <button
-                onClick={() => setIsProductModalOpen(true)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                <Plus size={20} />
-                Ürün Ekle
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    fetchProducts()
+                    setIsProductModalOpen(true)
+                  }}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <Plus size={20} />
+                  Katalogdan Ekle
+                </button>
+                <button
+                  onClick={addCustomItem}
+                  className="flex items-center gap-2 border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <Plus size={20} />
+                  Manuel Ekle
+                </button>
+              </div>
             </div>
 
             {items.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <p>Henüz ürün eklenmedi</p>
-                <p className="text-sm mt-1">Ürün ekle butonuna tıklayarak başlayın</p>
+                <p className="text-sm mt-1">Katalogdan veya manuel olarak ürün ekleyin</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {items.map((item) => (
                   <div
                     key={item.id}
-                    className="border border-gray-200 rounded-lg p-4 flex items-center gap-4"
+                    className="border border-gray-200 rounded-lg p-4 space-y-3"
                   >
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{item.productName}</h4>
-                      <div className="grid grid-cols-3 gap-4 mt-3">
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">Miktar</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItem(item.id, 'quantity', parseInt(e.target.value))
-                            }
-                            className="w-full border border-gray-300 rounded px-3 py-1 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">Birim Fiyat</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.unitPrice}
-                            onChange={(e) =>
-                              updateItem(item.id, 'unitPrice', parseFloat(e.target.value))
-                            }
-                            className="w-full border border-gray-300 rounded px-3 py-1 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">Toplam</label>
-                          <div className="font-semibold text-gray-900 py-1">
-                            {item.total.toLocaleString('tr-TR', {
-                              style: 'currency',
-                              currency: 'TRY',
-                            })}
-                          </div>
+                    <div className="flex items-start justify-between">
+                      {!item.productId ? (
+                        <input
+                          type="text"
+                          value={item.productName}
+                          onChange={(e) => updateItem(item.id, 'productName', e.target.value)}
+                          placeholder="Ürün adı"
+                          className="flex-1 font-medium text-gray-900 border border-gray-300 rounded px-3 py-1"
+                        />
+                      ) : (
+                        <h4 className="font-medium text-gray-900">{item.productName}</h4>
+                      )}
+                      <button
+                        onClick={() => removeItem(item.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-2"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Miktar *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)
+                          }
+                          className="w-full border border-gray-300 rounded px-3 py-1 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Birim Fiyat *</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={item.unitPrice}
+                          onChange={(e) =>
+                            updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)
+                          }
+                          className="w-full border border-gray-300 rounded px-3 py-1 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Toplam</label>
+                        <div className="font-semibold text-gray-900 py-1">
+                          {item.totalPrice.toLocaleString('tr-TR', {
+                            style: 'currency',
+                            currency: 'TRY',
+                          })}
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={20} />
-                    </button>
                   </div>
                 ))}
 
@@ -313,14 +446,13 @@ export default function NewRequestPage() {
                   <p className="font-medium text-gray-900">{title}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Kategori:</span>
-                  <p className="font-medium text-gray-900">
-                    {mockCategories.find((c) => c.id === categoryId)?.name}
-                  </p>
-                </div>
-                <div>
                   <span className="text-sm text-gray-600">Öncelik:</span>
-                  <p className="font-medium text-gray-900">{priority}</p>
+                  <p className="font-medium text-gray-900">
+                    {priority === 'LOW' && 'Düşük'}
+                    {priority === 'NORMAL' && 'Normal'}
+                    {priority === 'HIGH' && 'Yüksek'}
+                    {priority === 'URGENT' && 'Acil'}
+                  </p>
                 </div>
                 <div>
                   <span className="text-sm text-gray-600">Toplam Tutar:</span>
@@ -331,6 +463,12 @@ export default function NewRequestPage() {
                     })}
                   </p>
                 </div>
+                {requiredDate && (
+                  <div>
+                    <span className="text-sm text-gray-600">Talep Tarihi:</span>
+                    <p className="font-medium text-gray-900">{requiredDate}</p>
+                  </div>
+                )}
               </div>
 
               {description && (
@@ -355,7 +493,7 @@ export default function NewRequestPage() {
                         </p>
                       </div>
                       <p className="font-semibold">
-                        {item.total.toLocaleString('tr-TR', {
+                        {item.totalPrice.toLocaleString('tr-TR', {
                           style: 'currency',
                           currency: 'TRY',
                         })}
@@ -374,25 +512,20 @@ export default function NewRequestPage() {
             {step > 1 && (
               <button
                 onClick={() => setStep(step - 1)}
-                className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={isLoading}
+                className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 <ChevronLeft size={20} />
                 Geri
               </button>
             )}
-            <button
-              onClick={saveDraft}
-              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Taslak Olarak Kaydet
-            </button>
           </div>
 
           <div className="flex gap-3">
             {step < 3 ? (
               <button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 1 && (!title || !categoryId)}
+                disabled={step === 1 && !title}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 İleri
@@ -401,9 +534,10 @@ export default function NewRequestPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                disabled={isLoading || items.length === 0}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Talebi Gönder
+                {isLoading ? 'Gönderiliyor...' : 'Talebi Gönder'}
               </button>
             )}
           </div>
@@ -417,28 +551,40 @@ export default function NewRequestPage() {
         title="Ürün Seç"
         size="lg"
       >
-        <div className="space-y-3">
-          {mockProducts.map((product) => (
-            <div
-              key={product.id}
-              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-              onClick={() => addItem(product)}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-medium text-gray-900">{product.name}</h4>
-                  <p className="text-sm text-gray-500">{product.category}</p>
+        {loadingProducts ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">Ürünler yükleniyor...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">Henüz ürün eklenmemiş</p>
+            <p className="text-sm text-gray-500 mt-1">Manuel olarak ürün ekleyebilirsiniz</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                onClick={() => addItem(product)}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-900">{product.name}</h4>
+                    <p className="text-sm text-gray-500">{product.category?.name} • SKU: {product.sku}</p>
+                    <p className="text-xs text-gray-500 mt-1">Stok: {product.stock}</p>
+                  </div>
+                  <p className="font-semibold text-blue-600">
+                    {Number(product.price).toLocaleString('tr-TR', {
+                      style: 'currency',
+                      currency: 'TRY',
+                    })}
+                  </p>
                 </div>
-                <p className="font-semibold text-blue-600">
-                  {product.price.toLocaleString('tr-TR', {
-                    style: 'currency',
-                    currency: 'TRY',
-                  })}
-                </p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Modal>
     </DashboardLayout>
   )
