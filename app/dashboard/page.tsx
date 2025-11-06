@@ -1,9 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests, mockBudgetData } from '@/lib/mockData'
 import {
   ShoppingCart,
   Clock,
@@ -17,43 +17,103 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  SUBMITTED: 'bg-blue-100 text-blue-800',
   IN_REVIEW: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   COMPLETED: 'bg-blue-100 text-blue-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
 }
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Taslak',
+  SUBMITTED: 'Gönderildi',
   IN_REVIEW: 'İncelemede',
   APPROVED: 'Onaylandı',
   REJECTED: 'Reddedildi',
   COMPLETED: 'Tamamlandı',
+  CANCELLED: 'İptal',
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
 export default function DashboardPage() {
-  const totalRequests = mockPurchaseRequests.length
-  const pendingRequests = mockPurchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
-  const approvedRequests = mockPurchaseRequests.filter((r) => r.status === 'APPROVED').length
-  const totalSpent = mockPurchaseRequests
-    .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
-    .reduce((sum, r) => sum + r.estimatedTotal, 0)
+  const [purchaseRequests, setPurchaseRequests] = useState<any[]>([])
+  const [budgetData, setBudgetData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const recentRequests = mockPurchaseRequests.slice(0, 5)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          setLoading(false)
+          return
+        }
+
+        // Fetch purchase requests
+        const requestsRes = await fetch('/api/purchase-requests', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (requestsRes.ok) {
+          const requestsData = await requestsRes.json()
+          setPurchaseRequests(requestsData.data || [])
+        }
+
+        // Fetch budget data
+        const budgetRes = await fetch('/api/reports/budget', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (budgetRes.ok) {
+          const budgetResData = await budgetRes.json()
+          setBudgetData(budgetResData.data)
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  const totalRequests = purchaseRequests.length
+  const pendingRequests = purchaseRequests.filter((r) => r.status === 'IN_REVIEW' || r.status === 'SUBMITTED').length
+  const approvedRequests = purchaseRequests.filter((r) => r.status === 'APPROVED').length
+  const totalSpent = purchaseRequests
+    .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
+    .reduce((sum, r) => sum + Number(r.estimatedTotal || 0), 0)
+
+  const recentRequests = purchaseRequests.slice(0, 5).map(req => ({
+    ...req,
+    requester: {
+      name: req.requester?.name || 'N/A',
+      department: req.department?.name || 'N/A'
+    }
+  }))
 
   // Budget utilization chart data
-  const budgetChartData = mockBudgetData.departments.map((dept) => ({
-    name: dept.name,
-    budget: dept.budget,
-    spent: dept.spent,
-    remaining: dept.budget - dept.spent,
-  }))
+  const budgetChartData = budgetData?.byDepartment?.map((dept: any) => ({
+    name: dept.department?.name || 'N/A',
+    budget: Number(dept.budget?.amount || 0),
+    spent: Number(dept.spent || 0),
+    remaining: Number(dept.available || 0),
+  })) || []
 
   // Status distribution pie chart data
   const statusDistribution = Object.entries(
-    mockPurchaseRequests.reduce((acc, req) => {
+    purchaseRequests.reduce((acc, req) => {
       acc[req.status] = (acc[req.status] || 0) + 1
       return acc
     }, {} as Record<string, number>)

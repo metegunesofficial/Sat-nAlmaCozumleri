@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
-import { mockBudgetData, mockPurchaseRequests } from '@/lib/mockData'
 import {
   TrendingUp,
   DollarSign,
@@ -34,17 +33,55 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 export default function ReportsPage() {
   const [period, setPeriod] = useState('monthly')
   const [department, setDepartment] = useState('all')
+  const [budgetData, setBudgetData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          setLoading(false)
+          return
+        }
+
+        const budgetRes = await fetch('/api/reports/budget', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (budgetRes.ok) {
+          const data = await budgetRes.json()
+          setBudgetData(data.data)
+        }
+      } catch (error) {
+        console.error('Error fetching budget data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   // Budget utilization data
-  const budgetData = mockBudgetData.departments.map((dept) => ({
-    name: dept.name,
-    budget: dept.budget,
-    spent: dept.spent,
-    remaining: dept.budget - dept.spent,
-    utilization: dept.utilization,
-  }))
+  const departmentBudgetData = budgetData?.byDepartment?.map((dept: any) => ({
+    name: dept.department?.name || 'N/A',
+    budget: Number(dept.budget?.amount || 0),
+    spent: Number(dept.spent || 0),
+    remaining: Number(dept.available || 0),
+    utilization: dept.utilization || 0,
+  })) || []
 
-  // Monthly spending trend (mock data)
+  // Monthly spending trend (placeholder data)
   const monthlySpendingData = [
     { month: 'Oca', spending: 125000, budget: 200000 },
     { month: 'Şub', spending: 145000, budget: 200000 },
@@ -54,27 +91,24 @@ export default function ReportsPage() {
     { month: 'Haz', spending: 195000, budget: 200000 },
   ]
 
-  // Category spending distribution
-  const categorySpendingData = [
-    { name: 'Bilgi İşlem', value: 145000 },
-    { name: 'Ofis Malzemeleri', value: 45000 },
-    { name: 'Mobilya', value: 85000 },
-    { name: 'Yazılım Lisansları', value: 65000 },
-    { name: 'Diğer', value: 35000 },
-  ]
+  // Category spending distribution (placeholder data)
+  const categorySpendingData = departmentBudgetData.slice(0, 5).map((dept: any) => ({
+    name: dept.name,
+    value: dept.spent,
+  }))
 
   // Department comparison
-  const departmentComparisonData = mockBudgetData.departments.slice(0, 6).map((dept) => ({
+  const departmentComparisonData = departmentBudgetData.slice(0, 6).map((dept: any) => ({
     name: dept.name,
     harcama: dept.spent,
     bütçe: dept.budget,
   }))
 
-  const totalBudget = mockBudgetData.company.total
-  const totalSpent = mockBudgetData.company.spent
-  const totalReserved = mockBudgetData.company.reserved
-  const totalRemaining = totalBudget - totalSpent - totalReserved
-  const utilizationPercentage = ((totalSpent + totalReserved) / totalBudget) * 100
+  const totalBudget = budgetData?.summary?.totalBudget || 0
+  const totalSpent = budgetData?.summary?.totalSpent || 0
+  const totalReserved = budgetData?.summary?.totalReserved || 0
+  const totalRemaining = budgetData?.summary?.totalAvailable || 0
+  const utilizationPercentage = budgetData?.summary?.utilizationPercent || 0
 
   const handleExport = (format: string) => {
     alert(`Rapor ${format.toUpperCase()} formatında dışa aktarılıyor...`)
@@ -132,7 +166,7 @@ export default function ReportsPage() {
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Tüm Departmanlar</option>
-                {mockBudgetData.departments.map((dept) => (
+                {departmentBudgetData.map((dept: any) => (
                   <option key={dept.name} value={dept.name}>
                     {dept.name}
                   </option>
@@ -154,7 +188,7 @@ export default function ReportsPage() {
           <StatCard
             title="Toplam Harcama"
             value={totalSpent.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle={`%${((totalSpent / totalBudget) * 100).toFixed(1)} kullanıldı`}
+            subtitle={`%${((totalSpent / (totalBudget || 1)) * 100).toFixed(1)} kullanıldı`}
             icon={TrendingUp}
             color="green"
           />
@@ -168,7 +202,7 @@ export default function ReportsPage() {
           <StatCard
             title="Kalan Bütçe"
             value={totalRemaining.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle={`%${((totalRemaining / totalBudget) * 100).toFixed(1)} kaldı`}
+            subtitle={`%${((totalRemaining / (totalBudget || 1)) * 100).toFixed(1)} kaldı`}
             icon={AlertTriangle}
             color={totalRemaining < totalBudget * 0.2 ? 'red' : 'purple'}
           />
@@ -235,7 +269,7 @@ export default function ReportsPage() {
 
           {/* Category Distribution */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Kategori Bazlı Dağılım</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Bazlı Dağılım</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -248,7 +282,7 @@ export default function ReportsPage() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {categorySpendingData.map((entry, index) => (
+                  {categorySpendingData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -267,7 +301,7 @@ export default function ReportsPage() {
               Departman Bütçe Kullanımı
             </h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={budgetData}>
+              <BarChart data={departmentBudgetData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                 <YAxis />
@@ -332,7 +366,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {budgetData.map((dept) => (
+                {departmentBudgetData.map((dept: any) => (
                   <tr key={dept.name} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                       {dept.name}

@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
-import { mockPurchaseRequests } from '@/lib/mockData'
 import { useParams, useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
 import {
@@ -21,18 +20,22 @@ import {
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  SUBMITTED: 'bg-blue-100 text-blue-800',
   IN_REVIEW: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   COMPLETED: 'bg-blue-100 text-blue-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
 }
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Taslak',
+  SUBMITTED: 'Gönderildi',
   IN_REVIEW: 'İncelemede',
   APPROVED: 'Onaylandı',
   REJECTED: 'Reddedildi',
   COMPLETED: 'Tamamlandı',
+  CANCELLED: 'İptal',
 }
 
 export default function RequestDetailPage() {
@@ -42,8 +45,46 @@ export default function RequestDetailPage() {
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
   const [comments, setComments] = useState('')
+  const [request, setRequest] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const request = mockPurchaseRequests.find((r) => r.id === params.id)
+  useEffect(() => {
+    const fetchRequest = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          setLoading(false)
+          return
+        }
+
+        const res = await fetch(`/api/purchase-requests/${params.id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setRequest(data.data)
+        }
+      } catch (err) {
+        console.error('Error fetching request:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchRequest()
+    }
+  }, [params.id])
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   if (!request) {
     return (

@@ -1,39 +1,76 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests } from '@/lib/mockData'
 import { Plus, Filter, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  SUBMITTED: 'bg-blue-100 text-blue-800',
   IN_REVIEW: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   COMPLETED: 'bg-blue-100 text-blue-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
 }
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Taslak',
+  SUBMITTED: 'Gönderildi',
   IN_REVIEW: 'İncelemede',
   APPROVED: 'Onaylandı',
   REJECTED: 'Reddedildi',
   COMPLETED: 'Tamamlandı',
+  CANCELLED: 'İptal',
 }
 
 export default function RequestsPage() {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [dateFilter, setDateFilter] = useState<string>('ALL')
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filteredRequests = mockPurchaseRequests.filter((req) => {
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          setLoading(false)
+          return
+        }
+
+        const res = await fetch('/api/purchase-requests', {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setRequests(data.data || [])
+        }
+      } catch (error) {
+        console.error('Error fetching requests:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRequests()
+  }, [])
+
+  const filteredRequests = requests.filter((req) => {
     if (statusFilter !== 'ALL' && req.status !== statusFilter) return false
     // Date filtering could be implemented here
     return true
-  })
+  }).map(req => ({
+    ...req,
+    requester: {
+      name: req.requester?.name || 'N/A',
+      department: req.department?.name || 'N/A'
+    }
+  }))
 
   const columns = [
     {
@@ -99,6 +136,16 @@ export default function RequestsPage() {
       ),
     },
   ]
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Yükleniyor...</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
