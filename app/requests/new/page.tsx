@@ -27,7 +27,10 @@ export default function NewRequestPage() {
   // API data
   const [products, setProducts] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCategoryId, setSelectedCategoryId] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
 
   // Form state
   const [title, setTitle] = useState('')
@@ -65,6 +68,15 @@ export default function NewRequestPage() {
       if (deptRes.ok) {
         const data = await deptRes.json()
         setDepartments(data.data || [])
+      }
+
+      // Fetch categories
+      const catRes = await fetch('/api/categories', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (catRes.ok) {
+        const data = await catRes.json()
+        setCategories(data.data || [])
       }
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -486,39 +498,108 @@ export default function NewRequestPage() {
       {/* Product Selection Modal */}
       <Modal
         isOpen={isProductModalOpen}
-        onClose={() => setIsProductModalOpen(false)}
+        onClose={() => {
+          setIsProductModalOpen(false)
+          setSelectedCategoryId('')
+          setSearchTerm('')
+        }}
         title="Ürün Seç"
         size="lg"
       >
-        <div className="space-y-3">
-          {loading ? (
-            <div className="text-center py-8 text-gray-500">Ürünler yükleniyor...</div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">Henüz ürün bulunmuyor</div>
-          ) : (
-            products.map((product) => (
-              <div
-                key={product.id}
-                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => addItem(product)}
+        <div className="space-y-4">
+          {/* Filters */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+              <select
+                value={selectedCategoryId}
+                onChange={(e) => setSelectedCategoryId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{product.name}</h4>
-                    <p className="text-sm text-gray-500">
-                      {product.category?.name || product.sku || 'N/A'}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-blue-600">
-                    {Number(product.price).toLocaleString('tr-TR', {
-                      style: 'currency',
-                      currency: 'TRY',
-                    })}
-                  </p>
-                </div>
+                <option value="">Tüm Kategoriler</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Arama</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Ürün adı..."
+                  className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-            ))
-          )}
+            </div>
+          </div>
+
+          {/* Products List */}
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">Ürünler yükleniyor...</div>
+            ) : (() => {
+                // Filter products
+                const filteredProducts = products.filter((product) => {
+                  const matchesCategory = !selectedCategoryId || product.categoryId === selectedCategoryId
+                  const matchesSearch = !searchTerm ||
+                    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+                  return matchesCategory && matchesSearch
+                })
+
+                if (filteredProducts.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-gray-500">
+                      {searchTerm || selectedCategoryId ? 'Bu kriterlere uygun ürün bulunamadı' : 'Henüz ürün bulunmuyor'}
+                    </div>
+                  )
+                }
+
+                return filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors"
+                    onClick={() => addItem(product)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-gray-900">{product.name}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          {product.category?.name && (
+                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                              {product.category.name}
+                            </span>
+                          )}
+                          {product.sku && (
+                            <span className="text-xs text-gray-500">SKU: {product.sku}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-blue-600">
+                          {Number(product.price).toLocaleString('tr-TR', {
+                            style: 'currency',
+                            currency: 'TRY',
+                          })}
+                        </p>
+                        {product.stock !== undefined && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Stok: {product.stock}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              })()
+            }
+          </div>
         </div>
       </Modal>
     </DashboardLayout>
