@@ -80,7 +80,28 @@ export async function POST(request: NextRequest) {
     }
 
     const decoded = verifyToken(token)
-    if (!decoded || decoded.role !== 'ADMIN') {
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    // Get user's companyId and role
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, role: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Check admin permissions
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { success: false, error: 'Yetkisiz erişim' },
         { status: 403 }
@@ -89,14 +110,38 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // Validate required fields
+    if (!body.name || !body.code) {
+      return NextResponse.json(
+        { success: false, error: 'İsim ve kod gereklidir' },
+        { status: 400 }
+      )
+    }
+
     const department = await prisma.department.create({
-      data: body,
+      data: {
+        companyId: user.companyId,
+        name: body.name,
+        code: body.code,
+        description: body.description || null,
+        monthlyBudget: body.monthlyBudget ? parseFloat(body.monthlyBudget) : null,
+        yearlyBudget: body.yearlyBudget ? parseFloat(body.yearlyBudget) : null,
+        managerId: body.managerId || null,
+        parentId: body.parentId || null,
+        isActive: body.isActive !== undefined ? body.isActive : true,
+      },
       include: {
         manager: {
           select: {
             id: true,
             name: true,
             email: true
+          }
+        },
+        _count: {
+          select: {
+            employees: true,
+            purchaseRequests: true
           }
         }
       }
