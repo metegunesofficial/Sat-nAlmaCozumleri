@@ -26,10 +26,44 @@ const mockProducts = [
 ]
 
 const mockCategories = [
-  { id: 'cat1', name: 'Bilgi İşlem', requiresApproval: true },
-  { id: 'cat2', name: 'Ofis Malzemeleri', requiresApproval: false },
-  { id: 'cat3', name: 'Mobilya', requiresApproval: true },
-  { id: 'cat4', name: 'Yazılım Lisansları', requiresApproval: true },
+  {
+    id: 'cat1',
+    name: 'Bilgi İşlem',
+    requiresApproval: true,
+    children: [
+      { id: 'cat1-1', name: 'Bilgisayarlar', parentId: 'cat1' },
+      { id: 'cat1-2', name: 'Yazıcılar', parentId: 'cat1' },
+      { id: 'cat1-3', name: 'Network Ekipmanları', parentId: 'cat1' },
+    ]
+  },
+  {
+    id: 'cat2',
+    name: 'Ofis Malzemeleri',
+    requiresApproval: false,
+    children: [
+      { id: 'cat2-1', name: 'Kırtasiye', parentId: 'cat2' },
+      { id: 'cat2-2', name: 'Temizlik Malzemeleri', parentId: 'cat2' },
+    ]
+  },
+  {
+    id: 'cat3',
+    name: 'Mobilya',
+    requiresApproval: true,
+    children: [
+      { id: 'cat3-1', name: 'Ofis Mobilyası', parentId: 'cat3' },
+      { id: 'cat3-2', name: 'Depolama', parentId: 'cat3' },
+    ]
+  },
+  {
+    id: 'cat4',
+    name: 'Yazılım Lisansları',
+    requiresApproval: true,
+    children: [
+      { id: 'cat4-1', name: 'İşletim Sistemleri', parentId: 'cat4' },
+      { id: 'cat4-2', name: 'Ofis Yazılımları', parentId: 'cat4' },
+      { id: 'cat4-3', name: 'Tasarım Yazılımları', parentId: 'cat4' },
+    ]
+  },
 ]
 
 export default function NewRequestPage() {
@@ -42,8 +76,13 @@ export default function NewRequestPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [subcategoryId, setSubcategoryId] = useState('')
   const [priority, setPriority] = useState('NORMAL')
   const [items, setItems] = useState<RequestItem[]>([])
+
+  // Get subcategories for selected category
+  const selectedCategory = mockCategories.find((cat) => cat.id === categoryId)
+  const subcategories = selectedCategory?.children || []
 
   const addItem = (product: any) => {
     const newItem: RequestItem = {
@@ -82,7 +121,7 @@ export default function NewRequestPage() {
   const totalAmount = items.reduce((sum, item) => sum + item.total, 0)
 
   const handleSubmit = () => {
-    if (!title || !categoryId || items.length === 0) {
+    if (!title || !categoryId || !subcategoryId || items.length === 0) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
     }
@@ -183,7 +222,10 @@ export default function NewRequestPage() {
                 </label>
                 <select
                   value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+                  onChange={(e) => {
+                    setCategoryId(e.target.value)
+                    setSubcategoryId('') // Reset subcategory when category changes
+                  }}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Kategori Seçin</option>
@@ -195,6 +237,33 @@ export default function NewRequestPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Alt Kategori {categoryId && '*'}
+                </label>
+                <select
+                  value={subcategoryId}
+                  onChange={(e) => setSubcategoryId(e.target.value)}
+                  disabled={!categoryId || subcategories.length === 0}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {!categoryId
+                      ? 'Önce kategori seçin'
+                      : subcategories.length === 0
+                        ? 'Alt kategori yok'
+                        : 'Alt Kategori Seçin'}
+                  </option>
+                  {subcategories.map((subcat: any) => (
+                    <option key={subcat.id} value={subcat.id}>
+                      {subcat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Öncelik
@@ -319,6 +388,12 @@ export default function NewRequestPage() {
                   </p>
                 </div>
                 <div>
+                  <span className="text-sm text-gray-600">Alt Kategori:</span>
+                  <p className="font-medium text-gray-900">
+                    {subcategories.find((sc: any) => sc.id === subcategoryId)?.name}
+                  </p>
+                </div>
+                <div>
                   <span className="text-sm text-gray-600">Öncelik:</span>
                   <p className="font-medium text-gray-900">{priority}</p>
                 </div>
@@ -392,7 +467,7 @@ export default function NewRequestPage() {
             {step < 3 ? (
               <button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 1 && (!title || !categoryId)}
+                disabled={step === 1 && (!title || !categoryId || !subcategoryId)}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 İleri

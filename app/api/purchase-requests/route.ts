@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, priority, items, requiredDate, departmentId } = body
+    const { title, description, priority, items, requiredDate, departmentId, purchaseCategoryId } = body
 
     // Calculate estimated total
     const estimatedTotal = items.reduce((sum: number, item: any) => {
@@ -181,6 +181,7 @@ export async function POST(request: NextRequest) {
         requestNumber,
         requesterId: decoded.userId,
         departmentId: departmentId || decoded.departmentId,
+        purchaseCategoryId: purchaseCategoryId || null,
         title,
         description,
         priority: priority || 'NORMAL',
