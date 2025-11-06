@@ -7,30 +7,85 @@ import { Product } from '@/types'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState('createdAt')
   const [filterOpen, setFilterOpen] = useState(false)
 
+  // Filter states
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [inStockOnly, setInStockOnly] = useState(false)
+
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/products?sort=${sortBy}&order=desc&limit=20`)
+      const response = await fetch(`/api/products?sort=${sortBy}&order=desc`)
       const data = await response.json()
 
       if (data.success) {
-        setProducts(data.data)
+        let filtered = data.data || []
+
+        // Apply filters
+        if (selectedCategories.length > 0) {
+          filtered = filtered.filter((p: any) =>
+            p.categoryId && selectedCategories.includes(p.categoryId)
+          )
+        }
+        if (minPrice) {
+          filtered = filtered.filter((p: Product) => Number(p.price) >= Number(minPrice))
+        }
+        if (maxPrice) {
+          filtered = filtered.filter((p: Product) => Number(p.price) <= Number(maxPrice))
+        }
+        if (inStockOnly) {
+          filtered = filtered.filter((p: Product) => p.stock && p.stock > 0)
+        }
+
+        setProducts(filtered)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }
-  }, [sortBy])
+  }, [sortBy, selectedCategories, minPrice, maxPrice, inStockOnly])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch('/api/categories')
+        const data = await res.json()
+        if (data.success) {
+          setCategories(data.data || [])
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+      }
+    }
+    fetchCategories()
+  }, [])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    )
+  }
+
+  const clearFilters = () => {
+    setSelectedCategories([])
+    setMinPrice('')
+    setMaxPrice('')
+    setInStockOnly(false)
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -63,20 +118,22 @@ export default function ProductsPage() {
                 {/* Categories */}
                 <div>
                   <h4 className="font-semibold mb-3">Kategoriler</h4>
-                  <div className="space-y-2">
-                    {[
-                      'Diş Fırçaları',
-                      'Diş Macunları',
-                      'Ağız Suları',
-                      'Diş İplikleri',
-                      'Protezler',
-                      'İmplantlar',
-                    ].map((category) => (
-                      <label key={category} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" />
-                        <span className="text-sm">{category}</span>
-                      </label>
-                    ))}
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {categories.length === 0 ? (
+                      <p className="text-sm text-gray-500">Kategori yok</p>
+                    ) : (
+                      categories.map((category) => (
+                        <label key={category.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="rounded"
+                            checked={selectedCategories.includes(category.id)}
+                            onChange={() => toggleCategory(category.id)}
+                          />
+                          <span className="text-sm">{category.name}</span>
+                        </label>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -84,37 +141,22 @@ export default function ProductsPage() {
                 <div>
                   <h4 className="font-semibold mb-3">Fiyat Aralığı</h4>
                   <div className="space-y-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="10000"
-                      className="w-full"
-                    />
                     <div className="flex gap-2">
                       <input
                         type="number"
                         placeholder="Min"
-                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value)}
+                        className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-dental-blue focus:outline-none"
                       />
                       <input
                         type="number"
                         placeholder="Max"
-                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
+                        className="w-full border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-dental-blue focus:outline-none"
                       />
                     </div>
-                  </div>
-                </div>
-
-                {/* Brands */}
-                <div>
-                  <h4 className="font-semibold mb-3">Markalar</h4>
-                  <div className="space-y-2">
-                    {['Oral-B', 'Colgate', 'Sensodyne', 'Listerine'].map((brand) => (
-                      <label key={brand} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" />
-                        <span className="text-sm">{brand}</span>
-                      </label>
-                    ))}
                   </div>
                 </div>
 
@@ -123,19 +165,33 @@ export default function ProductsPage() {
                   <h4 className="font-semibold mb-3">Stok Durumu</h4>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Stokta Var</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Tükendi</span>
+                      <input
+                        type="checkbox"
+                        className="rounded"
+                        checked={inStockOnly}
+                        onChange={(e) => setInStockOnly(e.target.checked)}
+                      />
+                      <span className="text-sm">Sadece Stokta Olanlar</span>
                     </label>
                   </div>
                 </div>
 
-                <button className="w-full bg-dental-blue text-white py-2 rounded-lg hover:bg-dental-dark">
-                  Filtreleri Uygula
-                </button>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => fetchProducts()}
+                    className="w-full bg-dental-blue text-white py-2 rounded-lg hover:bg-dental-dark transition-colors"
+                  >
+                    Filtreleri Uygula
+                  </button>
+                  {(selectedCategories.length > 0 || minPrice || maxPrice || inStockOnly) && (
+                    <button
+                      onClick={clearFilters}
+                      className="w-full border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Filtreleri Temizle
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </aside>
@@ -220,28 +276,6 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {/* Pagination */}
-            {!loading && products.length > 0 && (
-              <div className="mt-8 flex justify-center">
-                <nav className="flex gap-2">
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    Önceki
-                  </button>
-                  <button className="px-4 py-2 bg-dental-blue text-white rounded">
-                    1
-                  </button>
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    2
-                  </button>
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    3
-                  </button>
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    Sonraki
-                  </button>
-                </nav>
-              </div>
-            )}
           </div>
         </div>
       </div>
