@@ -157,18 +157,34 @@ export default function DashboardPage() {
           {/* Budget Utilization Chart */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Bütçe Kullanımı</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={budgetChartData}>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={budgetChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
+                <XAxis
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) =>
+                    `${(value / 1000).toFixed(0)}K`
+                  }
+                />
                 <Tooltip
                   formatter={(value: number) =>
                     value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
                   }
+                  contentStyle={{ fontSize: '14px' }}
                 />
-                <Bar dataKey="spent" fill="#3B82F6" name="Harcanan" />
-                <Bar dataKey="remaining" fill="#E5E7EB" name="Kalan" />
+                <Bar dataKey="spent" fill="#3B82F6" name="Harcanan" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="remaining" fill="#E5E7EB" name="Kalan" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
