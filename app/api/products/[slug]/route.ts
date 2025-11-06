@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const product = await prisma.product.findUnique({
+    const product = await prisma.product.findFirst({
       where: { slug: params.slug },
       include: {
         category: {
@@ -68,8 +68,20 @@ export async function PUT(
   try {
     const body = await request.json()
 
-    const product = await prisma.product.update({
+    // Find product first
+    const existingProduct = await prisma.product.findFirst({
       where: { slug: params.slug },
+    })
+
+    if (!existingProduct) {
+      return NextResponse.json(
+        { success: false, error: 'Ürün bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const product = await prisma.product.update({
+      where: { id: existingProduct.id },
       data: body,
       include: {
         category: true,
@@ -95,8 +107,20 @@ export async function DELETE(
   { params }: { params: { slug: string } }
 ) {
   try {
-    await prisma.product.delete({
+    // Find product first
+    const existingProduct = await prisma.product.findFirst({
       where: { slug: params.slug },
+    })
+
+    if (!existingProduct) {
+      return NextResponse.json(
+        { success: false, error: 'Ürün bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.product.delete({
+      where: { id: existingProduct.id },
     })
 
     return NextResponse.json({
