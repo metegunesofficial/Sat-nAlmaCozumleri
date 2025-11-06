@@ -59,17 +59,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         steps: {
-          include: {
-            approvers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
         _count: {
           select: {
