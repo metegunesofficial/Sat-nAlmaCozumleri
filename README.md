@@ -295,24 +295,23 @@ POST   /api/products           # Yeni ürün (Admin)
 
 ---
 
-## 👤 Demo Kullanıcıları
+## 👤 İlk Giriş Bilgileri
 
-### Attelia Dental Merkez
-
-| Rol | Email | Şifre |
-|-----|-------|-------|
-| Super Admin | superadmin@attelia.com | password123 |
-| Company Admin | admin@attelia.com | password123 |
-| IT Manager | it.manager@attelia.com | password123 |
-| Procurement | procurement@attelia.com | password123 |
-| Finance | finance@attelia.com | password123 |
-| Employee | john.doe@attelia.com | password123 |
-
-### Attelia Dental İstanbul
+İlk kurulumdan sonra sistem yöneticisi hesabı ile giriş yapabilirsiniz:
 
 | Rol | Email | Şifre |
 |-----|-------|-------|
-| Company Admin | admin@attelia-istanbul.com | password123 |
+| Super Admin | admin@attelia.com | admin123 |
+
+> ⚠️ **GÜVENLİK:** İlk giriş sonrası mutlaka şifreyi değiştirin!
+
+Kurulum sonrası yapmanız gerekenler:
+1. Şirket bilgilerini güncelleyin
+2. Departmanlar oluşturun
+3. Kullanıcılar ekleyin
+4. Ürün kategorileri ve ürünler ekleyin
+5. Bütçeleri tanımlayın
+6. Onay iş akışlarını kurun
 
 ---
 
@@ -488,19 +487,56 @@ await prisma.purchaseCategory.create({
 
 ## 🚀 Deployment
 
-### Production Build
+### Quick Start - Local Development
+
+1. **Clone repository:**
 ```bash
-npm run build
-npm start
+git clone https://github.com/metegunesofficial/Sat-nAlmaCozumleri.git
+cd Sat-nAlmaCozumleri
 ```
 
-### Environment Variables (Production)
-```env
-DATABASE_URL="postgresql://..."
-JWT_SECRET="strong-secret-key"
-NEXTAUTH_SECRET="nextauth-secret"
-NODE_ENV="production"
+2. **Install dependencies:**
+```bash
+npm install
 ```
+
+3. **Setup environment:**
+```bash
+cp .env.example .env.local
+# Edit .env.local with your database credentials
+```
+
+4. **Run automated setup:**
+```bash
+./setup-database.sh
+```
+
+5. **Start development server:**
+```bash
+npm run dev
+```
+
+Visit: http://localhost:3000
+
+### Production Deployment
+
+📖 **Detaylı Production Deployment Rehberi:** [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)
+
+**Hızlı Özet:**
+- ✅ Vercel + Prisma Database
+- ✅ Automated deployment
+- ✅ Environment variables setup
+- ✅ Database migration guide
+- ✅ Security best practices
+
+### Database Setup
+
+📊 **Database Kurulum Rehberi:** [DATABASE_SETUP.md](DATABASE_SETUP.md)
+
+**İçerik:**
+- SQL migration dosyaları
+- Seed script detayları
+- Troubleshooting guide
 
 ---
 

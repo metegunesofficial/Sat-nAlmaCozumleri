@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# 🗄️ Attelia Dental - Veritabanı Kurulum Scripti
-# Bu script veritabanını otomatik olarak kurar
+# 🗄️ Attelia Dental - Production Database Setup
+# Automated database initialization script
 
-set -e  # Hata durumunda dur
+set -e  # Exit on error
 
-echo "🚀 Attelia Dental Veritabanı Kurulumu Başlıyor..."
+echo "🚀 Attelia Dental Production Database Setup"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Renk kodları
@@ -79,24 +79,16 @@ npm run db:seed || {
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✨ Veritabanı kurulumu tamamlandı!${NC}"
+echo -e "${GREEN}✨ Production database setup completed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo -e "${BLUE}📋 Demo Kullanıcı Bilgileri:${NC}"
+echo -e "${BLUE}📋 Initial Admin Credentials:${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "🔐 Attelia Dental Merkez:"
-echo "  Super Admin:       superadmin@attelia.com / password123"
-echo "  Şirket Admin:      admin@attelia.com / password123"
-echo "  IT Müdürü:         it.manager@attelia.com / password123"
-echo "  Satın Alma Müdür:  procurement@attelia.com / password123"
-echo "  Finans Müdürü:     finance@attelia.com / password123"
-echo "  Yazılımcı:         john.doe@attelia.com / password123"
-echo "  İK Uzmanı:         jane.smith@attelia.com / password123"
+echo "  Email:    admin@attelia.com"
+echo "  Password: admin123"
 echo ""
-echo "🔐 Attelia Dental İstanbul:"
-echo "  Şirket Admin:      admin@attelia-istanbul.com / password123"
-echo ""
+echo -e "${RED}⚠️  IMPORTANT: Change this password immediately after first login!${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo -e "${YELLOW}🚀 Sunucuyu başlatmak için:${NC}"

@@ -108,72 +108,49 @@ Vercel otomatik deploy edecek!
 
 ---
 
-## 👤 Demo Kullanıcı Bilgileri
+## 👤 İlk Giriş Bilgileri
 
-Migration tamamlandıktan sonra aşağıdaki kullanıcılarla giriş yapabilirsiniz:
-
-### Attelia Dental Merkez
-
-| Rol | Email | Şifre | Açıklama |
-|-----|-------|-------|----------|
-| Super Admin | superadmin@attelia.com | password123 | Platform yöneticisi |
-| Şirket Admin | admin@attelia.com | password123 | Genel Müdür |
-| IT Müdürü | it.manager@attelia.com | password123 | Departman Yöneticisi |
-| Satın Alma Müdürü | procurement@attelia.com | password123 | Satın Alma Yöneticisi |
-| Finans Müdürü | finance@attelia.com | password123 | Finans Yöneticisi |
-| Yazılımcı | john.doe@attelia.com | password123 | IT Departmanı Çalışanı |
-| İK Uzmanı | jane.smith@attelia.com | password123 | İK Departmanı Çalışanı |
-
-### Attelia Dental İstanbul
+Migration ve seed tamamlandıktan sonra sistem admin kullanıcısı ile giriş yapabilirsiniz:
 
 | Rol | Email | Şifre |
 |-----|-------|-------|
-| Şirket Admin | admin@attelia-istanbul.com | password123 |
+| Super Admin | admin@attelia.com | admin123 |
+
+⚠️ **GÜVENLİK UYARISI:** İlk giriş sonrası mutlaka şifreyi değiştirin!
 
 ---
 
-## 📊 Demo Veriler İçeriği
+## 📊 İlk Kurulum İçeriği
 
-Seed işlemi aşağıdakileri oluşturur:
+Seed işlemi **sadece minimum gerekli verileri** oluşturur:
 
-### 🏢 Şirketler
-- Attelia Dental Merkez (Ankara)
-- Attelia Dental İstanbul
+### 🏢 Şirket
+- **1 Şirket:** Attelia Dental
+  - Slug: `attelia-dental`
+  - Email: info@attelia.com
+  - Para birimi: TRY
+  - Timezone: Europe/Istanbul
 
-### 👥 Kullanıcılar
-- 7 kullanıcı (farklı roller)
-- Multi-tenant yapı
+### 👤 Kullanıcı
+- **1 Super Admin:** admin@attelia.com
+  - Şifre: admin123
+  - Rol: SUPER_ADMIN
+  - İsim: System Administrator
 
-### 🏬 Departmanlar
-- Bilgi İşlem (IT)
-- Satın Alma (PROC)
-- İnsan Kaynakları (HR)
-- Finans (FIN)
+### 📝 Sonraki Adımlar
 
-### 💰 Bütçeler
-- Departman bütçeleri
-- Aylık ve yıllık limitler
+Sisteme giriş yaptıktan sonra aşağıdakileri oluşturmanız gerekir:
 
-### 📦 Kategoriler
-- Ofis Malzemeleri
-- Bilgisayar ve Donanım
-- Dental Malzemeler
-- Temizlik Malzemeleri
+1. **Departmanlar:** IT, Satın Alma, Finans, İK vb.
+2. **Kullanıcılar:** Departman yöneticileri ve çalışanlar
+3. **Kategoriler:** Ürün kategorileri (hiyerarşik)
+4. **Ürünler:** Satın alınabilecek ürünler
+5. **Tedarikçiler:** Supplier listesi
+6. **Bütçeler:** Departman ve şirket bütçeleri
+7. **Onay İş Akışları:** Approval workflows
+8. **Satın Alma Kategorileri:** Purchase categories
 
-### 🛍️ Ürünler
-- A4 Kağıt
-- Dell Latitude Laptop
-- LG Monitor
-- Dental Eldiven
-
-### ⚙️ Onay İş Akışları
-- 0-10K TL: Tek onay (Departman Müdürü)
-- 10K-50K TL: İki onay (Departman + Satın Alma)
-- 50K+ TL: Üç onay (Departman + Satın Alma + Finans)
-
-### 📋 Örnek Satın Alma Talepleri
-- Laptop talebi (35.000 TL - HIGH priority)
-- Ofis malzemeleri (500 TL - NORMAL priority)
+Tüm bu veriler admin panelinden kolayca oluşturulabilir.
 
 ---
 
