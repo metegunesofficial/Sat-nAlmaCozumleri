@@ -46,23 +46,7 @@ export async function GET(
       },
       include: {
         steps: {
-          include: {
-            approvers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                department: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
         _count: {
           select: {
@@ -197,37 +181,17 @@ export async function PUT(
       await prisma.approvalStep.createMany({
         data: steps.map((step: any, index: number) => ({
           workflowId: params.id,
-          name: step.name,
-          description: step.description,
-          order: index + 1,
-          requiredApprovals: step.requiredApprovals || 1,
-          action: step.action || 'APPROVE',
+          stepName: step.name || step.stepName,
+          stepOrder: index + 1,
+          approverRole: step.approverRole || null,
+          approverId: step.approverId || null,
+          requiredAction: step.action || step.requiredAction || 'APPROVE',
+          isOptional: step.isOptional || false,
+          isParallel: step.isParallel || false,
         })),
       })
 
-      // Connect approvers to steps
-      for (let i = 0; i < steps.length; i++) {
-        const step = steps[i]
-        if (step.approverIds && step.approverIds.length > 0) {
-          const createdStep = await prisma.approvalStep.findFirst({
-            where: {
-              workflowId: params.id,
-              order: i + 1,
-            },
-          })
-
-          if (createdStep) {
-            await prisma.approvalStep.update({
-              where: { id: createdStep.id },
-              data: {
-                approvers: {
-                  connect: step.approverIds.map((id: string) => ({ id })),
-                },
-              },
-            })
-          }
-        }
-      }
+      // Note: ApprovalStep uses approverRole and approverId fields, not a relation
     }
 
     const updated = await prisma.approvalWorkflow.update({
@@ -241,17 +205,7 @@ export async function PUT(
       },
       include: {
         steps: {
-          include: {
-            approvers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
       },
     })
