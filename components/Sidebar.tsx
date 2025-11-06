@@ -17,7 +17,7 @@ import {
   LogOut,
   ChevronDown,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface MenuItem {
   icon: any
@@ -30,7 +30,14 @@ interface MenuItem {
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(() => {
+    // Load from localStorage on initial mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('expandedMenus')
+      return saved ? JSON.parse(saved) : []
+    }
+    return []
+  })
 
   const menuItems: MenuItem[] = [
     {
@@ -69,6 +76,28 @@ export default function Sidebar() {
       ],
     },
   ]
+
+  // Save to localStorage whenever expandedMenus changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('expandedMenus', JSON.stringify(expandedMenus))
+    }
+  }, [expandedMenus])
+
+  // Auto-expand menu for current active page
+  useEffect(() => {
+    if (pathname) {
+      menuItems.forEach((item) => {
+        if (item.children) {
+          // Check if any child is active
+          const hasActiveChild = item.children.some((child) => isActive(child.href))
+          if (hasActiveChild && !expandedMenus.includes(item.label)) {
+            setExpandedMenus((prev) => [...prev, item.label])
+          }
+        }
+      })
+    }
+  }, [pathname])
 
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>
