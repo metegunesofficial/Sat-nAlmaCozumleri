@@ -6,19 +6,119 @@ import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, ChevronRight, GitBranch } from 'lucide-react'
 
-const mockCategories = [
-  { id: '1', name: 'Bilgi İşlem', parent: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
-  { id: '2', name: 'Bilgisayarlar', parent: 'Bilgi İşlem', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
-  { id: '3', name: 'Yazıcılar', parent: 'Bilgi İşlem', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
-  { id: '4', name: 'Ofis Malzemeleri', parent: null, productCount: 78, monthlyLimit: 15000, requiresApproval: false },
-  { id: '5', name: 'Kırtasiye', parent: 'Ofis Malzemeleri', productCount: 45, monthlyLimit: 5000, requiresApproval: false },
-  { id: '6', name: 'Mobilya', parent: null, productCount: 23, monthlyLimit: 75000, requiresApproval: true },
+interface Category {
+  id: string
+  name: string
+  parentId: string | null
+  productCount: number
+  monthlyLimit: number
+  requiresApproval: boolean
+  minApprovalAmount?: number
+}
+
+const initialCategories: Category[] = [
+  { id: '1', name: 'Bilgi İşlem', parentId: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
+  { id: '2', name: 'Bilgisayarlar', parentId: '1', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
+  { id: '3', name: 'Yazıcılar', parentId: '1', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
+  { id: '4', name: 'Ofis Malzemeleri', parentId: null, productCount: 78, monthlyLimit: 15000, requiresApproval: false },
+  { id: '5', name: 'Kırtasiye', parentId: '4', productCount: 45, monthlyLimit: 5000, requiresApproval: false },
+  { id: '6', name: 'Mobilya', parentId: null, productCount: 23, monthlyLimit: 75000, requiresApproval: true },
 ]
+
+// Recursive Category Item Component
+function CategoryItem({
+  category,
+  categories,
+  onEdit,
+  onDelete,
+  onAddChild,
+  level = 0,
+}: {
+  category: Category
+  categories: Category[]
+  onEdit: (cat: Category) => void
+  onDelete: (cat: Category) => void
+  onAddChild: (parentId: string) => void
+  level?: number
+}) {
+  const children = categories.filter((c) => c.parentId === category.id)
+  const indentClass = level > 0 ? `ml-${level * 8}` : ''
+
+  return (
+    <div className={`${level > 0 ? 'ml-8' : ''}`}>
+      <div className={`p-4 ${level === 0 ? 'bg-gray-50' : 'bg-white border-l-2 border-blue-200'} flex items-center justify-between rounded-lg mb-2`}>
+        <div className="flex items-center gap-3 flex-1">
+          <GitBranch className={level === 0 ? 'text-blue-600' : 'text-gray-400'} size={20} />
+          <div className="flex-1">
+            <h3 className={`${level === 0 ? 'font-semibold' : 'font-medium'} text-gray-900`}>
+              {category.name}
+            </h3>
+            <div className="flex gap-4 mt-1 text-sm text-gray-600">
+              <span>{category.productCount} ürün</span>
+              <span>
+                Limit:{' '}
+                {category.monthlyLimit.toLocaleString('tr-TR', {
+                  style: 'currency',
+                  currency: 'TRY',
+                })}
+                /ay
+              </span>
+              {category.requiresApproval && (
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                  Onay Gerekli
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onAddChild(category.id)}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            title="Alt kategori ekle"
+          >
+            <Plus size={16} />
+            Alt Kategori
+          </button>
+          <button
+            onClick={() => onEdit(category)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <Edit size={18} />
+          </button>
+          <button
+            onClick={() => onDelete(category)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
+      </div>
+
+      {children.length > 0 && (
+        <div className="space-y-2 mt-2">
+          {children.map((child) => (
+            <CategoryItem
+              key={child.id}
+              category={child}
+              categories={categories}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onAddChild={onAddChild}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function CategoriesPage() {
   const { success, error } = useNotification()
+  const [categories, setCategories] = useState<Category[]>(initialCategories)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingCategory, setEditingCategory] = useState<any>(null)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     parentId: '',
@@ -39,11 +139,11 @@ export default function CategoriesPage() {
     setIsModalOpen(true)
   }
 
-  const openEditModal = (category: any) => {
+  const openEditModal = (category: Category) => {
     setEditingCategory(category)
     setFormData({
       name: category.name,
-      parentId: category.parent || '',
+      parentId: category.parentId || '',
       monthlyLimit: category.monthlyLimit?.toString() || '',
       requiresApproval: category.requiresApproval,
       minApprovalAmount: category.minApprovalAmount?.toString() || '',
@@ -51,29 +151,83 @@ export default function CategoriesPage() {
     setIsModalOpen(true)
   }
 
+  // Get category name by ID
+  const getCategoryName = (id: string) => {
+    return categories.find(c => c.id === id)?.name || ''
+  }
+
+  // Get selectable parent categories (exclude self and descendants)
+  const getSelectableParents = () => {
+    if (!editingCategory) return categories
+
+    const getDescendants = (catId: string): string[] => {
+      const children = categories.filter(c => c.parentId === catId)
+      return [catId, ...children.flatMap(c => getDescendants(c.id))]
+    }
+
+    const excludeIds = getDescendants(editingCategory.id)
+    return categories.filter(c => !excludeIds.includes(c.id))
+  }
+
   const handleSubmit = () => {
-    if (!formData.name) {
+    if (!formData.name.trim()) {
       error('Kategori adı gereklidir')
       return
     }
 
     if (editingCategory) {
+      // Update existing category
+      setCategories(categories.map(cat =>
+        cat.id === editingCategory.id
+          ? {
+              ...cat,
+              name: formData.name,
+              parentId: formData.parentId || null,
+              monthlyLimit: formData.monthlyLimit ? parseFloat(formData.monthlyLimit) : 0,
+              requiresApproval: formData.requiresApproval,
+              minApprovalAmount: formData.minApprovalAmount ? parseFloat(formData.minApprovalAmount) : undefined
+            }
+          : cat
+      ))
       success('Kategori güncellendi!')
     } else {
+      // Add new category
+      const newCategory: Category = {
+        id: Date.now().toString(),
+        name: formData.name,
+        parentId: formData.parentId || null,
+        productCount: 0,
+        monthlyLimit: formData.monthlyLimit ? parseFloat(formData.monthlyLimit) : 0,
+        requiresApproval: formData.requiresApproval,
+        minApprovalAmount: formData.minApprovalAmount ? parseFloat(formData.minApprovalAmount) : undefined
+      }
+      setCategories([...categories, newCategory])
       success('Kategori eklendi!')
     }
     setIsModalOpen(false)
   }
 
-  const handleDelete = (category: any) => {
+  const handleDelete = (category: Category) => {
+    // Check if category has children
+    const hasChildren = categories.some(c => c.parentId === category.id)
+    if (hasChildren) {
+      error('Bu kategorinin alt kategorileri var. Önce alt kategorileri silin.')
+      return
+    }
+
     if (confirm(`${category.name} kategorisini silmek istediğinize emin misiniz?`)) {
+      setCategories(categories.filter(c => c.id !== category.id))
       success('Kategori silindi!')
     }
   }
 
-  // Group categories by parent
-  const rootCategories = mockCategories.filter((c) => !c.parent)
-  const childCategories = mockCategories.filter((c) => c.parent)
+  // Recursive function to build category tree
+  const getCategoryTree = (parentId: string | null = null): Category[] => {
+    return categories.filter(c => c.parentId === parentId)
+  }
+
+  // Get all parent categories (root level)
+  const rootCategories = getCategoryTree(null)
 
   return (
     <DashboardLayout>
@@ -97,7 +251,7 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-3">
               <GitBranch className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockCategories.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kategori</p>
               </div>
             </div>
@@ -115,120 +269,34 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-3">
               <GitBranch className="text-purple-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{childCategories.length}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {categories.filter(c => c.parentId !== null).length}
+                </p>
                 <p className="text-sm text-gray-600">Alt Kategori</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 space-y-4">
-            {rootCategories.map((rootCat) => {
-              const children = childCategories.filter((c) => c.parent === rootCat.name)
-              return (
-                <div key={rootCat.id} className="border border-gray-200 rounded-lg">
-                  {/* Root Category */}
-                  <div className="p-4 bg-gray-50 flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <GitBranch className="text-blue-600" size={20} />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{rootCat.name}</h3>
-                        <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                          <span>{rootCat.productCount} ürün</span>
-                          <span>
-                            Limit:{' '}
-                            {rootCat.monthlyLimit.toLocaleString('tr-TR', {
-                              style: 'currency',
-                              currency: 'TRY',
-                            })}
-                            /ay
-                          </span>
-                          {rootCat.requiresApproval && (
-                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                              Onay Gerekli
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openCreateModal(rootCat.id)}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                        title="Alt kategori ekle"
-                      >
-                        <Plus size={16} />
-                        Alt Kategori
-                      </button>
-                      <button
-                        onClick={() => openEditModal(rootCat)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(rootCat)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Child Categories */}
-                  {children.length > 0 && (
-                    <div className="p-4 space-y-2">
-                      {children.map((child) => (
-                        <div
-                          key={child.id}
-                          className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg ml-8"
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            <ChevronRight className="text-gray-400" size={16} />
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{child.name}</h4>
-                              <div className="flex gap-4 mt-1 text-sm text-gray-600">
-                                <span>{child.productCount} ürün</span>
-                                {child.monthlyLimit && (
-                                  <span>
-                                    Limit:{' '}
-                                    {child.monthlyLimit.toLocaleString('tr-TR', {
-                                      style: 'currency',
-                                      currency: 'TRY',
-                                    })}
-                                    /ay
-                                  </span>
-                                )}
-                                {child.requiresApproval && (
-                                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                                    Onay Gerekli
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => openEditModal(child)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <Edit size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(child)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="space-y-4">
+            {rootCategories.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>Henüz kategori eklenmedi</p>
+                <p className="text-sm mt-1">Yeni kategori ekle butonuna tıklayarak başlayın</p>
+              </div>
+            ) : (
+              rootCategories.map((category) => (
+                <CategoryItem
+                  key={category.id}
+                  category={category}
+                  categories={categories}
+                  onEdit={openEditModal}
+                  onDelete={handleDelete}
+                  onAddChild={openCreateModal}
+                />
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -292,16 +360,32 @@ export default function CategoriesPage() {
               value={formData.parentId}
               onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={editingCategory !== null && formData.parentId !== ''}
             >
               <option value="">Ana Kategori (Üst kategori yok)</option>
-              {rootCategories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
+              {getSelectableParents().map((cat) => {
+                // Calculate depth for indentation
+                let depth = 0
+                let currentCat = cat
+                while (currentCat.parentId) {
+                  depth++
+                  const parent = categories.find(c => c.id === currentCat.parentId)
+                  if (!parent) break
+                  currentCat = parent
+                }
+                const indent = '—'.repeat(depth) + (depth > 0 ? ' ' : '')
+
+                return (
+                  <option key={cat.id} value={cat.id}>
+                    {indent}{cat.name}
+                  </option>
+                )
+              })}
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Alt kategori oluşturmak için üst kategoriyi seçin
+              {editingCategory
+                ? 'Kategoriyi farklı bir üst kategoriye taşıyabilirsiniz'
+                : 'Alt kategori oluşturmak için üst kategoriyi seçin'}
             </p>
           </div>
 
