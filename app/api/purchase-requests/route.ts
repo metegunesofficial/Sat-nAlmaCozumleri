@@ -31,8 +31,15 @@ export async function GET(request: NextRequest) {
     // Get user's companyId
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { companyId: true, role: true },
-      include: { managedDepartments: true }
+      select: {
+        companyId: true,
+        role: true,
+        managedDepartments: {
+          select: {
+            id: true
+          }
+        }
+      }
     })
 
     if (!user) {
