@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // Şirket/Organizasyon Modeli (Multi-tenant)
@@ -22,6 +23,7 @@ model Company {
   website       String?
   logo          String?
   isActive      Boolean   @default(true)
+  isDemo        Boolean   @default(false)
   settings      Json?
 
   createdAt     DateTime  @default(now())
@@ -39,6 +41,7 @@ model Company {
   suppliers     Supplier[]
 
   @@index([slug])
+  @@index([isDemo])
 }
 
 // Kullanıcı Modeli
@@ -75,6 +78,7 @@ model User {
   approvalActions     ApprovalAction[]
   managedDepartments  Department[] @relation("DepartmentManager")
   userBudgets         UserBudget[]
+  userPermissions     UserPermission[]
 
   @@unique([email, companyId])
   @@index([email])
@@ -639,4 +643,79 @@ enum SupplierStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+// ============================================
+// PERMISSIONS & RBAC MODELS
+// ============================================
+
+// Permission Definitions
+model Permission {
+  id          String @id @default(cuid())
+  key         String @unique // e.g., "company:read", "user:create", "request:approve"
+  description String?
+  category    String @default("general") // general, company, user, request, product, etc.
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@index([key])
+  @@index([category])
+}
+
+// Role-based Permission Mapping
+model RolePermission {
+  id          String @id @default(cuid())
+  role        UserRole
+  permissionId String
+  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  effect      String   @default("allow") // allow/deny for future flexibility
+
+  createdAt   DateTime @default(now())
+
+  @@unique([role, permissionId])
+  @@index([role])
+  @@index([permissionId])
+}
+
+// User-specific Permission Overrides
+model UserPermission {
+  id           String @id @default(cuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  effect       String  @default("allow") // allow/deny
+
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+// Audit Trail for Compliance
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String?   // null for system-level actions
+  actorUserId String?  // null for system actions
+  action     String    // e.g., "user.create", "request.approve", "company.delete"
+  resource   String?   // e.g., "Company:123", "PurchaseRequest:abc"
+  metadata   Json?     // Additional context (old values, new values, etc.)
+  ip         String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
 }

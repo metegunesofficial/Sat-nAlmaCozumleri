@@ -1,14 +1,14 @@
 'use client'
 
-import { AuthProvider } from '@/contexts/AuthContext'
+import { SessionProvider } from 'next-auth/react'
 import { NotificationProvider } from '@/contexts/NotificationContext'
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <NotificationProvider>
-      <AuthProvider>
+    <SessionProvider>
+      <NotificationProvider>
         {children}
-      </AuthProvider>
-    </NotificationProvider>
+      </NotificationProvider>
+    </SessionProvider>
   )
 }

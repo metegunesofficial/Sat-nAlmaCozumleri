@@ -1,6 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext } from 'react'
+import { useSession, signIn as nextAuthSignIn, signOut as nextAuthSignOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 interface User {
   id: string
@@ -8,7 +10,7 @@ interface User {
   name: string
   role: string
   companyId: string
-  companyName: string
+  companyName?: string
   departmentId?: string
   departmentName?: string
   position?: string
@@ -25,117 +27,66 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Check if user is logged in (from localStorage)
-    const storedUser = localStorage.getItem('user')
-    const token = localStorage.getItem('token')
-
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser))
-    }
-
-    setLoading(false)
-  }, [])
-
-  const login = async (email: string, password: string) => {
-    setLoading(true)
-    try {
-      // Mock login - replace with actual API call
-      const mockUsers = [
-        {
-          id: '1',
-          email: 'admin@attelia.com',
-          name: 'Ahmet Yıldırım',
-          role: 'COMPANY_ADMIN',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          position: 'Genel Müdür'
-        },
-        {
-          id: '2',
-          email: 'john.doe@attelia.com',
-          name: 'John Doe',
-          role: 'EMPLOYEE',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          departmentId: 'dept1',
-          departmentName: 'Bilgi İşlem',
-          position: 'Yazılım Geliştirici'
-        },
-        {
-          id: '3',
-          email: 'it.manager@attelia.com',
-          name: 'Mehmet Demir',
-          role: 'DEPARTMENT_MANAGER',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          departmentId: 'dept1',
-          departmentName: 'Bilgi İşlem',
-          position: 'IT Müdürü'
-        },
-        {
-          id: '4',
-          email: 'finance@attelia.com',
-          name: 'Can Öztürk',
-          role: 'FINANCE_MANAGER',
-          companyId: 'company1',
-          companyName: 'Attelia Dental Merkez',
-          departmentId: 'dept-fin',
-          departmentName: 'Finans',
-          position: 'Finans Müdürü'
-        }
-      ]
-
-      const foundUser = mockUsers.find(u => u.email === email)
-
-      if (!foundUser || password !== 'password123') {
-        throw new Error('Geçersiz email veya şifre')
-      }
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      const mockToken = 'mock-jwt-token-' + foundUser.id
-
-      localStorage.setItem('user', JSON.stringify(foundUser))
-      localStorage.setItem('token', mockToken)
-
-      setUser(foundUser)
-    } catch (error) {
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const logout = () => {
-    localStorage.removeItem('user')
-    localStorage.removeItem('token')
-    setUser(null)
-  }
-
+  // This is now a compatibility wrapper around NextAuth
+  // The actual SessionProvider is in Providers.tsx
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        logout,
-        isAuthenticated: !!user
-      }}
-    >
+    <AuthContext.Provider value={undefined as any}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+/**
+ * useAuth - Compatibility hook that wraps NextAuth's useSession
+ *
+ * This provides a consistent API while using NextAuth under the hood.
+ * Existing code can continue to use useAuth() without changes.
+ */
+export function useAuth(): AuthContextType {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+
+  const login = async (email: string, password: string) => {
+    const result = await nextAuthSignIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    })
+
+    if (result?.error) {
+      throw new Error(result.error)
+    }
+
+    // NextAuth will handle the redirect via middleware
+    // But we can also do it here for immediate feedback
+    if (result?.ok) {
+      // Let middleware handle the redirect based on role
+      router.refresh()
+    }
   }
-  return context
+
+  const logout = async () => {
+    await nextAuthSignOut({ redirect: true, callbackUrl: '/login' })
+  }
+
+  // Map NextAuth session to our User interface
+  const user: User | null = session?.user ? {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    role: session.user.role,
+    companyId: session.user.companyId,
+    companyName: session.user.companyName,
+    departmentId: session.user.departmentId,
+    departmentName: session.user.departmentName,
+    position: session.user.position,
+  } : null
+
+  return {
+    user,
+    loading: status === 'loading',
+    login,
+    logout,
+    isAuthenticated: !!session,
+  }
 }

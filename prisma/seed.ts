@@ -6,6 +6,230 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding multi-tenant database...')
 
+  // ============================================
+  // CREATE PERMISSIONS
+  // ============================================
+  console.log('\n🔐 Creating permissions...')
+
+  const permissions = [
+    // Company Management
+    { key: 'company:read', description: 'View company details', category: 'company' },
+    { key: 'company:update', description: 'Update company settings', category: 'company' },
+    { key: 'company:delete', description: 'Delete company', category: 'company' },
+
+    // User Management
+    { key: 'user:read', description: 'View users', category: 'user' },
+    { key: 'user:create', description: 'Create new users', category: 'user' },
+    { key: 'user:update', description: 'Update user details', category: 'user' },
+    { key: 'user:delete', description: 'Delete users', category: 'user' },
+    { key: 'user:manage_roles', description: 'Change user roles', category: 'user' },
+
+    // Department Management
+    { key: 'department:read', description: 'View departments', category: 'department' },
+    { key: 'department:create', description: 'Create departments', category: 'department' },
+    { key: 'department:update', description: 'Update departments', category: 'department' },
+    { key: 'department:delete', description: 'Delete departments', category: 'department' },
+
+    // Product Management
+    { key: 'product:read', description: 'View products', category: 'product' },
+    { key: 'product:create', description: 'Create products', category: 'product' },
+    { key: 'product:update', description: 'Update products', category: 'product' },
+    { key: 'product:delete', description: 'Delete products', category: 'product' },
+
+    // Category Management
+    { key: 'category:read', description: 'View categories', category: 'category' },
+    { key: 'category:create', description: 'Create categories', category: 'category' },
+    { key: 'category:update', description: 'Update categories', category: 'category' },
+    { key: 'category:delete', description: 'Delete categories', category: 'category' },
+
+    // Purchase Request Management
+    { key: 'request:read', description: 'View purchase requests', category: 'request' },
+    { key: 'request:read_all', description: 'View all company requests', category: 'request' },
+    { key: 'request:create', description: 'Create purchase requests', category: 'request' },
+    { key: 'request:update', description: 'Update own requests', category: 'request' },
+    { key: 'request:delete', description: 'Delete own requests', category: 'request' },
+    { key: 'request:approve', description: 'Approve purchase requests', category: 'request' },
+    { key: 'request:reject', description: 'Reject purchase requests', category: 'request' },
+
+    // Budget Management
+    { key: 'budget:read', description: 'View budgets', category: 'budget' },
+    { key: 'budget:create', description: 'Create budgets', category: 'budget' },
+    { key: 'budget:update', description: 'Update budgets', category: 'budget' },
+    { key: 'budget:delete', description: 'Delete budgets', category: 'budget' },
+
+    // Workflow Management
+    { key: 'workflow:read', description: 'View workflows', category: 'workflow' },
+    { key: 'workflow:create', description: 'Create workflows', category: 'workflow' },
+    { key: 'workflow:update', description: 'Update workflows', category: 'workflow' },
+    { key: 'workflow:delete', description: 'Delete workflows', category: 'workflow' },
+
+    // Supplier Management
+    { key: 'supplier:read', description: 'View suppliers', category: 'supplier' },
+    { key: 'supplier:create', description: 'Create suppliers', category: 'supplier' },
+    { key: 'supplier:update', description: 'Update suppliers', category: 'supplier' },
+    { key: 'supplier:delete', description: 'Delete suppliers', category: 'supplier' },
+
+    // Reports
+    { key: 'report:budget', description: 'View budget reports', category: 'report' },
+    { key: 'report:purchase', description: 'View purchase reports', category: 'report' },
+    { key: 'report:approval', description: 'View approval reports', category: 'report' },
+
+    // Audit Log
+    { key: 'audit:read', description: 'View audit logs', category: 'audit' },
+
+    // System Administration (SUPER_ADMIN only)
+    { key: 'system:manage', description: 'Full system access', category: 'system' },
+    { key: 'system:impersonate', description: 'Impersonate users', category: 'system' },
+  ]
+
+  const createdPermissions: Record<string, any> = {}
+
+  for (const perm of permissions) {
+    const created = await prisma.permission.upsert({
+      where: { key: perm.key },
+      update: {},
+      create: perm,
+    })
+    createdPermissions[perm.key] = created
+  }
+
+  console.log(`✅ ${permissions.length} permissions created`)
+
+  // ============================================
+  // MAP PERMISSIONS TO ROLES
+  // ============================================
+  console.log('\n🎭 Mapping permissions to roles...')
+
+  const rolePermissions = [
+    // SUPER_ADMIN - Full system access
+    { role: 'SUPER_ADMIN', permissions: Object.keys(createdPermissions) },
+
+    // COMPANY_ADMIN - Full company management
+    {
+      role: 'COMPANY_ADMIN',
+      permissions: [
+        'company:read', 'company:update',
+        'user:read', 'user:create', 'user:update', 'user:delete', 'user:manage_roles',
+        'department:read', 'department:create', 'department:update', 'department:delete',
+        'product:read', 'product:create', 'product:update', 'product:delete',
+        'category:read', 'category:create', 'category:update', 'category:delete',
+        'request:read', 'request:read_all', 'request:create', 'request:update', 'request:delete', 'request:approve', 'request:reject',
+        'budget:read', 'budget:create', 'budget:update', 'budget:delete',
+        'workflow:read', 'workflow:create', 'workflow:update', 'workflow:delete',
+        'supplier:read', 'supplier:create', 'supplier:update', 'supplier:delete',
+        'report:budget', 'report:purchase', 'report:approval',
+        'audit:read',
+      ],
+    },
+
+    // PROCUREMENT_MANAGER - Procurement operations
+    {
+      role: 'PROCUREMENT_MANAGER',
+      permissions: [
+        'company:read',
+        'user:read',
+        'department:read',
+        'product:read', 'product:create', 'product:update',
+        'category:read', 'category:create', 'category:update',
+        'request:read', 'request:read_all', 'request:create', 'request:update', 'request:approve', 'request:reject',
+        'budget:read',
+        'workflow:read',
+        'supplier:read', 'supplier:create', 'supplier:update',
+        'report:budget', 'report:purchase', 'report:approval',
+      ],
+    },
+
+    // FINANCE_MANAGER - Financial oversight
+    {
+      role: 'FINANCE_MANAGER',
+      permissions: [
+        'company:read',
+        'user:read',
+        'department:read',
+        'product:read',
+        'category:read',
+        'request:read', 'request:read_all', 'request:approve', 'request:reject',
+        'budget:read', 'budget:create', 'budget:update',
+        'workflow:read',
+        'supplier:read',
+        'report:budget', 'report:purchase', 'report:approval',
+      ],
+    },
+
+    // GENERAL_MANAGER - Strategic oversight
+    {
+      role: 'GENERAL_MANAGER',
+      permissions: [
+        'company:read', 'company:update',
+        'user:read',
+        'department:read', 'department:create', 'department:update',
+        'product:read',
+        'category:read',
+        'request:read', 'request:read_all', 'request:approve', 'request:reject',
+        'budget:read', 'budget:update',
+        'workflow:read', 'workflow:update',
+        'supplier:read',
+        'report:budget', 'report:purchase', 'report:approval',
+      ],
+    },
+
+    // DEPARTMENT_MANAGER - Department operations
+    {
+      role: 'DEPARTMENT_MANAGER',
+      permissions: [
+        'company:read',
+        'user:read',
+        'department:read',
+        'product:read',
+        'category:read',
+        'request:read', 'request:create', 'request:update', 'request:approve', 'request:reject',
+        'budget:read',
+        'workflow:read',
+        'supplier:read',
+        'report:budget', 'report:purchase',
+      ],
+    },
+
+    // EMPLOYEE - Basic operations
+    {
+      role: 'EMPLOYEE',
+      permissions: [
+        'company:read',
+        'user:read',
+        'department:read',
+        'product:read',
+        'category:read',
+        'request:read', 'request:create', 'request:update', 'request:delete',
+        'budget:read',
+        'supplier:read',
+      ],
+    },
+  ]
+
+  for (const mapping of rolePermissions) {
+    for (const permKey of mapping.permissions) {
+      const permission = createdPermissions[permKey]
+      if (permission) {
+        await prisma.rolePermission.upsert({
+          where: {
+            role_permissionId: {
+              role: mapping.role as any,
+              permissionId: permission.id,
+            },
+          },
+          update: {},
+          create: {
+            role: mapping.role as any,
+            permissionId: permission.id,
+            effect: 'allow',
+          },
+        })
+      }
+    }
+  }
+
+  console.log(`✅ Role permissions mapped for ${rolePermissions.length} roles`)
+
   // Create Companies
   console.log('\n📦 Creating companies...')
 
