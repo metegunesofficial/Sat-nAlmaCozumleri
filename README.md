@@ -1,21 +1,82 @@
 # 🏥 Attelia Dental - Enterprise Satın Alma Yönetim Platformu
 
-**Kurumsal düzeyde, multi-tenant, tam özellikli satın alma ve onay yönetim sistemi** - Birden fazla şirket/organizasyon için, çok katmanlı bütçe kontrolleri ve çok aşamalı onay süreçleri ile.
+**Kurumsal düzeyde, multi-tenant, tam özellikli satın alma ve onay yönetim sistemi** - Görsel workflow designer, white-label özelleştirme, otomatik email bildirimleri ve akıllı onay yönetimi ile.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-000000?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=flat&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![ReactFlow](https://img.shields.io/badge/ReactFlow-FF0080?style=flat&logo=react&logoColor=white)](https://reactflow.dev/)
 
 ---
 
 ## 🌟 Temel Özellikler
 
+### 🎨 White-Label Customization (NEW!)
+✅ **Tam marka özelleştirmesi** - Her şirket kendi markasıyla
+- Logo ve favicon yükleme (Vercel Blob storage)
+- 6 tema rengi özelleştirme (primary, secondary, accent, success, warning, error)
+- Özel font seçimi (7 Google Font)
+- Sidebar ve header renk özelleştirme
+- Özel CSS/JS desteği
+- Dark mode hazırlığı
+- Gerçek zamanlı tema önizleme
+
+### 📧 Akıllı Email Bildirim Sistemi (NEW!)
+✅ **Tam özellikli email entegrasyonu** - Her adımda otomatik bildirim
+- Multi-channel destek (Email, SMS, WhatsApp, In-App - hazır)
+- Template yönetim sistemi (şirket özel)
+- Variable replacement engine ({{user.name}}, {{request.amount}})
+- Gmail, SendGrid, Custom SMTP desteği
+- Delivery tracking ve audit trail
+- Onay/red bildirimleri
+- Email gönderim logları
+
+### 🎨 Visual Workflow Designer (NEW!)
+✅ **Sürükle-bırak workflow tasarımı** - ReactFlow tabanlı
+- 8 node tipi (Start, End, Approval, Decision, Notification, Wait, Parallel)
+- Gerçek zamanlı validasyon
+- Workflow versiyonlama
+- JSON export/import
+- Drag-drop canvas
+- Minimap ve zoom kontrolleri
+- Node yapılandırma panelleri
+- Görsel workflow yönetim sayfası
+
+#### Node Tipleri
+- **Start Node**: Workflow başlangıcı
+- **Approval Node**: Onay alma (role-based, user-based, dynamic)
+  - Threshold: all, any, majority, count, weighted
+  - Multi-approver desteği
+  - Timeout ve escalation
+- **Decision Node**: Koşullu dallanma
+  - Operators: ==, !=, >, <, >=, <=, contains, in
+  - AND/OR logic
+  - Variable-based branching
+- **Notification Node**: Multi-channel bildirim
+- **Wait Node**: Zaman gecikmesi
+- **Parallel Split/Join**: Paralel workflow desteği
+- **End Node**: Workflow tamamlama
+
+### ⚙️ Workflow Execution Engine (NEW!)
+✅ **Gerçek zamanlı workflow çalıştırma** - Tam otomatik
+- Purchase request'e bağlı otomatik başlatma
+- State machine tabanlı execution
+- Dynamic approver resolution
+- Threshold-based approval logic
+- Condition evaluation engine
+- Parallel workflow support (hazır)
+- Workflow instance tracking
+- Task assignment ve due dates
+- Auto-continuation after approvals
+- Audit trail (completed nodes)
+
 ### 🏢 Multi-Tenant Altyapı
-✅ Tek platformda birden fazla şirket/organizasyon  
-✅ Tamamen izole veri yapısı (her şirket kendi verileri)  
-✅ Şirket bazlı ayarlar ve yapılandırma  
+✅ Tek platformda birden fazla şirket/organizasyon
+✅ Tamamen izole veri yapısı (her şirket kendi verileri)
+✅ Şirket bazlı ayarlar ve yapılandırma
 ✅ Şirket bazlı kullanıcı, departman ve ürün yönetimi
+✅ White-label branding desteği
 
 ### 💰 3 Katmanlı Bütçe Yönetimi
 
@@ -63,20 +124,29 @@
 - ✅ Minimum onay tutarı tanımlama
 - ✅ Kategori bazlı erişim kontrolü
 
-### 📋 Çok Aşamalı Onay Sistemi
+### 📋 Gelişmiş Onay Sistemi
 
-**Tutar Bazlı Otomatik Workflow:**
+**İki Onay Sistemi:**
+1. **Legacy Workflow**: Tutar bazlı otomatik workflow
+2. **Visual Workflow**: Sürükle-bırak tasarımı (NEW!)
+
+**Legacy Workflow - Tutar Bazlı:**
 - 0-10,000₺: Departman Müdürü
 - 10,000-50,000₺: Departman + Satın Alma Müdürü
 - 50,000₺+: Departman + Satın Alma + Finans Müdürü
 
-**Onay Özellikleri:**
-- ✅ Çok seviyeli onay zincirleri (unlimited steps)
-- ✅ Paralel ve sıralı onay desteği
-- ✅ Role-based approval (rol bazlı)
-- ✅ Onay/Red/Geri Gönderme aksiyonları
-- ✅ Yorum ve açıklama sistemi
-- ✅ Otomatik bildirimler (email ready)
+**Visual Workflow Özellikleri:**
+- ✅ Görsel tasarım (drag-drop)
+- ✅ 8 node tipi
+- ✅ Gerçek zamanlı validasyon
+- ✅ Multi-approver coordination
+- ✅ Dynamic approval routing
+- ✅ Condition-based branching
+- ✅ Parallel workflow support
+- ✅ Automatic email notifications
+- ✅ Task tracking & due dates
+- ✅ Workflow versioning
+- ✅ Audit trail
 
 ### 📊 Kapsamlı Raporlama
 
@@ -138,6 +208,10 @@
 | **ORM** | Prisma |
 | **Auth** | JWT, bcryptjs |
 | **Validation** | Zod |
+| **Email** | Nodemailer v7, SendGrid/Gmail |
+| **File Storage** | Vercel Blob |
+| **Workflow** | ReactFlow |
+| **Charts** | Recharts |
 
 ---
 
@@ -156,7 +230,7 @@ git clone <repository-url>
 cd Sat-nAlmaCozumleri
 
 # 2. Bağımlılıkları yükleyin
-npm install
+npm install --legacy-peer-deps
 
 # 3. PostgreSQL database oluşturun
 psql -U postgres
@@ -165,7 +239,7 @@ CREATE DATABASE attelia_dental;
 
 # 4. Environment variables
 cp .env.example .env
-# .env dosyasını düzenleyin
+# .env dosyasını düzenleyin (aşağıya bakın)
 
 # 5. Database migration
 npx prisma generate
@@ -180,6 +254,49 @@ npm run dev
 
 Uygulama: [http://localhost:3000](http://localhost:3000)
 
+### Environment Variables (.env)
+
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/attelia_dental?schema=public"
+
+# Authentication
+JWT_SECRET="your-super-secret-jwt-key-min-32-chars"
+NEXTAUTH_SECRET="your-nextauth-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Email Configuration (Choose one)
+# Option 1: Gmail
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="your-email@gmail.com"
+SMTP_PASS="your-app-specific-password"
+SMTP_FROM="your-email@gmail.com"
+
+# Option 2: SendGrid
+# SMTP_HOST="smtp.sendgrid.net"
+# SMTP_PORT="587"
+# SMTP_USER="apikey"
+# SMTP_PASS="your-sendgrid-api-key"
+# SMTP_FROM="noreply@yourdomain.com"
+
+# File Storage (Vercel Blob)
+BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
+
+# App
+NODE_ENV="development"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+**Email Setup için:**
+- Gmail: [App-specific password oluşturun](https://myaccount.google.com/apppasswords)
+- SendGrid: [API key alın](https://sendgrid.com/docs/ui/account-and-settings/api-keys/)
+
+**Vercel Blob Setup:**
+1. [Vercel dashboard](https://vercel.com/dashboard)'a gidin
+2. Storage → Create → Blob
+3. Token'ı kopyalayın
+
 ---
 
 ## 📁 Proje Yapısı
@@ -187,34 +304,74 @@ Uygulama: [http://localhost:3000](http://localhost:3000)
 ```
 Sat-nAlmaCozumleri/
 ├── app/
-│   ├── api/                          # Backend API
-│   │   ├── auth/                    # Authentication
-│   │   ├── products/                # Ürün yönetimi
-│   │   ├── categories/              # Kategori yönetimi
-│   │   ├── departments/             # Departman yönetimi
-│   │   ├── purchase-requests/       # Satın alma talepleri
+│   ├── api/                              # Backend API
+│   │   ├── auth/                        # Authentication
+│   │   ├── products/                    # Ürün yönetimi
+│   │   ├── categories/                  # Kategori yönetimi
+│   │   ├── departments/                 # Departman yönetimi
+│   │   ├── purchase-requests/           # Satın alma talepleri
 │   │   │   ├── [requestId]/
-│   │   │   │   └── approve/        # Onay endpoint
+│   │   │   │   └── approve/            # Onay endpoint
 │   │   │   └── route.ts
-│   │   └── reports/                 # Raporlama
+│   │   ├── settings/                    # White-label settings (NEW!)
+│   │   │   ├── logo/
+│   │   │   └── favicon/
+│   │   ├── workflows/                   # Visual workflows (NEW!)
+│   │   │   ├── visual/
+│   │   │   │   ├── [id]/
+│   │   │   │   │   └── activate/
+│   │   │   │   └── route.ts
+│   │   │   └── tasks/                   # Workflow tasks (NEW!)
+│   │   │       ├── my-tasks/
+│   │   │       └── [taskId]/decide/
+│   │   └── reports/                     # Raporlama
 │   │       ├── purchase-summary/
 │   │       ├── budget/
 │   │       └── approval-performance/
-│   ├── products/                    # Ürün sayfaları
-│   ├── cart/                        # Sepet
-│   ├── layout.tsx
+│   ├── admin/
+│   │   ├── settings/                    # White-label UI (NEW!)
+│   │   └── workflows/                   # Workflow management (NEW!)
+│   │       ├── designer/                # Visual designer (NEW!)
+│   │       └── page.tsx                 # Workflow list (NEW!)
+│   ├── products/                        # Ürün sayfaları
+│   ├── cart/                            # Sepet
+│   ├── layout.tsx                       # Dynamic theming (NEW!)
 │   └── page.tsx
-├── components/                       # React components
+├── components/                           # React components
+│   ├── workflow/nodes/                  # ReactFlow nodes (NEW!)
+│   │   ├── StartNode.tsx
+│   │   ├── EndNode.tsx
+│   │   ├── ApprovalNode.tsx
+│   │   ├── DecisionNode.tsx
+│   │   ├── NotificationNode.tsx
+│   │   ├── WaitNode.tsx
+│   │   ├── ParallelSplitNode.tsx
+│   │   ├── ParallelJoinNode.tsx
+│   │   └── index.ts
 │   ├── Header.tsx
-│   ├── Footer.tsx
+│   ├── Sidebar.tsx                      # Dynamic logo (NEW!)
 │   └── ProductCard.tsx
-├── lib/                             # Utilities
+├── lib/                                  # Utilities
 │   ├── prisma.ts
 │   ├── auth.ts
-│   └── utils.ts
+│   ├── utils.ts
+│   ├── blob.ts                          # File upload (NEW!)
+│   ├── theme.ts                         # Theme generation (NEW!)
+│   ├── email.ts                         # Email sending (NEW!)
+│   ├── email-templates.ts               # Email templates (NEW!)
+│   ├── notifications.ts                 # Notification API (NEW!)
+│   ├── workflow-types.ts                # Workflow types (NEW!)
+│   ├── workflow-validator.ts            # Validation (NEW!)
+│   └── workflow-executor.ts             # Execution engine (NEW!)
 ├── prisma/
-│   ├── schema.prisma               # Database schema
-│   └── seed.ts                     # Seed script
+│   ├── schema.prisma                    # Database schema
+│   └── seed.ts                          # Seed script
+├── docs/                                 # Documentation (NEW!)
+│   ├── PRD.md                           # Product requirements
+│   ├── GAP_ANALYSIS.md                  # Gap analysis
+│   ├── SPRINT_PLAN_PHASE1.md           # Sprint plan
+│   ├── PROGRESS_REPORT.md              # Progress tracking
+│   └── SESSION_SUMMARY.md              # Session summary
 └── types/
     └── index.ts
 ```
@@ -227,8 +384,9 @@ Sat-nAlmaCozumleri/
 
 #### Multi-Tenancy
 - **Company** - Şirket/organizasyon
+- **CompanySettings** - White-label ayarları (NEW!)
 
-#### Kullanıcı Yönetimi  
+#### Kullanıcı Yönetimi
 - **User** - Kullanıcılar (company scoped)
 - **Department** - Departmanlar (hiyerarşik)
 
@@ -243,9 +401,15 @@ Sat-nAlmaCozumleri/
 - **PurchaseCategory** - Satın alım kategorileri (hiyerarşik)
 
 #### Onay Sistemi
-- **ApprovalWorkflow** - İş akışı tanımları
-- **ApprovalStep** - Onay adımları
-- **ApprovalAction** - Onay/red aksiyonları
+- **ApprovalWorkflow** - İş akışı tanımları (visual support)
+- **ApprovalStep** - Onay adımları (legacy)
+- **ApprovalAction** - Onay/red aksiyonları (legacy)
+- **WorkflowInstance** - Workflow runtime tracking (NEW!)
+- **WorkflowTask** - Approval tasks (NEW!)
+
+#### Bildirim Sistemi (NEW!)
+- **NotificationTemplate** - Email templates
+- **NotificationLog** - Delivery tracking
 
 #### E-Ticaret
 - **Category** - Ürün kategorileri
@@ -267,10 +431,36 @@ POST   /api/auth/login         # Giriş
 ### Purchase Requests
 ```
 GET    /api/purchase-requests              # Liste (role-based)
-POST   /api/purchase-requests              # Yeni talep
+POST   /api/purchase-requests              # Yeni talep (auto-start workflow!)
 GET    /api/purchase-requests/[id]         # Detay
 PUT    /api/purchase-requests/[id]         # Güncelle
 POST   /api/purchase-requests/[id]/approve # Onayla/Reddet
+```
+
+### White-Label Settings (NEW!)
+```
+GET    /api/settings           # Get company settings
+PUT    /api/settings           # Update settings (admin)
+POST   /api/settings/logo      # Upload logo
+DELETE /api/settings/logo      # Delete logo
+POST   /api/settings/favicon   # Upload favicon
+DELETE /api/settings/favicon   # Delete favicon
+```
+
+### Visual Workflows (NEW!)
+```
+GET    /api/workflows/visual              # List workflows
+POST   /api/workflows/visual              # Create workflow
+GET    /api/workflows/visual/[id]         # Get workflow
+PUT    /api/workflows/visual/[id]         # Update workflow
+DELETE /api/workflows/visual/[id]         # Delete workflow
+POST   /api/workflows/visual/[id]/activate # Activate/deactivate
+```
+
+### Workflow Tasks (NEW!)
+```
+GET    /api/workflows/tasks/my-tasks      # My pending tasks
+POST   /api/workflows/tasks/[id]/decide   # Approve/reject task
 ```
 
 ### Departments
@@ -316,65 +506,90 @@ POST   /api/products           # Yeni ürün (Admin)
 
 ---
 
-## 🔄 Örnek Onay Workflow'ları
+## 🎨 Visual Workflow Kullanımı
 
-### Workflow 1: Standart (0-10K ₺)
+### 1. Workflow Oluşturma
 ```
-Step 1: Departman Müdürü Onayı
+Admin → Workflow Designer → Yeni Workflow
+1. Drag-drop node'ları canvas'a
+2. Node'ları birbirine bağla
+3. Her node'u yapılandır
+4. Validate et
+5. Kaydet
+6. Aktif et
 ```
 
-### Workflow 2: İki Aşamalı (10K-50K ₺)
+### 2. Workflow Çalıştırma
 ```
-Step 1: Departman Müdürü Onayı
-Step 2: Satın Alma Müdürü Onayı
+Purchase request oluşturulduğunda:
+→ Sistem otomatik uygun workflow'u bulur
+→ Workflow instance başlatır
+→ İlk node'u çalıştırır
+→ Approval node'da task oluşturur
+→ Onaylayıcılara email gönderir
+→ Onay/red bekler
+→ Threshold karşılandığında devam eder
+→ End node'a ulaşınca tamamlar
 ```
 
-### Workflow 3: Üç Aşamalı (50K+ ₺)
+### 3. Task Yönetimi
 ```
-Step 1: Departman Müdürü Onayı
-Step 2: Satın Alma Müdürü Onayı
-Step 3: Finans Müdürü Onayı
+Onaylayıcı:
+→ "Bekleyen Onaylar" sayfasına gider
+→ Task'ı görür (requester, amount, priority)
+→ Onaylar veya reddeder
+→ Comment ekleyebilir
+→ Sistem otomatik workflow'u devam ettirir
+→ Requester'a email gönderir
 ```
 
 ---
 
-## 💡 Kullanım Senaryoları
+## 🔄 Örnek Workflow Senaryoları
 
-### Senaryo 1: Kişisel Bütçe Kontrolü
-```typescript
-Çalışan: 10,000₺ laptop talebi
+### Senaryo 1: Basit Onay (Tek Approver)
+```
+[Start] → [Approval: Departman Müdürü] → [End]
 
-✓ Kişisel aylık bütçe: 15,000₺
-✓ Departman bütçesi: 50,000₺  
-✓ Şirket IT bütçesi: 200,000₺
-✓ Kategori limiti: 100,000₺/ay
-
-→ Talep oluşturulabilir
-→ Workflow 2 (iki aşamalı) tetiklenir
+Tutar: 5,000₺
+Threshold: any (1 kişi yeterli)
+→ Departman müdürü onaylar
+→ Request APPROVED olur
 ```
 
-### Senaryo 2: Bütçe Aşımı
-```typescript
-Çalışan: 20,000₺ talep
+### Senaryo 2: Çok Aşamalı Onay
+```
+[Start] → [Approval: Departman] → [Approval: Finans] → [End]
 
-✗ Kişisel bütçe: 15,000₺ (yetersiz!)
-  
-→ Talep oluşturulamaz
-→ "Kişisel bütçeniz aşılacak" uyarısı
+Tutar: 50,000₺
+Threshold: all (tümü onaylamalı)
+→ Departman onaylar
+→ Finans onaylar
+→ Request APPROVED olur
 ```
 
-### Senaryo 3: Kategori Bazlı Onay
-```typescript
-Kategori: IT > Donanım > Bilgisayar
-- Monthly Limit: 100,000₺
-- Min Approval: 5,000₺
-- Requires Approval: true
+### Senaryo 3: Koşullu Dallanma
+```
+[Start] → [Decision: amount > 10000?]
+          ├─ TRUE → [Approval: Manager] → [End]
+          └─ FALSE → [End]
 
-35,000₺ talep:
-✓ Kategori limiti içinde
-✓ 5,000₺ üzeri (onay gerekli)
-  
-→ Onay süreci başlatılır
+Tutar < 10,000₺:
+→ Direkt APPROVED olur (otomatik)
+
+Tutar > 10,000₺:
+→ Manager onayı bekler
+```
+
+### Senaryo 4: Paralel Onay
+```
+[Start] → [Parallel Split]
+          ├─ [Approval: IT]
+          └─ [Approval: Finance]
+          → [Parallel Join] → [End]
+
+Threshold: majority (2'den 1'i yeterli)
+→ IT veya Finance onayladığında devam eder
 ```
 
 ---
@@ -400,68 +615,6 @@ npm run db:seed
 
 ---
 
-## 🎨 Özelleştirme
-
-### Yeni Onay Workflow'u Ekleme
-
-```typescript
-await prisma.approvalWorkflow.create({
-  data: {
-    companyId: 'company-id',
-    name: 'Özel Workflow',
-    minAmount: 100000,
-    maxAmount: 500000,
-    departmentIds: ['dept-1', 'dept-2'],
-    steps: {
-      create: [
-        {
-          stepOrder: 0,
-          stepName: 'İlk Onay',
-          approverRole: 'DEPARTMENT_MANAGER'
-        },
-        {
-          stepOrder: 1,
-          stepName: 'İkinci Onay',
-          approverRole: 'GENERAL_MANAGER'
-        }
-      ]
-    }
-  }
-})
-```
-
-### Yeni Satın Alım Kategorisi
-
-```typescript
-await prisma.purchaseCategory.create({
-  data: {
-    companyId: 'company-id',
-    name: 'Eğitim',
-    code: 'EDU',
-    monthlyLimit: 50000,
-    yearlyLimit: 600000,
-    requiresApproval: true,
-    minApprovalAmount: 1000,
-    children: {
-      create: [
-        {
-          name: 'Online Kurslar',
-          code: 'EDU-ONLINE',
-          monthlyLimit: 20000
-        },
-        {
-          name: 'Seminerler',
-          code: 'EDU-SEM',
-          monthlyLimit: 30000
-        }
-      ]
-    }
-  }
-})
-```
-
----
-
 ## 🔐 Güvenlik
 
 ### Role-Based Access Control (RBAC)
@@ -474,6 +627,20 @@ await prisma.purchaseCategory.create({
 - Tüm sorgularda otomatik company filtreleme
 - User-company ilişki validasyonu
 - Cross-company data leakage önleme
+- Workflow task'lerde assignee validation
+
+### File Upload Security
+- File type validation (images only)
+- File size limits (<5MB)
+- Secure file naming
+- Company-scoped storage
+- Auto-cleanup on update
+
+### Email Security
+- Template variable sanitization
+- Rate limiting (ready)
+- Company-scoped templates
+- Delivery tracking
 
 ---
 
@@ -483,6 +650,8 @@ await prisma.purchaseCategory.create({
 - **Query Optimization**: Include/select optimization
 - **Pagination**: Tüm list endpoint'lerinde
 - **Caching Ready**: Redis integration ready
+- **File Storage**: CDN-backed Vercel Blob
+- **Email**: Async fire-and-forget pattern
 
 ---
 
@@ -496,41 +665,97 @@ npm start
 
 ### Environment Variables (Production)
 ```env
+# Database
 DATABASE_URL="postgresql://..."
-JWT_SECRET="strong-secret-key"
+
+# Auth
+JWT_SECRET="strong-secret-key-min-32-chars"
 NEXTAUTH_SECRET="nextauth-secret"
+NEXTAUTH_URL="https://yourdomain.com"
+
+# Email (SendGrid recommended)
+SMTP_HOST="smtp.sendgrid.net"
+SMTP_PORT="587"
+SMTP_USER="apikey"
+SMTP_PASS="your-sendgrid-api-key"
+SMTP_FROM="noreply@yourdomain.com"
+
+# File Storage
+BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
+
+# App
 NODE_ENV="production"
+NEXT_PUBLIC_APP_URL="https://yourdomain.com"
+```
+
+### Deployment Checklist
+- [ ] Environment variables ayarlandı
+- [ ] Database migration çalıştırıldı
+- [ ] Seed data eklendi
+- [ ] Email servisi test edildi
+- [ ] Vercel Blob token alındı
+- [ ] Logo/favicon yükleme test edildi
+- [ ] Workflow execution test edildi
+- [ ] Multi-tenant isolation doğrulandı
+
+### Vercel Deployment
+```bash
+# Vercel CLI ile
+vercel
+
+# Production
+vercel --prod
 ```
 
 ---
 
 ## 📈 Roadmap
 
-### ✅ Tamamlandı
-- Multi-tenant altyapı
-- 3 katmanlı bütçe sistemi
-- Çok aşamalı onay sistemi
-- Satın alım kategori yönetimi
-- Detaylı raporlama API'ları
-- E-ticaret modülü
-- Sepet yönetimi
+### ✅ Tamamlandı (Phase 1 MVP - 77%)
+- ✅ Multi-tenant altyapı
+- ✅ 3 katmanlı bütçe sistemi
+- ✅ Çok aşamalı onay sistemi (legacy)
+- ✅ Satın alım kategori yönetimi
+- ✅ Detaylı raporlama API'ları
+- ✅ E-ticaret modülü
+- ✅ Sepet yönetimi
+- ✅ **White-label customization** (Sprint 1)
+- ✅ **Email notification system** (Sprint 2)
+- ✅ **Visual workflow designer** (Sprint 3)
+- ✅ **Workflow execution engine** (Sprint 4)
 
-### 🔄 Geliştiriliyor
-- Frontend sayfaları (Dashboard, Login, Request Management)
-- Admin paneli UI
-- Bütçe yönetim ekranları
+### 🔄 Sprint 5 (In Progress)
+- 🔄 Testing suite (unit, integration, e2e)
+- 🔄 Security audit
+- 🔄 Performance optimization
+- 🔄 Production deployment
+- 🔄 User documentation
 
-### 📅 Planlanan
-- Email bildirimleri
-- SMS bildirimleri
+### 📅 Phase 2 (Planlanan)
+- Node configuration panels (approval, decision, notification)
+- Workflow analytics dashboard
+- Escalation system (cron-based)
+- SMS/WhatsApp notifications
 - Document/File attachments
 - Gelişmiş raporlama UI (charts, graphs)
 - Excel/PDF export
-- Audit log
+- Audit log UI
 - Mobile app
 - Vendor/Supplier management
 - Contract management
 - Invoice management
+
+---
+
+## 📚 Dokümantasyon
+
+Detaylı dokümantasyon için `docs/` klasörüne bakın:
+
+- [PRD.md](docs/PRD.md) - Product Requirements Document
+- [GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) - Gap Analysis
+- [SPRINT_PLAN_PHASE1.md](docs/SPRINT_PLAN_PHASE1.md) - 8-Week Sprint Plan
+- [PROGRESS_REPORT.md](docs/PROGRESS_REPORT.md) - Implementation Progress
+- [SESSION_SUMMARY.md](docs/SESSION_SUMMARY.md) - Session Summary
 
 ---
 
@@ -562,6 +787,8 @@ MIT License - [LICENSE](LICENSE)
 - Next.js Team
 - Prisma Team
 - Tailwind CSS Team
+- ReactFlow Team
+- Vercel Team
 - Open Source Community
 
 ---
@@ -570,8 +797,10 @@ MIT License - [LICENSE](LICENSE)
 
 **⭐ Enterprise-level Satın Alma Yönetimi ⭐**
 
+**Visual Workflow Designer** • **White-Label** • **Smart Notifications**
+
 Made with ❤️ by Attelia Team
 
-[Documentation](docs/) • [API Reference](docs/api/) • [Contributing](CONTRIBUTING.md)
+[Documentation](docs/) • [PRD](docs/PRD.md) • [Sprint Plan](docs/SPRINT_PLAN_PHASE1.md)
 
 </div>
