@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
@@ -457,6 +458,13 @@ function NormalDashboard() {
 // Main Dashboard Page Component
 export default function DashboardPage() {
   const { user } = useAuth()
+  const router = useRouter()
+
+  // Redirect Super Admin to super-admin dashboard
+  if (user?.role === 'SUPER_ADMIN') {
+    router.push('/super-admin/dashboard')
+    return null
+  }
 
   // Show developer dashboard for DEVELOPER role
   if (user?.role === 'DEVELOPER') {

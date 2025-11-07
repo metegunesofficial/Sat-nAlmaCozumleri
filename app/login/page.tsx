@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNotification } from '@/contexts/NotificationContext'
-import { LogIn, Mail, Lock, Building2, Code } from 'lucide-react'
+import { LogIn, Mail, Lock, Building2, Crown } from 'lucide-react'
 
-type LoginMode = 'normal' | 'developer'
+type LoginMode = 'company' | 'platform'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [loginMode, setLoginMode] = useState<LoginMode>('normal')
+  const [loginMode, setLoginMode] = useState<LoginMode>('company')
   const router = useRouter()
   const { login } = useAuth()
   const { success, error } = useNotification()
@@ -33,18 +33,18 @@ export default function LoginPage() {
     }
   }
 
-  const normalQuickLogins = [
-    { email: 'admin@attelia.com', role: 'Company Admin' },
-    { email: 'john.doe@attelia.com', role: 'Employee' },
-    { email: 'it.manager@attelia.com', role: 'IT Manager' },
-    { email: 'finance@attelia.com', role: 'Finance Manager' },
+  const companyQuickLogins = [
+    { email: 'admin@dentalmerkez.com', role: 'Dental Merkez - Admin' },
+    { email: 'admin@smileclinic.com', role: 'Smile Clinic - Admin' },
+    { email: 'admin@dentplus.com', role: 'DentPlus - Admin' },
+    { email: 'finans@dentalmerkez.com', role: 'Dental Merkez - Finans' },
   ]
 
-  const developerQuickLogins = [
-    { email: 'developer@attelia.com', role: 'Developer' },
+  const platformQuickLogins = [
+    { email: 'superadmin@attelia.com', role: 'Platform Admin' },
   ]
 
-  const quickLogins = loginMode === 'normal' ? normalQuickLogins : developerQuickLogins
+  const quickLogins = loginMode === 'company' ? companyQuickLogins : platformQuickLogins
 
   return (
     <div className="min-h-screen flex">
@@ -109,37 +109,39 @@ export default function LoginPage() {
           <div className="bg-white rounded-lg shadow-xl p-8">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-dental-blue text-white rounded-full mb-4">
-                {loginMode === 'normal' ? <LogIn size={32} /> : <Code size={32} />}
+                {loginMode === 'company' ? <Building2 size={32} /> : <Crown size={32} />}
               </div>
               <h2 className="text-2xl font-bold text-gray-900">Hoş Geldiniz</h2>
-              <p className="text-gray-600 mt-2">Hesabınıza giriş yapın</p>
+              <p className="text-gray-600 mt-2">
+                {loginMode === 'company' ? 'Şirket hesabınıza giriş yapın' : 'Platform yönetimi'}
+              </p>
             </div>
 
             {/* Login Mode Selector */}
             <div className="flex gap-2 mb-6">
               <button
                 type="button"
-                onClick={() => setLoginMode('normal')}
+                onClick={() => setLoginMode('company')}
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
-                  loginMode === 'normal'
+                  loginMode === 'company'
                     ? 'bg-dental-blue text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <Building2 size={18} />
-                Normal Giriş
+                Şirket Girişi
               </button>
               <button
                 type="button"
-                onClick={() => setLoginMode('developer')}
+                onClick={() => setLoginMode('platform')}
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
-                  loginMode === 'developer'
-                    ? 'bg-dental-blue text-white'
+                  loginMode === 'platform'
+                    ? 'bg-yellow-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                <Code size={18} />
-                Developer Girişi
+                <Crown size={18} />
+                Platform Admin
               </button>
             </div>
 
@@ -193,7 +195,9 @@ export default function LoginPage() {
                   <div className="w-full border-t border-gray-300"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Demo Hesaplar (password123)</span>
+                  <span className="px-2 bg-white text-gray-500">
+                    {loginMode === 'company' ? 'Demo Şirket Hesapları' : 'Platform Yönetimi'}
+                  </span>
                 </div>
               </div>
 
@@ -222,7 +226,13 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Tüm demo hesaplar için şifre: <code className="bg-gray-200 px-2 py-1 rounded">password123</code></p>
+            <p>
+              {loginMode === 'company' ? (
+                <>Şirket hesapları: <code className="bg-gray-200 px-2 py-1 rounded">password123</code></>
+              ) : (
+                <>Platform Admin: <code className="bg-gray-200 px-2 py-1 rounded">SuperAdmin123!</code></>
+              )}
+            </p>
           </div>
         </div>
       </div>
