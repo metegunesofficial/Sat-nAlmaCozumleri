@@ -1,60 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
-import bcrypt from 'bcryptjs'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { withCompanyScope } from '@/lib/authz'
+import { hashPassword } from '@/lib/auth'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-// GET /api/users - List all users
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can list users
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
-
+export const GET = createHandler({
+  permission: 'user:read',
+  handler: async (request, session) => {
     const searchParams = request.nextUrl.searchParams
     const role = searchParams.get('role')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {
-      companyId: user.companyId,
-    }
+    const where = withCompanyScope(session, {})
 
     if (role) {
-      where.role = role
+      where.role = role as any
     }
 
     if (departmentId) {
@@ -84,114 +47,47 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: users,
-    })
-  } catch (error) {
-    console.error('Users fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Kullanıcılar yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+    return ApiResponse.success(users)
+  },
+})
 
-// POST /api/users - Create new user
-export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can create users
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
-
+export const POST = createHandler({
+  permission: 'user:create',
+  auditAction: 'user.create',
+  handler: async (request, session) => {
     const body = await request.json()
-    const {
-      email,
-      name,
-      password,
-      phone,
-      role,
-      departmentId,
-      position,
-      employeeId,
-      address,
-      city,
-      district,
-      postalCode,
-    } = body
 
-    if (!email || !name || !password || !role) {
-      return NextResponse.json(
-        { success: false, error: 'E-posta, isim, şifre ve rol gereklidir' },
-        { status: 400 }
-      )
+    // Validation
+    if (!body.email || !body.name || !body.password || !body.role) {
+      return ApiResponse.badRequest('Email, name, password, and role are required')
     }
 
-    // Check if user with same email exists in company
-    const existing = await prisma.user.findFirst({
+    // Check if user exists
+    const existingUser = await prisma.user.findFirst({
       where: {
-        email,
-        companyId: currentUser.companyId,
+        email: body.email,
+        companyId: session.user.companyId,
       },
     })
 
-    if (existing) {
-      return NextResponse.json(
-        { success: false, error: 'Bu e-posta ile kayıtlı kullanıcı zaten var' },
-        { status: 409 }
-      )
+    if (existingUser) {
+      return ApiResponse.badRequest('User with this email already exists')
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await hashPassword(body.password)
 
-    const newUser = await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
-        companyId: currentUser.companyId,
-        email,
-        name,
+        email: body.email,
+        name: body.name,
         password: hashedPassword,
-        phone,
-        role,
-        departmentId,
-        position,
-        employeeId,
-        address,
-        city,
-        district,
-        postalCode,
+        phone: body.phone,
+        role: body.role,
+        companyId: session.user.companyId,
+        departmentId: body.departmentId || null,
+        position: body.position || null,
+        employeeId: body.employeeId || null,
       },
       select: {
         id: true,
@@ -212,16 +108,18 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: newUser,
-      message: 'Kullanıcı başarıyla oluşturuldu',
-    }, { status: 201 })
-  } catch (error) {
-    console.error('User creation error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Kullanıcı oluşturulamadı' },
-      { status: 500 }
-    )
-  }
-}
+    await audit.log({
+      action: 'user.create',
+      resource: `User:${user.id}`,
+      metadata: {
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
+    })
+
+    return ApiResponse.created(user)
+  },
+})

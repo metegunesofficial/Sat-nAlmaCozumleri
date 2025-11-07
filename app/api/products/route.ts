@@ -1,11 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { withCompanyScope } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
-  try {
+export const GET = createHandler({
+  permission: 'product:read',
+  handler: async (request, session) => {
     const searchParams = request.nextUrl.searchParams
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
@@ -18,8 +21,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    // Build where clause
-    const where: any = { isActive: true }
+    const where = withCompanyScope(session, { isActive: true })
 
     if (category) {
       where.category = { slug: category }
@@ -41,11 +43,9 @@ export async function GET(request: NextRequest) {
       where.isNew = true
     }
 
-    // Build orderBy
     const orderBy: any = {}
     orderBy[sort] = order
 
-    // Get products
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
@@ -57,6 +57,12 @@ export async function GET(request: NextRequest) {
               slug: true,
             },
           },
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
         orderBy,
         skip,
@@ -65,46 +71,50 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where }),
     ])
 
-    return NextResponse.json({
-      success: true,
-      data: products,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+    return ApiResponse.success(products, {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
     })
-  } catch (error) {
-    console.error('Products fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Ürünler yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+  },
+})
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = createHandler({
+  permission: 'product:create',
+  auditAction: 'product.create',
+  handler: async (request, session) => {
     const body = await request.json()
 
+    // Validation
+    if (!body.name || !body.sku || !body.categoryId || !body.price) {
+      return ApiResponse.badRequest('Name, SKU, category, and price are required')
+    }
+
     const product = await prisma.product.create({
-      data: body,
+      data: {
+        ...body,
+        companyId: session.user.companyId,
+        images: body.images || [],
+        tags: body.tags || [],
+      },
       include: {
         category: true,
+        supplier: true,
       },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: product,
-      message: 'Ürün oluşturuldu',
+    await audit.log({
+      action: 'product.create',
+      resource: `Product:${product.id}`,
+      metadata: {
+        name: product.name,
+        sku: product.sku,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
     })
-  } catch (error) {
-    console.error('Product create error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Ürün oluşturulamadı' },
-      { status: 500 }
-    )
-  }
-}
+
+    return ApiResponse.created(product)
+  },
+})
