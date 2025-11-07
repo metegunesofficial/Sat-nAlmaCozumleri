@@ -20,6 +20,8 @@ import { getServerSession } from '@/lib/session'
 import { authorize, AuthorizationError } from '@/lib/authz'
 import { audit, AuditAction } from '@/lib/audit'
 import { getRequestMetadata } from '@/lib/request-metadata'
+import { rateLimit, getClientIdentifier, RateLimitPresets, rateLimitExceeded } from '@/lib/rate-limit'
+import { createRequestLogger, startTimer } from '@/lib/logger'
 import type { Session } from 'next-auth'
 import type { UserRole } from '@prisma/client'
 
@@ -36,23 +38,59 @@ export interface HandlerOptions {
   /** Audit action to log (e.g., 'product.create') */
   auditAction?: string
 
+  /** Rate limit configuration */
+  rateLimit?: {
+    limit: number
+    interval: number
+  } | keyof typeof RateLimitPresets
+
   /** Handler function */
-  handler: (request: NextRequest, session: Session) => Promise<Response>
+  handler: (request: NextRequest, session: Session, context?: any) => Promise<Response>
 }
 
 /**
- * Create a secure API route handler with auth, authz, and audit logging
+ * Create a secure API route handler with auth, authz, audit logging, rate limiting, and structured logging
  */
 export function createHandler(options: HandlerOptions) {
-  return async function (request: NextRequest): Promise<Response> {
+  return async function (request: NextRequest, context?: any): Promise<Response> {
+    const startTime = startTimer()
+    const requestLogger = createRequestLogger(request)
+    const pathname = new URL(request.url).pathname
+
+    // Rate limit result to include in response headers
+    let rateLimitResult: { success: boolean; limit: number; remaining: number; reset: number } | null = null
+
     try {
-      // 1. Authentication
+      // 1. Rate Limiting (before authentication)
+      if (options.rateLimit) {
+        const identifier = getClientIdentifier(request)
+        const preset = typeof options.rateLimit === 'string'
+          ? RateLimitPresets[options.rateLimit]
+          : options.rateLimit
+
+        rateLimitResult = await rateLimit(identifier, preset.limit, { interval: preset.interval })
+
+        if (!rateLimitResult.success) {
+          requestLogger.warn('Rate limit exceeded', {
+            identifier,
+            limit: preset.limit,
+            path: pathname
+          })
+          return rateLimitExceeded(rateLimitResult.reset)
+        }
+      }
+
+      // 2. Log request start
+      requestLogger.request(request.method, pathname)
+
+      // 3. Authentication
       let session: Session | null = null
 
       if (!options.public) {
         session = await getServerSession()
 
         if (!session) {
+          requestLogger.warn('Unauthorized access attempt', { path: pathname })
           return NextResponse.json(
             { success: false, error: 'Unauthorized' },
             { status: 401 }
@@ -60,12 +98,18 @@ export function createHandler(options: HandlerOptions) {
         }
       }
 
-      // 2. Authorization - Check Permission
+      // 4. Authorization - Check Permission
       if (options.permission && session) {
         try {
           await authorize(session, options.permission)
         } catch (error) {
           if (error instanceof AuthorizationError) {
+            requestLogger.warn('Authorization failed', {
+              path: pathname,
+              permission: error.permission,
+              userId: session.user.id,
+              role: session.user.role,
+            })
             return NextResponse.json(
               {
                 success: false,
@@ -80,10 +124,16 @@ export function createHandler(options: HandlerOptions) {
         }
       }
 
-      // 2b. Authorization - Check Role
+      // 4b. Authorization - Check Role
       if (options.roles && session) {
         const hasRole = options.roles.includes(session.user.role)
         if (!hasRole) {
+          requestLogger.warn('Role check failed', {
+            path: pathname,
+            requiredRoles: options.roles,
+            userRole: session.user.role,
+            userId: session.user.id,
+          })
           return NextResponse.json(
             {
               success: false,
@@ -95,10 +145,10 @@ export function createHandler(options: HandlerOptions) {
         }
       }
 
-      // 3. Call Handler
-      const response = await options.handler(request, session!)
+      // 5. Call Handler
+      const response = await options.handler(request, session!, context)
 
-      // 4. Audit Logging (async, non-blocking)
+      // 6. Audit Logging (async, non-blocking)
       if (options.auditAction && session) {
         const metadata = getRequestMetadata(request)
 
@@ -110,13 +160,40 @@ export function createHandler(options: HandlerOptions) {
           ip: metadata.ip,
           userAgent: metadata.userAgent,
         }).catch(err => {
-          console.error('Audit log failed:', err)
+          requestLogger.error('Audit log failed', err)
+        })
+      }
+
+      // 7. Log response
+      const duration = Date.now() - startTime
+      requestLogger.response(request.method, pathname, response.status, duration)
+      requestLogger.performance(pathname, duration, {
+        method: request.method,
+        status: response.status,
+      })
+
+      // 8. Add rate limit headers to response
+      if (rateLimitResult) {
+        const headers = new Headers(response.headers)
+        headers.set('X-RateLimit-Limit', rateLimitResult.limit.toString())
+        headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString())
+        headers.set('X-RateLimit-Reset', new Date(rateLimitResult.reset).toISOString())
+
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
         })
       }
 
       return response
     } catch (error: any) {
-      console.error('API handler error:', error)
+      const duration = Date.now() - startTime
+      requestLogger.error('API handler error', error, {
+        path: pathname,
+        method: request.method,
+        duration,
+      })
 
       // Handle known errors
       if (error instanceof AuthorizationError) {

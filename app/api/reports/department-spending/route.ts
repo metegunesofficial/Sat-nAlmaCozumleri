@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic'
  */
 export const GET = createHandler({
   permission: 'report:read',
+  rateLimit: 'heavy', // 10 requests per minute - reports are database-intensive
   handler: async (request, session) => {
     const searchParams = request.nextUrl.searchParams
     const startDate = searchParams.get('startDate')

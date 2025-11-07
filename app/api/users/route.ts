@@ -54,6 +54,7 @@ export const GET = createHandler({
 export const POST = createHandler({
   permission: 'user:create',
   auditAction: 'user.create',
+  rateLimit: 'heavy', // 10 requests per minute
   handler: async (request, session) => {
     const body = await request.json()
 

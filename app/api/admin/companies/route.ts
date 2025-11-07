@@ -75,6 +75,7 @@ export const GET = createHandler({
 export const POST = createHandler({
   permission: 'system:admin',
   auditAction: 'company.create',
+  rateLimit: 'heavy', // 10 requests per minute
   handler: async (request, session) => {
     requireRole(session, ['SUPER_ADMIN'])
 
