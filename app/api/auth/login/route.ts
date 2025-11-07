@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { verifyPassword, generateToken } from '@/lib/auth'
+import { generateToken } from '@/lib/auth'
+import { findUserByEmail, verifyUserPassword } from '@/lib/seedData'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -17,10 +17,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-    })
+    // Find user in database
+    const user = findUserByEmail(email)
 
     if (!user) {
       return NextResponse.json(
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify password
-    const isValid = await verifyPassword(password, user.password)
+    const isValid = verifyUserPassword(user, password)
 
     if (!isValid) {
       return NextResponse.json(
