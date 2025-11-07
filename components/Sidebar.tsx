@@ -17,7 +17,7 @@ import {
   LogOut,
   ChevronDown,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface MenuItem {
   icon: any
@@ -29,8 +29,33 @@ interface MenuItem {
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const { user, logout } = useAuth()
+  const { user, logout, token } = useAuth()
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
+
+  // Load company logo
+  useEffect(() => {
+    const loadCompanyLogo = async () => {
+      if (!token) return;
+
+      try {
+        const response = await fetch('/api/settings', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        if (data.success && data.data?.logoUrl) {
+          setCompanyLogo(data.data.logoUrl);
+        }
+      } catch (error) {
+        console.error('Failed to load company logo:', error);
+      }
+    };
+
+    loadCompanyLogo();
+  }, [token]);
 
   const menuItems: MenuItem[] = [
     {
@@ -66,6 +91,7 @@ export default function Sidebar() {
         { icon: Users, label: 'Kullanıcılar', href: '/admin/users' },
         { icon: Briefcase, label: 'Tedarikçiler', href: '/admin/suppliers' },
         { icon: GitBranch, label: 'Onay İş Akışları', href: '/admin/workflows' },
+        { icon: Settings, label: 'Şirket Ayarları', href: '/admin/settings' },
       ],
     },
   ]
@@ -90,10 +116,20 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-200">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg flex items-center justify-center text-white font-bold">
-            A
-          </div>
-          <span className="font-bold text-lg text-gray-800">Attelia</span>
+          {companyLogo ? (
+            <img
+              src={companyLogo}
+              alt="Company Logo"
+              className="h-10 w-auto object-contain"
+            />
+          ) : (
+            <>
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg flex items-center justify-center text-white font-bold">
+                S
+              </div>
+              <span className="font-bold text-lg text-gray-800">Satın Alma</span>
+            </>
+          )}
         </Link>
       </div>
 
