@@ -52,7 +52,7 @@ export async function GET(
             code: true,
             monthlyBudget: true,
             yearlyBudget: true,
-            status: true,
+            isActive: true,
           }
         },
         products: {
@@ -62,7 +62,7 @@ export async function GET(
             sku: true,
             price: true,
             stock: true,
-            status: true,
+            isActive: true,
           },
           take: 10,
           orderBy: { createdAt: 'desc' }
