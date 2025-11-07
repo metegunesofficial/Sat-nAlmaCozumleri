@@ -15,15 +15,20 @@ model Company {
   name          String
   slug          String    @unique
   taxNumber     String?   @unique
+  taxId         String?   // Alternative tax ID field
   address       String?
   city          String?
+  country       String?
   phone         String?
   email         String?
   website       String?
   logo          String?
+  industry      String?
+  employeeCount Int?
   isActive      Boolean   @default(true)
   isDemo        Boolean   @default(false)
   settings      Json?
+  subscription  Json?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
