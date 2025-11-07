@@ -509,6 +509,11 @@ model ApprovalWorkflow {
   maxAmount       Decimal?      @db.Decimal(12, 2)
   departmentIds   String[]
 
+  // Visual Workflow Designer (ReactFlow)
+  visualDefinition Json?        // Stores nodes, edges, and metadata
+  version          Int           @default(1)
+  isVisual         Boolean       @default(false) // true if created with visual designer
+
   steps           ApprovalStep[]
   purchaseRequests PurchaseRequest[]
 
