@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Companies list error:', error)
     return NextResponse.json(
-      { success: false, error: '^irketler yüklenemedi' },
+      { success: false, error: 'Sirketler yuklenemedi' },
       { status: 500 }
     )
   }
