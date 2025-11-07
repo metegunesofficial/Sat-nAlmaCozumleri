@@ -16,6 +16,7 @@ import {
   GitBranch,
   LogOut,
   ChevronDown,
+  Workflow,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -91,6 +92,7 @@ export default function Sidebar() {
         { icon: Users, label: 'Kullanıcılar', href: '/admin/users' },
         { icon: Briefcase, label: 'Tedarikçiler', href: '/admin/suppliers' },
         { icon: GitBranch, label: 'Onay İş Akışları', href: '/admin/workflows' },
+        { icon: Workflow, label: 'Görsel Workflow Designer', href: '/admin/workflows/designer' },
         { icon: Settings, label: 'Şirket Ayarları', href: '/admin/settings' },
       ],
     },
