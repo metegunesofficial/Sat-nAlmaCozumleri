@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { startWorkflow } from '@/lib/workflow-executor'
 
 // Force dynamic rendering to skip static optimization during build
 export const dynamic = 'force-dynamic'
@@ -209,6 +210,19 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Start visual workflow if workflow is visual type
+    if (workflow && workflow.isVisual) {
+      const workflowResult = await startWorkflow(
+        workflow.id,
+        purchaseRequest.id,
+        decoded.userId
+      )
+
+      if (!workflowResult.success) {
+        console.error('Failed to start workflow:', workflowResult.error)
+      }
+    }
 
     return NextResponse.json({
       success: true,
