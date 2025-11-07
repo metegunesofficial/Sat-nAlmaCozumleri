@@ -39,6 +39,7 @@ model Company {
   companyBudgets CompanyBudget[]
   purchaseCategories PurchaseCategory[]
   suppliers     Supplier[]
+  auditLogs     AuditLog[]
 
   @@index([slug])
   @@index([isDemo])
@@ -79,6 +80,7 @@ model User {
   managedDepartments  Department[] @relation("DepartmentManager")
   userBudgets         UserBudget[]
   userPermissions     UserPermission[]
+  auditLogs           AuditLog[] @relation("AuditLogActor")
 
   @@unique([email, companyId])
   @@index([email])
@@ -705,7 +707,9 @@ model UserPermission {
 model AuditLog {
   id         String   @id @default(cuid())
   companyId  String?   // null for system-level actions
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   actorUserId String?  // null for system actions
+  actorUser  User?    @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   action     String    // e.g., "user.create", "request.approve", "company.delete"
   resource   String?   // e.g., "Company:123", "PurchaseRequest:abc"
   metadata   Json?     // Additional context (old values, new values, etc.)
