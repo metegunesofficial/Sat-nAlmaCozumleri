@@ -32,7 +32,32 @@ export default function Sidebar() {
   const { user, logout } = useAuth()
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
 
-  const menuItems: MenuItem[] = [
+  // Super Admin menu items
+  const superAdminMenuItems: MenuItem[] = [
+    {
+      icon: LayoutDashboard,
+      label: 'Dashboard',
+      href: '/super-admin/dashboard',
+    },
+    {
+      icon: Building2,
+      label: 'Sirketler',
+      href: '/super-admin/companies',
+    },
+    {
+      icon: Users,
+      label: 'Kullanicilar',
+      href: '/super-admin/users',
+    },
+    {
+      icon: Settings,
+      label: 'Ayarlar',
+      href: '/super-admin/settings',
+    },
+  ]
+
+  // Regular user menu items
+  const regularMenuItems: MenuItem[] = [
     {
       icon: LayoutDashboard,
       label: 'Dashboard',
@@ -40,10 +65,10 @@ export default function Sidebar() {
     },
     {
       icon: ShoppingCart,
-      label: 'Satın Alma Talepleri',
+      label: 'Satin Alma Talepleri',
       href: '/requests',
       children: [
-        { icon: FileText, label: 'Tüm Talepler', href: '/requests' },
+        { icon: FileText, label: 'Tum Talepler', href: '/requests' },
         { icon: FileText, label: 'Yeni Talep', href: '/requests/new' },
         { icon: FileText, label: 'Bekleyen Onaylar', href: '/requests/pending' },
       ],
@@ -56,19 +81,22 @@ export default function Sidebar() {
     },
     {
       icon: Settings,
-      label: 'Yönetim',
+      label: 'Yonetim',
       href: '/admin',
-      roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
+      roles: ['COMPANY_ADMIN'],
       children: [
-        { icon: Package, label: 'Ürünler', href: '/admin/products' },
+        { icon: Package, label: 'Urunler', href: '/admin/products' },
         { icon: GitBranch, label: 'Kategoriler', href: '/admin/categories' },
         { icon: Building2, label: 'Departmanlar', href: '/admin/departments' },
-        { icon: Users, label: 'Kullanıcılar', href: '/admin/users' },
+        { icon: Users, label: 'Kullanicilar', href: '/admin/users' },
         { icon: Briefcase, label: 'Tedarikçiler', href: '/admin/suppliers' },
-        { icon: GitBranch, label: 'Onay İş Akışları', href: '/admin/workflows' },
+        { icon: GitBranch, label: 'Onay Is Akislari', href: '/admin/workflows' },
       ],
     },
   ]
+
+  // Select menu items based on user role
+  const menuItems = user?.role === 'SUPER_ADMIN' ? superAdminMenuItems : regularMenuItems
 
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>

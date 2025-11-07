@@ -207,7 +207,7 @@ export default function LoginPage() {
                     key={account.email}
                     onClick={() => {
                       setEmail(account.email)
-                      setPassword('password123')
+                      setPassword(loginMode === 'platform' ? 'SuperAdmin123!' : 'password123')
                     }}
                     className="text-xs p-2 border border-gray-300 rounded hover:bg-gray-50 text-left"
                   >
