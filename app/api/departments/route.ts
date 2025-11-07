@@ -1,117 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { withCompanyScope } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
+export const GET = createHandler({
+  permission: 'department:read',
+  handler: async (request, session) => {
+    const where = withCompanyScope(session, {
+      isActive: true,
+    })
 
     const departments = await prisma.department.findMany({
-      where: {
-        isActive: true
-      },
+      where,
       include: {
         manager: {
           select: {
             id: true,
             name: true,
-            email: true
-          }
+            email: true,
+          },
         },
         _count: {
           select: {
             employees: true,
-            purchaseRequests: true
-          }
+            purchaseRequests: true,
+          },
         },
         children: {
           select: {
             id: true,
             name: true,
-            code: true
-          }
-        }
+            code: true,
+          },
+        },
       },
       orderBy: {
-        name: 'asc'
-      }
+        name: 'asc',
+      },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: departments
-    })
-  } catch (error) {
-    console.error('Departments fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Departmanlar yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+    return ApiResponse.success(departments)
+  },
+})
 
-export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded || decoded.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Yetkisiz erişim' },
-        { status: 403 }
-      )
-    }
-
+export const POST = createHandler({
+  permission: 'department:create',
+  auditAction: 'department.create',
+  handler: async (request, session) => {
     const body = await request.json()
 
+    // Validation
+    if (!body.name || !body.code) {
+      return ApiResponse.badRequest('Name and code are required')
+    }
+
+    // Check if department with same code exists in company
+    const existingDepartment = await prisma.department.findFirst({
+      where: {
+        code: body.code,
+        companyId: session.user.companyId,
+      },
+    })
+
+    if (existingDepartment) {
+      return ApiResponse.badRequest('Department with this code already exists')
+    }
+
     const department = await prisma.department.create({
-      data: body,
+      data: {
+        ...body,
+        companyId: session.user.companyId,
+      },
       include: {
         manager: {
           select: {
             id: true,
             name: true,
-            email: true
-          }
-        }
-      }
+            email: true,
+          },
+        },
+      },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: department,
-      message: 'Departman oluşturuldu'
+    await audit.log({
+      action: 'department.create',
+      resource: `Department:${department.id}`,
+      metadata: {
+        name: department.name,
+        code: department.code,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
     })
-  } catch (error) {
-    console.error('Department create error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Departman oluşturulamadı' },
-      { status: 500 }
-    )
-  }
-}
+
+    return ApiResponse.created(department)
+  },
+})

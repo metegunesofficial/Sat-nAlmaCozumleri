@@ -1,19 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { withCompanyScope } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
-  try {
+export const GET = createHandler({
+  permission: 'category:read',
+  handler: async (request, session) => {
     const searchParams = request.nextUrl.searchParams
     const includeProducts = searchParams.get('includeProducts') === 'true'
 
+    const where = withCompanyScope(session, {
+      isActive: true,
+      parentId: null, // Only get root categories
+    })
+
     const categories = await prisma.category.findMany({
-      where: {
-        isActive: true,
-        parentId: null, // Only get root categories
-      },
+      where,
       include: {
         children: {
           where: { isActive: true },
@@ -24,37 +29,54 @@ export async function GET(request: NextRequest) {
       orderBy: { order: 'asc' },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: categories,
-    })
-  } catch (error) {
-    console.error('Categories fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Kategoriler yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+    return ApiResponse.success(categories)
+  },
+})
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = createHandler({
+  permission: 'category:create',
+  auditAction: 'category.create',
+  handler: async (request, session) => {
     const body = await request.json()
 
-    const category = await prisma.category.create({
-      data: body,
+    // Validation
+    if (!body.name || !body.slug) {
+      return ApiResponse.badRequest('Name and slug are required')
+    }
+
+    // Check if category with same slug exists in company
+    const existingCategory = await prisma.category.findFirst({
+      where: {
+        slug: body.slug,
+        companyId: session.user.companyId,
+      },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: category,
-      message: 'Kategori oluşturuldu',
+    if (existingCategory) {
+      return ApiResponse.badRequest('Category with this slug already exists')
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        ...body,
+        companyId: session.user.companyId,
+      },
+      include: {
+        children: true,
+      },
     })
-  } catch (error) {
-    console.error('Category create error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Kategori oluşturulamadı' },
-      { status: 500 }
-    )
-  }
-}
+
+    await audit.log({
+      action: 'category.create',
+      resource: `Category:${category.id}`,
+      metadata: {
+        name: category.name,
+        slug: category.slug,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
+    })
+
+    return ApiResponse.created(category)
+  },
+})

@@ -1,49 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { authorizeResource } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-// GET /api/suppliers/[id] - Get single supplier
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+export const GET = createHandler({
+  permission: 'supplier:read',
+  handler: async (request, session, context: any) => {
+    const supplierId = context.params.id
 
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    const supplier = await prisma.supplier.findFirst({
-      where: {
-        id: params.id,
-        companyId: user.companyId,
-      },
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
       include: {
         products: {
           select: {
@@ -61,180 +30,97 @@ export async function GET(
     })
 
     if (!supplier) {
-      return NextResponse.json(
-        { success: false, error: 'Tedarikçi bulunamadı' },
-        { status: 404 }
-      )
+      return ApiResponse.notFound('Supplier')
     }
 
-    return NextResponse.json({
-      success: true,
-      data: supplier,
-    })
-  } catch (error) {
-    console.error('Supplier fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Tedarikçi yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
-
-// PUT /api/suppliers/[id] - Update supplier
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
+    // Verify company scope
+    try {
+      await authorizeResource(session, 'supplier:read', supplier)
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
     }
 
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
+    return ApiResponse.success(supplier)
+  },
+})
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
+export const PUT = createHandler({
+  permission: 'supplier:update',
+  auditAction: 'supplier.update',
+  handler: async (request, session, context: any) => {
+    const supplierId = context.params.id
+    const body = await request.json()
 
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can update suppliers
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN', 'PROCUREMENT_MANAGER'].includes(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
-
-    const supplier = await prisma.supplier.findFirst({
-      where: {
-        id: params.id,
-        companyId: user.companyId,
-      },
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
     })
 
     if (!supplier) {
-      return NextResponse.json(
-        { success: false, error: 'Tedarikçi bulunamadı' },
-        { status: 404 }
-      )
+      return ApiResponse.notFound('Supplier')
     }
 
-    const body = await request.json()
-    const { name, contactPerson, email, phone, address, city, taxNumber, website, notes, status, rating } = body
+    // Verify authorization
+    try {
+      await authorizeResource(session, 'supplier:update', supplier)
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
+    }
 
     // Check if email is being changed to an existing one
-    if (email && email !== supplier.email) {
-      const existing = await prisma.supplier.findFirst({
+    if (body.email && body.email !== supplier.email) {
+      const existingSupplier = await prisma.supplier.findFirst({
         where: {
-          companyId: user.companyId,
-          email,
-          id: { not: params.id },
+          companyId: session.user.companyId,
+          email: body.email,
+          id: { not: supplierId },
         },
       })
 
-      if (existing) {
-        return NextResponse.json(
-          { success: false, error: 'Bu e-posta ile kayıtlı başka bir tedarikçi var' },
-          { status: 409 }
-        )
+      if (existingSupplier) {
+        return ApiResponse.badRequest('Another supplier with this email already exists')
       }
     }
 
     const updated = await prisma.supplier.update({
-      where: { id: params.id },
+      where: { id: supplierId },
       data: {
-        name,
-        contactPerson,
-        email,
-        phone,
-        address,
-        city,
-        taxNumber,
-        website,
-        notes,
-        status,
-        rating: rating ? parseFloat(rating) : supplier.rating,
+        name: body.name,
+        contactPerson: body.contactPerson,
+        email: body.email,
+        phone: body.phone,
+        address: body.address,
+        city: body.city,
+        taxNumber: body.taxNumber,
+        website: body.website,
+        notes: body.notes,
+        status: body.status,
+        rating: body.rating ? parseFloat(body.rating) : supplier.rating,
       },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: updated,
-      message: 'Tedarikçi başarıyla güncellendi',
-    })
-  } catch (error) {
-    console.error('Supplier update error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Tedarikçi güncellenemedi' },
-      { status: 500 }
-    )
-  }
-}
-
-// DELETE /api/suppliers/[id] - Delete supplier
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can delete suppliers
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
-
-    const supplier = await prisma.supplier.findFirst({
-      where: {
-        id: params.id,
-        companyId: user.companyId,
+    await audit.log({
+      action: 'supplier.update',
+      resource: `Supplier:${updated.id}`,
+      metadata: {
+        name: updated.name,
+        changes: body,
       },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
+    })
+
+    return ApiResponse.success(updated)
+  },
+})
+
+export const DELETE = createHandler({
+  permission: 'supplier:delete',
+  auditAction: 'supplier.delete',
+  handler: async (request, session, context: any) => {
+    const supplierId = context.params.id
+
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
       include: {
         _count: {
           select: { products: true },
@@ -243,36 +129,38 @@ export async function DELETE(
     })
 
     if (!supplier) {
-      return NextResponse.json(
-        { success: false, error: 'Tedarikçi bulunamadı' },
-        { status: 404 }
-      )
+      return ApiResponse.notFound('Supplier')
+    }
+
+    // Verify authorization
+    try {
+      await authorizeResource(session, 'supplier:delete', supplier)
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
     }
 
     // Check if supplier has products
     if (supplier._count.products > 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Bu tedarikçiye ait ürünler var. Önce ürünleri silmelisiniz.',
-        },
-        { status: 400 }
+      return ApiResponse.badRequest(
+        'This supplier has products. Please delete or reassign the products first.'
       )
     }
 
     await prisma.supplier.delete({
-      where: { id: params.id },
+      where: { id: supplierId },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Tedarikçi başarıyla silindi',
+    await audit.log({
+      action: 'supplier.delete',
+      resource: `Supplier:${supplierId}`,
+      metadata: {
+        name: supplier.name,
+        email: supplier.email,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
     })
-  } catch (error) {
-    console.error('Supplier delete error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Tedarikçi silinemedi' },
-      { status: 500 }
-    )
-  }
-}
+
+    return ApiResponse.noContent()
+  },
+})
