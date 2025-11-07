@@ -73,7 +73,7 @@ export async function GET(
             title: true,
             status: true,
             priority: true,
-            totalAmount: true,
+            estimatedTotal: true,
             createdAt: true,
             requester: {
               select: {
@@ -90,7 +90,7 @@ export async function GET(
             id: true,
             orderNumber: true,
             status: true,
-            totalAmount: true,
+            total: true,
             createdAt: true,
           },
           take: 10,
@@ -129,7 +129,7 @@ export async function GET(
 
       // Purchase request durumları
       pendingRequests: await prisma.purchaseRequest.count({
-        where: { companyId: params.id, status: 'PENDING' }
+        where: { companyId: params.id, status: 'SUBMITTED' }
       }),
       approvedRequests: await prisma.purchaseRequest.count({
         where: { companyId: params.id, status: 'APPROVED' }
@@ -145,9 +145,9 @@ export async function GET(
           status: 'APPROVED'
         },
         _sum: {
-          totalAmount: true
+          estimatedTotal: true
         }
-      }).then(res => res._sum.totalAmount || 0),
+      }).then(res => res._sum.estimatedTotal || 0),
 
       // Aktif kullanıcı sayısı
       activeUsers: await prisma.user.count({

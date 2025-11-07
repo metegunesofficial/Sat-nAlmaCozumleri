@@ -49,14 +49,14 @@ export async function GET() {
       prisma.product.count(),
       prisma.purchaseRequest.count(),
       prisma.order.count(),
-      prisma.purchaseRequest.count({ where: { status: 'PENDING' } }),
+      prisma.purchaseRequest.count({ where: { status: 'SUBMITTED' } }),
       prisma.purchaseRequest.count({ where: { status: 'APPROVED' } }),
     ])
 
     // Toplam harcama
     const totalSpent = await prisma.purchaseRequest.aggregate({
       where: { status: 'APPROVED' },
-      _sum: { totalAmount: true }
+      _sum: { estimatedTotal: true }
     })
 
     // Şirket başına istatistikler
@@ -112,7 +112,7 @@ export async function GET() {
           totalOrders,
           pendingRequests,
           approvedRequests,
-          totalSpent: totalSpent._sum.totalAmount || 0,
+          totalSpent: totalSpent._sum.estimatedTotal || 0,
         },
         recentCompanies: companiesWithStats,
         requestTrends: recentRequests,
