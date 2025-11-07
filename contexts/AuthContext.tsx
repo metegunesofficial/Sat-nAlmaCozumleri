@@ -86,6 +86,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           departmentId: 'dept-fin',
           departmentName: 'Finans',
           position: 'Finans Müdürü'
+        },
+        {
+          id: '5',
+          email: 'developer@attelia.com',
+          name: 'Dev Kullanıcı',
+          role: 'DEVELOPER',
+          companyId: 'company1',
+          companyName: 'Attelia Dental Merkez',
+          departmentId: 'dept1',
+          departmentName: 'Yazılım Geliştirme',
+          position: 'Developer'
         }
       ]
 

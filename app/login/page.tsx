@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { useNotification } from '@/contexts/NotificationContext'
-import { LogIn, Mail, Lock, Building2 } from 'lucide-react'
+import { LogIn, Mail, Lock, Building2, Code } from 'lucide-react'
+
+type LoginMode = 'normal' | 'developer'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [loginMode, setLoginMode] = useState<LoginMode>('normal')
   const router = useRouter()
   const { login } = useAuth()
   const { success, error } = useNotification()
@@ -30,12 +33,18 @@ export default function LoginPage() {
     }
   }
 
-  const quickLogins = [
+  const normalQuickLogins = [
     { email: 'admin@attelia.com', role: 'Company Admin' },
     { email: 'john.doe@attelia.com', role: 'Employee' },
     { email: 'it.manager@attelia.com', role: 'IT Manager' },
     { email: 'finance@attelia.com', role: 'Finance Manager' },
   ]
+
+  const developerQuickLogins = [
+    { email: 'developer@attelia.com', role: 'Developer' },
+  ]
+
+  const quickLogins = loginMode === 'normal' ? normalQuickLogins : developerQuickLogins
 
   return (
     <div className="min-h-screen flex">
@@ -100,10 +109,38 @@ export default function LoginPage() {
           <div className="bg-white rounded-lg shadow-xl p-8">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-dental-blue text-white rounded-full mb-4">
-                <LogIn size={32} />
+                {loginMode === 'normal' ? <LogIn size={32} /> : <Code size={32} />}
               </div>
               <h2 className="text-2xl font-bold text-gray-900">Hoş Geldiniz</h2>
               <p className="text-gray-600 mt-2">Hesabınıza giriş yapın</p>
+            </div>
+
+            {/* Login Mode Selector */}
+            <div className="flex gap-2 mb-6">
+              <button
+                type="button"
+                onClick={() => setLoginMode('normal')}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
+                  loginMode === 'normal'
+                    ? 'bg-dental-blue text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Building2 size={18} />
+                Normal Giriş
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMode('developer')}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 ${
+                  loginMode === 'developer'
+                    ? 'bg-dental-blue text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Code size={18} />
+                Developer Girişi
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

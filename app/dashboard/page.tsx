@@ -1,5 +1,6 @@
 'use client'
 
+import { useAuth } from '@/contexts/AuthContext'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
@@ -11,6 +12,10 @@ import {
   TrendingUp,
   AlertCircle,
   DollarSign,
+  Code,
+  Database,
+  Settings,
+  Terminal,
 } from 'lucide-react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
@@ -33,7 +38,191 @@ const statusLabels: Record<string, string> = {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
-export default function DashboardPage() {
+// Developer Dashboard Component
+function DeveloperDashboard() {
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Developer Dashboard</h1>
+          <p className="text-gray-600 mt-1">API, Sistem Durumu ve Geliştirici Araçları</p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="API İstekleri"
+            value="12,458"
+            subtitle="Son 24 saat"
+            icon={Code}
+            color="blue"
+            trend={{ value: 15, isPositive: true }}
+          />
+          <StatCard
+            title="Sistem Uptime"
+            value="99.9%"
+            subtitle="Bu ay"
+            icon={Terminal}
+            color="green"
+          />
+          <StatCard
+            title="Veritabanı"
+            value="2.4 GB"
+            subtitle="Kullanılan alan"
+            icon={Database}
+            color="purple"
+            trend={{ value: 5, isPositive: false }}
+          />
+          <StatCard
+            title="Aktif Servisler"
+            value="8"
+            subtitle="Çalışıyor"
+            icon={Settings}
+            color="yellow"
+          />
+        </div>
+
+        {/* Developer Tools Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Code className="text-blue-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">API Dokümantasyonu</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">REST API endpoint&apos;leri ve kullanım örnekleri</p>
+            <Link href="/api-docs" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+              Dokümana Git →
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <Database className="text-green-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Veritabanı Yönetimi</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">Schema görüntüleme ve query çalıştırma</p>
+            <Link href="/db-admin" className="text-green-600 hover:text-green-700 text-sm font-medium">
+              Yöneticiye Git →
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Terminal className="text-purple-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Log Görüntüleyici</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">Sistem logları ve hata takibi</p>
+            <Link href="/logs" className="text-purple-600 hover:text-purple-700 text-sm font-medium">
+              Loglara Git →
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <Settings className="text-yellow-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Sistem Ayarları</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">Uygulama konfigürasyonu ve ortam değişkenleri</p>
+            <Link href="/settings" className="text-yellow-600 hover:text-yellow-700 text-sm font-medium">
+              Ayarlara Git →
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-red-100 rounded-lg">
+                <AlertCircle className="text-red-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Hata İzleme</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">Exception&apos;lar ve hata raporları</p>
+            <Link href="/errors" className="text-red-600 hover:text-red-700 text-sm font-medium">
+              Hatalara Git →
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <TrendingUp className="text-indigo-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Performans Metrikleri</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">Response time, CPU ve memory kullanımı</p>
+            <Link href="/metrics" className="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+              Metriklere Git →
+            </Link>
+          </div>
+        </div>
+
+        {/* Recent API Activity */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Son API Aktiviteleri</h3>
+          <div className="space-y-3">
+            {[
+              { method: 'GET', endpoint: '/api/purchase-requests', status: 200, time: '45ms', timestamp: '2 dakika önce' },
+              { method: 'POST', endpoint: '/api/auth/login', status: 200, time: '120ms', timestamp: '5 dakika önce' },
+              { method: 'PUT', endpoint: '/api/budgets/123', status: 200, time: '85ms', timestamp: '8 dakika önce' },
+              { method: 'GET', endpoint: '/api/users', status: 200, time: '32ms', timestamp: '12 dakika önce' },
+              { method: 'POST', endpoint: '/api/purchase-requests', status: 201, time: '156ms', timestamp: '15 dakika önce' },
+            ].map((activity, index) => (
+              <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                <div className="flex items-center gap-4">
+                  <span className={`px-2 py-1 rounded text-xs font-mono font-semibold ${
+                    activity.method === 'GET' ? 'bg-blue-100 text-blue-700' :
+                    activity.method === 'POST' ? 'bg-green-100 text-green-700' :
+                    'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {activity.method}
+                  </span>
+                  <span className="font-mono text-sm text-gray-700">{activity.endpoint}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-gray-500">{activity.timestamp}</span>
+                  <span className="text-xs font-mono text-gray-600">{activity.time}</span>
+                  <span className="px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-700">
+                    {activity.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* System Info */}
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Sistem Bilgileri</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Node.js Version</p>
+              <p className="font-mono font-semibold text-gray-900">v20.11.0</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Next.js Version</p>
+              <p className="font-mono font-semibold text-gray-900">14.1.0</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600 mb-1">Database</p>
+              <p className="font-mono font-semibold text-gray-900">PostgreSQL 15.3</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  )
+}
+
+// Normal User Dashboard Component
+function NormalDashboard() {
   const totalRequests = mockPurchaseRequests.length
   const pendingRequests = mockPurchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
   const approvedRequests = mockPurchaseRequests.filter((r) => r.status === 'APPROVED').length
@@ -263,4 +452,17 @@ export default function DashboardPage() {
       </div>
     </DashboardLayout>
   )
+}
+
+// Main Dashboard Page Component
+export default function DashboardPage() {
+  const { user } = useAuth()
+
+  // Show developer dashboard for DEVELOPER role
+  if (user?.role === 'DEVELOPER') {
+    return <DeveloperDashboard />
+  }
+
+  // Show normal dashboard for all other users
+  return <NormalDashboard />
 }
