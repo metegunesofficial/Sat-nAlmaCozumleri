@@ -37,6 +37,7 @@ model Company {
   companyBudgets CompanyBudget[]
   purchaseCategories PurchaseCategory[]
   suppliers     Supplier[]
+  notificationTemplates NotificationTemplate[]
 
   @@index([slug])
 }
@@ -639,4 +640,92 @@ enum SupplierStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+// Notification Templates (Email, SMS, WhatsApp, etc.)
+model NotificationTemplate {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name            String   // "purchase_request_submitted"
+  displayName     String   // "Satın Alma Talebi Oluşturuldu"
+  channel         NotificationChannel @default(EMAIL)
+  category        NotificationCategory @default(TRANSACTIONAL)
+
+  subject         String?  // Email subject (with {{variables}})
+  body            String   // Template body with {{variables}}
+
+  isActive        Boolean  @default(true)
+  isSystem        Boolean  @default(false) // System templates cannot be deleted
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  logs            NotificationLog[]
+
+  @@unique([companyId, name, channel])
+  @@index([companyId])
+  @@index([channel])
+  @@index([isActive])
+}
+
+// Notification Delivery Logs
+model NotificationLog {
+  id              String   @id @default(cuid())
+  companyId       String
+
+  templateId      String?
+  template        NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  userId          String?  // Recipient user (if registered)
+  channel         NotificationChannel
+  status          NotificationStatus @default(PENDING)
+
+  recipient       String   // Email address, phone number, etc.
+  subject         String?
+  body            String
+
+  metadata        Json?    // Additional data (request ID, etc.)
+  errorMessage    String?
+
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  IN_APP
+  PUSH
+}
+
+enum NotificationCategory {
+  TRANSACTIONAL  // Approval requests, order confirmations
+  MARKETING      // Promotional emails
+  SYSTEM         // System alerts, maintenance
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+  READ
 }

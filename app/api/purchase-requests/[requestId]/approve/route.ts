@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { notifyApprovalDecision } from '@/lib/notifications'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -123,6 +124,18 @@ export async function POST(
       },
       include: {
         items: true,
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        company: {
+          select: {
+            id: true
+          }
+        },
         approvalActions: {
           include: {
             approver: {
@@ -131,10 +144,37 @@ export async function POST(
                 role: true
               }
             }
-          }
+          },
+          orderBy: {
+            actionDate: 'desc'
+          },
+          take: 1
         }
       }
     })
+
+    // Send email notification to requester (async, don't block response)
+    if (action === 'APPROVED' || action === 'REJECTED') {
+      const approver = updated.approvalActions[0]?.approver
+      const actionUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/requests/${updated.id}`
+
+      // Fire and forget - don't await
+      notifyApprovalDecision({
+        companyId: updated.company.id,
+        requesterEmail: updated.requester.email,
+        requesterName: updated.requester.name,
+        requesterId: updated.requester.id,
+        requestNumber: updated.requestNumber,
+        title: updated.title,
+        approverName: approver?.name || decoded.name || 'Yönetici',
+        approved: action === 'APPROVED',
+        comments,
+        actionUrl,
+      }).catch(error => {
+        console.error('Failed to send notification email:', error)
+        // Don't fail the request if email fails
+      })
+    }
 
     return NextResponse.json({
       success: true,
