@@ -1,83 +1,68 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
-import { mockBudgetData, mockPurchaseRequests } from '@/lib/mockData'
-import {
-  TrendingUp,
-  DollarSign,
-  AlertTriangle,
-  Download,
-  Calendar,
-} from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  Area,
-  AreaChart,
-} from 'recharts'
+import { TrendingUp, DollarSign, AlertTriangle, Download, Calendar, Package, Users, TrendingDown } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend } from 'recharts'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
 export default function ReportsPage() {
+  const [loading, setLoading] = useState(true)
+  const [overview, setOverview] = useState<any>(null)
+  const [budget, setBudget] = useState<any>(null)
+  const [trends, setTrends] = useState<any>(null)
+  const [departments, setDepartments] = useState<any>(null)
   const [period, setPeriod] = useState('monthly')
-  const [department, setDepartment] = useState('all')
 
-  // Budget utilization data
-  const budgetData = mockBudgetData.departments.map((dept) => ({
-    name: dept.name,
-    budget: dept.budget,
-    spent: dept.spent,
-    remaining: dept.budget - dept.spent,
-    utilization: dept.utilization,
-  }))
+  useEffect(() => {
+    fetchReports()
+  }, [period])
 
-  // Monthly spending trend (mock data)
-  const monthlySpendingData = [
-    { month: 'Oca', spending: 125000, budget: 200000 },
-    { month: 'Şub', spending: 145000, budget: 200000 },
-    { month: 'Mar', spending: 168000, budget: 200000 },
-    { month: 'Nis', spending: 152000, budget: 200000 },
-    { month: 'May', spending: 187000, budget: 200000 },
-    { month: 'Haz', spending: 195000, budget: 200000 },
-  ]
+  const fetchReports = async () => {
+    setLoading(true)
+    try {
+      const [overviewRes, budgetRes, trendsRes, deptRes] = await Promise.all([
+        fetch('/api/reports/overview'),
+        fetch(`/api/reports/budget?period=${period}`),
+        fetch(`/api/reports/spending-trends?period=${period}`),
+        fetch('/api/reports/department-spending'),
+      ])
 
-  // Category spending distribution
-  const categorySpendingData = [
-    { name: 'Bilgi İşlem', value: 145000 },
-    { name: 'Ofis Malzemeleri', value: 45000 },
-    { name: 'Mobilya', value: 85000 },
-    { name: 'Yazılım Lisansları', value: 65000 },
-    { name: 'Diğer', value: 35000 },
-  ]
+      const [overviewData, budgetData, trendsData, deptData] = await Promise.all([
+        overviewRes.json(),
+        budgetRes.json(),
+        trendsRes.json(),
+        deptRes.json(),
+      ])
 
-  // Department comparison
-  const departmentComparisonData = mockBudgetData.departments.slice(0, 6).map((dept) => ({
-    name: dept.name,
-    harcama: dept.spent,
-    bütçe: dept.budget,
-  }))
-
-  const totalBudget = mockBudgetData.company.total
-  const totalSpent = mockBudgetData.company.spent
-  const totalReserved = mockBudgetData.company.reserved
-  const totalRemaining = totalBudget - totalSpent - totalReserved
-  const utilizationPercentage = ((totalSpent + totalReserved) / totalBudget) * 100
+      if (overviewData.success) setOverview(overviewData.data)
+      if (budgetData.success) setBudget(budgetData.data)
+      if (trendsData.success) setTrends(trendsData.data)
+      if (deptData.success) setDepartments(deptData.data)
+    } catch (error) {
+      console.error('Failed to fetch reports:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleExport = (format: string) => {
     alert(`Rapor ${format.toUpperCase()} formatında dışa aktarılıyor...`)
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Raporlar yükleniyor...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -107,296 +92,262 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Dönem</label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="daily">Günlük</option>
-                <option value="weekly">Haftalık</option>
-                <option value="monthly">Aylık</option>
-                <option value="quarterly">Çeyreklik</option>
-                <option value="yearly">Yıllık</option>
-              </select>
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Departman</label>
-              <select
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Tüm Departmanlar</option>
-                {mockBudgetData.departments.map((dept) => (
-                  <option key={dept.name} value={dept.name}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+        {/* Period Selector */}
+        <div className="flex gap-2">
+          {['daily', 'weekly', 'monthly', 'yearly'].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                period === p
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {p === 'daily' && 'Günlük'}
+              {p === 'weekly' && 'Haftalık'}
+              {p === 'monthly' && 'Aylık'}
+              {p === 'yearly' && 'Yıllık'}
+            </button>
+          ))}
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatCard
-            title="Toplam Bütçe"
-            value={totalBudget.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle="Yıllık toplam"
-            icon={DollarSign}
-            color="blue"
-          />
-          <StatCard
-            title="Toplam Harcama"
-            value={totalSpent.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle={`%${((totalSpent / totalBudget) * 100).toFixed(1)} kullanıldı`}
-            icon={TrendingUp}
-            color="green"
-          />
-          <StatCard
-            title="Rezerve Edilen"
-            value={totalReserved.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle="Bekleyen talepler"
-            icon={Calendar}
-            color="yellow"
-          />
-          <StatCard
-            title="Kalan Bütçe"
-            value={totalRemaining.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
-            subtitle={`%${((totalRemaining / totalBudget) * 100).toFixed(1)} kaldı`}
-            icon={AlertTriangle}
-            color={totalRemaining < totalBudget * 0.2 ? 'red' : 'purple'}
-          />
-        </div>
-
-        {/* Budget Utilization Alert */}
-        {utilizationPercentage > 80 && (
-          <div
-            className={`${
-              utilizationPercentage > 90 ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
-            } border rounded-lg p-4 flex items-start gap-3`}
-          >
-            <AlertTriangle
-              className={utilizationPercentage > 90 ? 'text-red-600' : 'text-yellow-600'}
-              size={20}
+        {/* Summary Stats */}
+        {overview && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <StatCard
+              title="Toplam Talepler"
+              value={overview.summary.totalRequests}
+              icon={<Package className="text-blue-600" />}
+              trend={{
+                value: overview.summary.pendingRequests,
+                label: 'Beklemede',
+              }}
             />
-            <div className="flex-1">
-              <h4 className={`font-semibold ${utilizationPercentage > 90 ? 'text-red-900' : 'text-yellow-900'}`}>
-                Bütçe Uyarısı
-              </h4>
-              <p className={`text-sm mt-1 ${utilizationPercentage > 90 ? 'text-red-800' : 'text-yellow-800'}`}>
-                Yıllık bütçenizin %{utilizationPercentage.toFixed(1)}&apos;i kullanıldı veya rezerve edildi.
-                {utilizationPercentage > 90
-                  ? ' Bütçe artırımı için yönetim ile görüşün.'
-                  : ' Harcamalarınızı yakından takip edin.'}
-              </p>
+            <StatCard
+              title="Onaylanan"
+              value={overview.summary.approvedRequests}
+              icon={<TrendingUp className="text-green-600" />}
+              trend={{
+                value: overview.summary.rejectedRequests,
+                label: 'Reddedilen',
+              }}
+            />
+            <StatCard
+              title="Toplam Harcama"
+              value={`₺${overview.summary.totalSpending.toLocaleString('tr-TR')}`}
+              icon={<DollarSign className="text-purple-600" />}
+              trend={{
+                value: `₺${overview.summary.averageRequestValue}`,
+                label: 'Ort. Talep Değeri',
+              }}
+            />
+            {budget && (
+              <StatCard
+                title="Bütçe Kullanımı"
+                value={`${budget.summary.usagePercent}%`}
+                icon={<AlertTriangle className="text-orange-600" />}
+                trend={{
+                  value: budget.summary.categoriesExceeded,
+                  label: 'Aşan Kategori',
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Spending Trends Chart */}
+        {trends && trends.trends.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Harcama Trendi</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trends.trends}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="period" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value: number) => [`₺${value.toLocaleString('tr-TR')}`, '']}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#3B82F6"
+                  strokeWidth={2}
+                  name="Toplam"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="approved"
+                  stroke="#10B981"
+                  strokeWidth={2}
+                  name="Onaylanan"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="pending"
+                  stroke="#F59E0B"
+                  strokeWidth={2}
+                  name="Bekleyen"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-gray-600">Ortalama / Dönem</div>
+                <div className="text-lg font-semibold text-gray-900">
+                  ₺{trends.summary.avgPerPeriod.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-gray-600">Büyüme Oranı</div>
+                <div className={`text-lg font-semibold ${parseFloat(trends.summary.growthRate) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {trends.summary.growthRate}%
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-gray-600">Toplam Talep</div>
+                <div className="text-lg font-semibold text-gray-900">{trends.summary.totalRequests}</div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Monthly Spending Trend */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Aylık Harcama Trendi</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlySpendingData}>
-                <defs>
-                  <linearGradient id="colorSpending" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number) =>
-                    value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
-                  }
-                />
-                <Area
-                  type="monotone"
-                  dataKey="spending"
-                  stroke="#3B82F6"
-                  fillOpacity={1}
-                  fill="url(#colorSpending)"
-                  name="Harcama"
-                />
-                <Line type="monotone" dataKey="budget" stroke="#EF4444" strokeDasharray="5 5" name="Bütçe" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {/* Budget Status */}
+          {budget && budget.categories.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Bütçe Durumu (Kategori)</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={budget.categories.slice(0, 6)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="categoryName" angle={-45} textAnchor="end" height={100} />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value: number) => [`₺${value.toLocaleString('tr-TR')}`, '']}
+                  />
+                  <Legend />
+                  <Bar dataKey="spent" fill="#EF4444" name="Harcanan" />
+                  <Bar dataKey="remaining" fill="#10B981" name="Kalan" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
-          {/* Category Distribution */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Kategori Bazlı Dağılım</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categorySpendingData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name}: %${(percent * 100).toFixed(0)}`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {categorySpendingData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) =>
-                    value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
-                  }
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Department Budget Utilization */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Departman Bütçe Kullanımı
-            </h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={budgetData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
-                <Tooltip
-                  formatter={(value: number) =>
-                    value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
-                  }
-                />
-                <Legend />
-                <Bar dataKey="spent" fill="#3B82F6" name="Harcanan" />
-                <Bar dataKey="remaining" fill="#E5E7EB" name="Kalan" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Department Comparison */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Karşılaştırması</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={departmentComparisonData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={120} />
-                <Tooltip
-                  formatter={(value: number) =>
-                    value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
-                  }
-                />
-                <Legend />
-                <Bar dataKey="harcama" fill="#10B981" name="Harcama" />
-                <Bar dataKey="bütçe" fill="#3B82F6" name="Bütçe" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {/* Department Spending */}
+          {departments && departments.departments.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Departman Bazlı Harcama</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={departments.departments.slice(0, 6)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry) => `${entry.departmentName}: ${entry.percentageShare}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="totalSpending"
+                  >
+                    {departments.departments.slice(0, 6).map((_: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => [`₺${value.toLocaleString('tr-TR')}`, 'Harcama']}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
-        {/* Department Details Table */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Detayları</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Departman
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Bütçe
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Harcanan
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Kalan
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                    Kullanım
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-                    Durum
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {budgetData.map((dept) => (
-                  <tr key={dept.name} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                      {dept.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-gray-900">
-                      {dept.budget.toLocaleString('tr-TR', {
-                        style: 'currency',
-                        currency: 'TRY',
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-blue-600">
-                      {dept.spent.toLocaleString('tr-TR', {
-                        style: 'currency',
-                        currency: 'TRY',
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-gray-600">
-                      {dept.remaining.toLocaleString('tr-TR', {
-                        style: 'currency',
-                        currency: 'TRY',
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              dept.utilization > 90
-                                ? 'bg-red-500'
-                                : dept.utilization > 75
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                            }`}
-                            style={{ width: `${Math.min(dept.utilization, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">
-                          %{dept.utilization.toFixed(0)}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          dept.utilization > 90
-                            ? 'bg-red-100 text-red-800'
-                            : dept.utilization > 75
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {dept.utilization > 90
-                          ? 'Kritik'
-                          : dept.utilization > 75
-                          ? 'Dikkat'
-                          : 'Normal'}
-                      </span>
-                    </td>
+        {/* Request Status Distribution */}
+        {overview && overview.breakdown.byStatus.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Talep Durumu Dağılımı</h2>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={overview.breakdown.byStatus}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="status" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" fill="#3B82F6" name="Talep Sayısı" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Top Products Table */}
+        {overview && overview.topProducts.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">En Çok Talep Edilen Ürünler</h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ürün</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Talep Sayısı</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Toplam Miktar</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Toplam Değer</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {overview.topProducts.slice(0, 10).map((product: any) => (
+                    <tr key={product.productId} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900">{product.productName}</div>
+                        <div className="text-xs text-gray-500">{product.sku}</div>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-900">{product.requestCount}</td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-900">{product.totalQuantity}</td>
+                      <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                        ₺{product.totalValue.toLocaleString('tr-TR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Department Rankings */}
+        {departments && departments.departments.length > 0 && (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Departman Sıralaması</h2>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sıra</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Departman</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Talep Sayısı</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Toplam Harcama</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Pay (%)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {departments.departments.slice(0, 10).map((dept: any) => (
+                    <tr key={dept.departmentId} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">#{dept.rank}</td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900">{dept.departmentName}</div>
+                        <div className="text-xs text-gray-500">{dept.departmentCode}</div>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-900">{dept.requestCount}</td>
+                      <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                        ₺{dept.totalSpending.toLocaleString('tr-TR')}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-900">{dept.percentageShare}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )
