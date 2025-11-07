@@ -1,57 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { authorizeResource } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { requestId: string } }
-) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
+export const GET = createHandler({
+  permission: 'request:read',
+  handler: async (request, session, context: any) => {
+    const requestId = context.params.requestId
 
     const purchaseRequest = await prisma.purchaseRequest.findUnique({
-      where: { id: params.requestId },
+      where: { id: requestId },
       include: {
         requester: {
           select: {
             id: true,
             name: true,
             email: true,
-            position: true
-          }
+            position: true,
+          },
         },
         department: true,
+        purchaseCategory: true,
         items: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
         workflow: {
           include: {
             steps: {
               orderBy: {
-                stepOrder: 'asc'
-              }
-            }
-          }
+                stepOrder: 'asc',
+              },
+            },
+          },
         },
         approvalActions: {
           include: {
@@ -60,114 +45,136 @@ export async function GET(
                 id: true,
                 name: true,
                 role: true,
-                position: true
-              }
-            }
+                position: true,
+              },
+            },
           },
           orderBy: {
-            createdAt: 'asc'
-          }
+            createdAt: 'asc',
+          },
         },
-        order: true
-      }
+        order: true,
+      },
     })
 
     if (!purchaseRequest) {
-      return NextResponse.json(
-        { success: false, error: 'Talep bulunamadı' },
-        { status: 404 }
-      )
+      return ApiResponse.notFound('Purchase Request')
     }
 
-    // Check permissions
-    const canView =
-      decoded.role === 'ADMIN' ||
-      decoded.role === 'FINANCE_MANAGER' ||
-      decoded.role === 'GENERAL_MANAGER' ||
-      purchaseRequest.requesterId === decoded.userId
-
-    if (!canView) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkisiz erişim' },
-        { status: 403 }
-      )
+    // Verify company scope and permissions
+    try {
+      await authorizeResource(session, 'request:read', purchaseRequest, {
+        requireOwnership: session.user.role === 'EMPLOYEE',
+      })
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
     }
 
-    return NextResponse.json({
-      success: true,
-      data: purchaseRequest
-    })
-  } catch (error) {
-    console.error('Purchase request fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Talep yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+    return ApiResponse.success(purchaseRequest)
+  },
+})
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { requestId: string } }
-) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
+export const PUT = createHandler({
+  permission: 'request:update',
+  auditAction: 'request.update',
+  handler: async (request, session, context: any) => {
+    const requestId = context.params.requestId
     const body = await request.json()
 
     const purchaseRequest = await prisma.purchaseRequest.findUnique({
-      where: { id: params.requestId }
+      where: { id: requestId },
     })
 
     if (!purchaseRequest) {
-      return NextResponse.json(
-        { success: false, error: 'Talep bulunamadı' },
-        { status: 404 }
-      )
+      return ApiResponse.notFound('Purchase Request')
     }
 
-    // Only requester can update DRAFT status
-    if (purchaseRequest.status === 'DRAFT' && purchaseRequest.requesterId !== decoded.userId) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkisiz erişim' },
-        { status: 403 }
-      )
+    // Verify authorization
+    try {
+      await authorizeResource(session, 'request:update', purchaseRequest, {
+        requireOwnership: purchaseRequest.status === 'DRAFT',
+      })
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
+    }
+
+    // Only DRAFT requests can be updated by requester
+    if (purchaseRequest.status !== 'DRAFT' && session.user.role === 'EMPLOYEE') {
+      return ApiResponse.badRequest('Only draft requests can be updated')
     }
 
     const updated = await prisma.purchaseRequest.update({
-      where: { id: params.requestId },
-      data: body,
+      where: { id: requestId },
+      data: {
+        title: body.title,
+        description: body.description,
+        priority: body.priority,
+        requiredDate: body.requiredDate ? new Date(body.requiredDate) : null,
+      },
       include: {
         items: true,
-        approvalActions: true
-      }
+        approvalActions: true,
+      },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: updated,
-      message: 'Talep güncellendi'
+    await audit.log({
+      action: 'request.update',
+      resource: `PurchaseRequest:${updated.id}`,
+      metadata: {
+        requestNumber: updated.requestNumber,
+        changes: body,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
     })
-  } catch (error) {
-    console.error('Purchase request update error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Talep güncellenemedi' },
-      { status: 500 }
-    )
-  }
-}
+
+    return ApiResponse.success(updated)
+  },
+})
+
+export const DELETE = createHandler({
+  permission: 'request:delete',
+  auditAction: 'request.delete',
+  handler: async (request, session, context: any) => {
+    const requestId = context.params.requestId
+
+    const purchaseRequest = await prisma.purchaseRequest.findUnique({
+      where: { id: requestId },
+    })
+
+    if (!purchaseRequest) {
+      return ApiResponse.notFound('Purchase Request')
+    }
+
+    // Verify authorization
+    try {
+      await authorizeResource(session, 'request:delete', purchaseRequest, {
+        requireOwnership: true,
+      })
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
+    }
+
+    // Only DRAFT requests can be deleted
+    if (purchaseRequest.status !== 'DRAFT') {
+      return ApiResponse.badRequest('Only draft requests can be deleted')
+    }
+
+    await prisma.purchaseRequest.delete({
+      where: { id: requestId },
+    })
+
+    await audit.log({
+      action: 'request.delete',
+      resource: `PurchaseRequest:${requestId}`,
+      metadata: {
+        requestNumber: purchaseRequest.requestNumber,
+        title: purchaseRequest.title,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
+    })
+
+    return ApiResponse.noContent()
+  },
+})

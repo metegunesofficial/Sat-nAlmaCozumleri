@@ -1,153 +1,173 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { authorizeResource } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { requestId: string } }
-) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
+export const POST = createHandler({
+  permission: 'request:approve',
+  auditAction: 'request.approve',
+  handler: async (request, session, context: any) => {
+    const requestId = context.params.requestId
     const body = await request.json()
-    const { action, comments } = body // action: APPROVED, REJECTED, RETURNED
+    const { action, comments } = body
 
+    // Validation
+    if (!action || !['APPROVED', 'REJECTED', 'RETURNED'].includes(action)) {
+      return ApiResponse.badRequest('Invalid action. Must be APPROVED, REJECTED, or RETURNED')
+    }
+
+    // Get the purchase request
     const purchaseRequest = await prisma.purchaseRequest.findUnique({
-      where: { id: params.requestId },
+      where: { id: requestId },
       include: {
         workflow: {
           include: {
             steps: {
               orderBy: {
-                stepOrder: 'asc'
-              }
-            }
-          }
+                stepOrder: 'asc',
+              },
+            },
+          },
         },
-        approvalActions: true
-      }
+        approvalActions: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
     })
 
     if (!purchaseRequest) {
-      return NextResponse.json(
-        { success: false, error: 'Talep bulunamadı' },
-        { status: 404 }
-      )
+      return ApiResponse.notFound('Purchase Request')
     }
 
+    // Verify company scope
+    try {
+      await authorizeResource(session, 'request:approve', purchaseRequest)
+    } catch (error: any) {
+      return ApiResponse.forbidden(error.message)
+    }
+
+    // Check if request is in a state that can be approved
+    if (!['SUBMITTED', 'IN_REVIEW'].includes(purchaseRequest.status)) {
+      return ApiResponse.badRequest('Request cannot be approved in its current state')
+    }
+
+    // Check if workflow exists
     if (!purchaseRequest.workflow) {
-      return NextResponse.json(
-        { success: false, error: 'Onay süreci tanımlı değil' },
-        { status: 400 }
-      )
+      return ApiResponse.badRequest('No approval workflow assigned')
     }
 
-    // Get current step
-    const currentStep = purchaseRequest.workflow.steps[purchaseRequest.currentStep]
+    const currentStep = purchaseRequest.workflow.steps.find(
+      (s) => s.stepOrder === purchaseRequest.currentStep
+    )
 
     if (!currentStep) {
-      return NextResponse.json(
-        { success: false, error: 'Geçerli onay adımı bulunamadı' },
-        { status: 400 }
-      )
+      return ApiResponse.badRequest('Invalid workflow step')
     }
 
-    // Check if user can approve
+    // Verify user can approve this step
     const canApprove =
-      (currentStep.approverRole && decoded.role === currentStep.approverRole) ||
-      (currentStep.approverId && decoded.userId === currentStep.approverId) ||
-      decoded.role === 'ADMIN' ||
-      decoded.role === 'GENERAL_MANAGER'
+      currentStep.approverRole === session.user.role ||
+      ['SUPER_ADMIN', 'COMPANY_ADMIN'].includes(session.user.role)
 
     if (!canApprove) {
-      return NextResponse.json(
-        { success: false, error: 'Bu adımı onaylama yetkiniz yok' },
-        { status: 403 }
-      )
+      return ApiResponse.forbidden('You are not authorized to approve at this step')
     }
 
     // Create approval action
     await prisma.approvalAction.create({
       data: {
-        requestId: params.requestId,
+        requestId: purchaseRequest.id,
         stepOrder: purchaseRequest.currentStep,
-        approverId: decoded.userId,
-        action,
-        comments
-      }
+        approverId: session.user.id,
+        action: action as any,
+        comments: comments || null,
+      },
     })
 
+    // Determine new status and step
     let newStatus = purchaseRequest.status
-    let newCurrentStep = purchaseRequest.currentStep
+    let newStep = purchaseRequest.currentStep
 
     if (action === 'APPROVED') {
-      // Move to next step
-      if (purchaseRequest.currentStep + 1 < purchaseRequest.workflow.steps.length) {
-        newCurrentStep = purchaseRequest.currentStep + 1
-        newStatus = 'IN_REVIEW'
-      } else {
-        // All steps approved
+      // Check if this is the last step
+      const isLastStep = purchaseRequest.currentStep >= purchaseRequest.workflow.steps.length - 1
+
+      if (isLastStep) {
         newStatus = 'APPROVED'
+      } else {
+        newStatus = 'IN_REVIEW'
+        newStep = purchaseRequest.currentStep + 1
       }
     } else if (action === 'REJECTED') {
       newStatus = 'REJECTED'
     } else if (action === 'RETURNED') {
-      // Return to requester for revision
-      newStatus = 'DRAFT'
-      newCurrentStep = 0
+      newStatus = 'SUBMITTED'
+      newStep = 0
     }
 
-    const updated = await prisma.purchaseRequest.update({
-      where: { id: params.requestId },
+    // Update purchase request
+    const updatedRequest = await prisma.purchaseRequest.update({
+      where: { id: requestId },
       data: {
-        status: newStatus,
-        currentStep: newCurrentStep
+        status: newStatus as any,
+        currentStep: newStep,
       },
       include: {
-        items: true,
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        workflow: {
+          include: {
+            steps: true,
+          },
+        },
         approvalActions: {
           include: {
             approver: {
               select: {
+                id: true,
                 name: true,
-                role: true
-              }
-            }
-          }
-        }
-      }
+                role: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: updated,
-      message: action === 'APPROVED' ? 'Talep onaylandı' :
-               action === 'REJECTED' ? 'Talep reddedildi' :
-               'Talep geri gönderildi'
+    // Log audit
+    await audit.log({
+      action: action === 'APPROVED' ? 'request.approve' : action === 'REJECTED' ? 'request.reject' : 'request.return',
+      resource: `PurchaseRequest:${updatedRequest.id}`,
+      metadata: {
+        requestNumber: updatedRequest.requestNumber,
+        action,
+        comments,
+        stepOrder: purchaseRequest.currentStep,
+        newStatus,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
     })
-  } catch (error) {
-    console.error('Approval action error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Onay işlemi başarısız' },
-      { status: 500 }
-    )
-  }
-}
+
+    return ApiResponse.success(updatedRequest)
+  },
+})

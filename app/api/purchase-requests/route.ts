@@ -1,186 +1,184 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { withCompanyScope } from '@/lib/authz'
+import { audit } from '@/lib/audit'
 
-// Force dynamic rendering to skip static optimization during build
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
+export const GET = createHandler({
+  permission: 'request:read',
+  handler: async (request, session) => {
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const offset = parseInt(searchParams.get('offset') || '0')
 
-    const where: any = {}
+    const where = withCompanyScope(session, {})
 
     // Role-based filtering
-    if (decoded.role === 'EMPLOYEE') {
-      where.requesterId = decoded.userId
-    } else if (decoded.role === 'DEPARTMENT_MANAGER') {
-      // Get user's managed departments
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { managedDepartments: true }
-      })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
-      where.departmentId = { in: deptIds }
+    if (session.user.role === 'EMPLOYEE') {
+      // Employees only see their own requests
+      where.requesterId = session.user.id
+    } else if (session.user.role === 'DEPARTMENT_MANAGER' && session.user.departmentId) {
+      // Department managers see their department's requests
+      where.departmentId = session.user.departmentId
     }
-    // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
+    // Admins and other managers see all company requests
 
     if (status) {
-      where.status = status
+      where.status = status as any
     }
 
     if (departmentId) {
       where.departmentId = departmentId
     }
 
-    const requests = await prisma.purchaseRequest.findMany({
-      where,
-      include: {
-        requester: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        department: {
-          select: {
-            id: true,
-            name: true,
-            code: true
-          }
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                images: true
-              }
-            }
-          }
-        },
-        approvalActions: {
-          include: {
-            approver: {
-              select: {
-                id: true,
-                name: true,
-                role: true
-              }
-            }
+    const [requests, total] = await Promise.all([
+      prisma.purchaseRequest.findMany({
+        where,
+        include: {
+          requester: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              position: true,
+            },
           },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+          department: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          purchaseCategory: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  images: true,
+                },
+              },
+            },
+          },
+          approvalActions: {
+            include: {
+              approver: {
+                select: {
+                  id: true,
+                  name: true,
+                  role: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.purchaseRequest.count({ where }),
+    ])
 
-    return NextResponse.json({
-      success: true,
-      data: requests
-    })
-  } catch (error) {
-    console.error('Purchase requests fetch error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Talepler yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+    return ApiResponse.success(requests, { total, limit, offset })
+  },
+})
 
-export async function POST(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
+export const POST = createHandler({
+  permission: 'request:create',
+  auditAction: 'request.create',
+  handler: async (request, session) => {
     const body = await request.json()
-    const { title, description, priority, items, requiredDate, departmentId } = body
+    const {
+      title,
+      description,
+      priority,
+      items,
+      requiredDate,
+      departmentId,
+      purchaseCategoryId,
+    } = body
+
+    // Validation
+    if (!title || !items || items.length === 0) {
+      return ApiResponse.badRequest('Title and items are required')
+    }
+
+    if (!departmentId && !session.user.departmentId) {
+      return ApiResponse.badRequest('Department is required')
+    }
 
     // Calculate estimated total
     const estimatedTotal = items.reduce((sum: number, item: any) => {
-      return sum + (item.unitPrice * item.quantity)
+      return sum + item.unitPrice * item.quantity
     }, 0)
 
-    // Generate request number
+    // Generate unique request number
     const date = new Date()
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
-    const count = await prisma.purchaseRequest.count() + 1
-    const requestNumber = `PR${year}${month}${String(count).padStart(4, '0')}`
+    const count = await prisma.purchaseRequest.count({
+      where: { companyId: session.user.companyId },
+    })
+    const requestNumber = `PR${year}${month}${String(count + 1).padStart(4, '0')}`
 
-    // Find appropriate workflow
+    // Find appropriate workflow based on amount
+    const targetDeptId = departmentId || session.user.departmentId
     const workflow = await prisma.approvalWorkflow.findFirst({
       where: {
+        companyId: session.user.companyId,
         isActive: true,
         OR: [
           {
             AND: [
               { minAmount: { lte: estimatedTotal } },
-              { maxAmount: { gte: estimatedTotal } }
-            ]
+              { maxAmount: { gte: estimatedTotal } },
+            ],
           },
           {
-            minAmount: { lte: estimatedTotal },
-            maxAmount: null
-          }
+            AND: [
+              { minAmount: { lte: estimatedTotal } },
+              { maxAmount: null },
+            ],
+          },
         ],
         departmentIds: {
-          has: departmentId
-        }
+          has: targetDeptId,
+        },
       },
       include: {
         steps: {
           orderBy: {
-            stepOrder: 'asc'
-          }
-        }
-      }
+            stepOrder: 'asc',
+          },
+        },
+      },
     })
 
+    // Create purchase request
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
+        companyId: session.user.companyId,
         requestNumber,
-        requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        requesterId: session.user.id,
+        departmentId: targetDeptId,
+        purchaseCategoryId: purchaseCategoryId || null,
         title,
         description,
         priority: priority || 'NORMAL',
@@ -188,38 +186,57 @@ export async function POST(request: NextRequest) {
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
         workflowId: workflow?.id,
+        currentStep: 0,
         items: {
           create: items.map((item: any) => ({
-            productId: item.productId,
+            productId: item.productId || null,
             productName: item.productName,
-            productSku: item.productSku,
+            productSku: item.productSku || null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             totalPrice: item.unitPrice * item.quantity,
-            notes: item.notes
-          }))
-        }
+            notes: item.notes || null,
+          })),
+        },
       },
       include: {
         items: true,
         workflow: {
           include: {
-            steps: true
-          }
-        }
-      }
+            steps: true,
+          },
+        },
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: purchaseRequest,
-      message: 'Satın alma talebi oluşturuldu'
+    // Log audit
+    await audit.log({
+      action: 'request.create',
+      resource: `PurchaseRequest:${purchaseRequest.id}`,
+      metadata: {
+        requestNumber: purchaseRequest.requestNumber,
+        title: purchaseRequest.title,
+        estimatedTotal: purchaseRequest.estimatedTotal.toString(),
+        itemCount: items.length,
+      },
+      companyId: session.user.companyId,
+      actorUserId: session.user.id,
     })
-  } catch (error) {
-    console.error('Purchase request create error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Talep oluşturulamadı' },
-      { status: 500 }
-    )
-  }
-}
+
+    return ApiResponse.created(purchaseRequest)
+  },
+})
