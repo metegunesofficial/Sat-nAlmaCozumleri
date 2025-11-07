@@ -25,6 +25,7 @@ export default function DepartmentsPage() {
 
   useEffect(() => {
     fetchDepartments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchDepartments = async () => {

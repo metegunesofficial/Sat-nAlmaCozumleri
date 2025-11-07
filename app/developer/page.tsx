@@ -73,6 +73,7 @@ export default function DeveloperPanelPage() {
   useEffect(() => {
     checkSuperAdmin()
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const checkSuperAdmin = () => {

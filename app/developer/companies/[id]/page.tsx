@@ -89,6 +89,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
   useEffect(() => {
     checkSuperAdmin()
     fetchCompany()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])
 
   const checkSuperAdmin = () => {
@@ -242,7 +243,7 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
             className="flex items-center gap-2 text-purple-100 hover:text-white mb-4"
           >
             <ChevronLeft size={20} />
-            Developer Panel'e Dön
+            Developer Panele Dön
           </button>
 
           <div className="flex items-start justify-between">
