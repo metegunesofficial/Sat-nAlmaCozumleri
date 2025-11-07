@@ -38,6 +38,7 @@ model Company {
   purchaseCategories PurchaseCategory[]
   suppliers     Supplier[]
   notificationTemplates NotificationTemplate[]
+  companySettings CompanySettings?
 
   @@index([slug])
 }
@@ -728,4 +729,49 @@ enum NotificationStatus {
   FAILED
   BOUNCED
   READ
+}
+
+// ============================================
+// COMPANY SETTINGS (WHITE-LABEL)
+// ============================================
+
+// Company Branding & Theme Settings
+model CompanySettings {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Branding
+  logoUrl         String?
+  faviconUrl      String?
+
+  // Theme Colors
+  primaryColor    String   @default("#0070f3")
+  secondaryColor  String   @default("#0051cc")
+  accentColor     String   @default("#ea580c")
+  successColor    String   @default("#059669")
+  warningColor    String   @default("#eab308")
+  errorColor      String   @default("#dc2626")
+
+  // Typography
+  fontFamily      String   @default("Inter")
+
+  // Layout Colors
+  sidebarBgColor  String   @default("#ffffff")
+  sidebarTextColor String  @default("#374151")
+  headerBgColor   String   @default("#0070f3")
+  headerTextColor String   @default("#ffffff")
+
+  // Advanced
+  customCSS       String?  @db.Text  // Sanitized custom CSS
+  customJS        String?  @db.Text  // Sandboxed custom JavaScript
+
+  // Features
+  enableDarkMode  Boolean  @default(false)
+  enableCustomFonts Boolean @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
 }
