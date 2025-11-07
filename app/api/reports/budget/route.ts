@@ -1,121 +1,108 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { createHandler, ApiResponse } from '@/lib/api-handler'
+import { withCompanyScope } from '@/lib/authz'
 
-// Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
-  try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
+/**
+ * GET /api/reports/budget
+ * Budget usage and remaining by category
+ */
+export const GET = createHandler({
+  permission: 'report:read',
+  handler: async (request, session) => {
     const searchParams = request.nextUrl.searchParams
-    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString())
-    const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null
+    const period = searchParams.get('period') || 'monthly' // monthly, yearly
 
-    // Get budgets
-    const budgets = await prisma.budget.findMany({
-      where: {
-        year,
-        ...(month && { month })
-      },
+    // Get all categories with budget limits
+    const categories = await prisma.purchaseCategory.findMany({
+      where: withCompanyScope(session, {
+        isActive: true,
+        OR: [
+          { monthlyLimit: { not: null } },
+          { yearlyLimit: { not: null } },
+        ],
+      }),
       include: {
-        department: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            manager: {
-              select: {
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
-      }
+        children: true,
+      },
+      orderBy: { code: 'asc' },
     })
 
-    // Calculate spending by department
-    const departmentSpending = await Promise.all(
-      budgets.map(async (budget: any) => {
-        // Get approved requests total
-        const approvedRequests = await prisma.purchaseRequest.aggregate({
+    // Calculate date range based on period
+    const now = new Date()
+    const startDate =
+      period === 'monthly'
+        ? new Date(now.getFullYear(), now.getMonth(), 1)
+        : new Date(now.getFullYear(), 0, 1)
+
+    // Get spending per category
+    const budgetReport = await Promise.all(
+      categories.map(async (category) => {
+        const spending = await prisma.purchaseRequest.aggregate({
           where: {
-            departmentId: budget.departmentId,
-            status: { in: ['APPROVED', 'COMPLETED'] },
-            createdAt: {
-              gte: new Date(year, month ? month - 1 : 0, 1),
-              lt: new Date(year, month ? month : 12, 0, 23, 59, 59)
-            }
+            companyId: session.user.companyId,
+            purchaseCategoryId: category.id,
+            createdAt: { gte: startDate },
+            status: { in: ['SUBMITTED', 'IN_REVIEW', 'APPROVED'] },
           },
-          _sum: {
-            estimatedTotal: true
-          }
+          _sum: { estimatedTotal: true },
+          _count: { id: true },
         })
 
-        const spent = Number(approvedRequests._sum.estimatedTotal || 0)
-        const budgetAmount = Number(budget.amount)
-        const reserved = Number(budget.reserved)
-        const available = budgetAmount - spent - reserved
-        const utilization = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0
+        const spent = spending._sum.estimatedTotal?.toNumber() || 0
+        const limit =
+          period === 'monthly'
+            ? category.monthlyLimit?.toNumber()
+            : category.yearlyLimit?.toNumber()
+
+        const remaining = limit ? limit - spent : null
+        const usagePercent = limit ? ((spent / limit) * 100).toFixed(1) : null
 
         return {
-          budget: {
-            id: budget.id,
-            year: budget.year,
-            month: budget.month,
-            amount: budgetAmount
-          },
-          department: budget.department,
+          categoryId: category.id,
+          categoryName: category.name,
+          categoryCode: category.code,
+          limit,
           spent,
-          reserved,
-          available,
-          utilization,
-          status: utilization > 90 ? 'critical' : utilization > 75 ? 'warning' : 'normal'
+          remaining,
+          usagePercent: usagePercent ? parseFloat(usagePercent) : null,
+          requestCount: spending._count.id,
+          status:
+            !limit
+              ? 'no_limit'
+              : spent > limit
+              ? 'exceeded'
+              : spent > limit * 0.9
+              ? 'critical'
+              : spent > limit * 0.75
+              ? 'warning'
+              : 'ok',
+          hasChildren: category.children.length > 0,
         }
       })
     )
 
-    // Overall summary
-    const totalBudget = budgets.reduce((sum: number, b: any) => sum + Number(b.amount), 0)
-    const totalSpent = departmentSpending.reduce((sum: number, d: any) => sum + d.spent, 0)
-    const totalReserved = departmentSpending.reduce((sum: number, d: any) => sum + d.reserved, 0)
-    const totalAvailable = totalBudget - totalSpent - totalReserved
+    // Calculate totals
+    const totalBudget = budgetReport.reduce((sum, item) => sum + (item.limit || 0), 0)
+    const totalSpent = budgetReport.reduce((sum, item) => sum + item.spent, 0)
+    const totalRemaining = totalBudget - totalSpent
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        summary: {
-          totalBudget,
-          totalSpent,
-          totalReserved,
-          totalAvailable,
-          utilizationPercent: totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0
-        },
-        byDepartment: departmentSpending
-      }
+    return ApiResponse.success({
+      period,
+      startDate,
+      endDate: now,
+      summary: {
+        totalBudget,
+        totalSpent,
+        totalRemaining,
+        usagePercent: totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(1) : 0,
+        categoriesWithLimits: categories.length,
+        categoriesExceeded: budgetReport.filter((r) => r.status === 'exceeded').length,
+        categoriesCritical: budgetReport.filter((r) => r.status === 'critical').length,
+      },
+      categories: budgetReport.sort((a, b) => (b.usagePercent || 0) - (a.usagePercent || 0)),
     })
-  } catch (error) {
-    console.error('Budget report error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Bütçe raporu yüklenemedi' },
-      { status: 500 }
-    )
-  }
-}
+  },
+})
