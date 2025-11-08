@@ -25,25 +25,37 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get user to access companyId (multi-tenant filtering)
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, role: true },
+      include: { managedDepartments: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {}
+    const where: any = {
+      companyId: user.companyId, // Multi-tenant: only show requests from user's company
+    }
 
     // Role-based filtering
-    if (decoded.role === 'EMPLOYEE') {
-      where.requesterId = decoded.userId
-    } else if (decoded.role === 'DEPARTMENT_MANAGER') {
+    if (user.role === 'EMPLOYEE') {
+      where.requesterId = user.id
+    } else if (user.role === 'DEPARTMENT_MANAGER') {
       // Get user's managed departments
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        include: { managedDepartments: true }
-      })
-      const deptIds = user?.managedDepartments.map((d: any) => d.id) || []
+      const deptIds = user.managedDepartments.map((d: any) => d.id) || []
       where.departmentId = { in: deptIds }
     }
-    // ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all
+    // COMPANY_ADMIN, SUPER_ADMIN, FINANCE_MANAGER, GENERAL_MANAGER see all company requests
 
     if (status) {
       where.status = status
@@ -136,6 +148,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { title, description, priority, items, requiredDate, departmentId } = body
 
+    // Get user to access companyId (required for multi-tenant)
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true, departmentId: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Calculate estimated total
     const estimatedTotal = items.reduce((sum: number, item: any) => {
       return sum + (item.unitPrice * item.quantity)
@@ -151,6 +176,7 @@ export async function POST(request: NextRequest) {
     // Find appropriate workflow
     const workflow = await prisma.approvalWorkflow.findFirst({
       where: {
+        companyId: user.companyId, // Multi-tenant: only workflows from user's company
         isActive: true,
         OR: [
           {
@@ -165,7 +191,7 @@ export async function POST(request: NextRequest) {
           }
         ],
         departmentIds: {
-          has: departmentId
+          has: departmentId || user.departmentId
         }
       },
       include: {
@@ -180,15 +206,26 @@ export async function POST(request: NextRequest) {
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
         requestNumber,
-        requesterId: decoded.userId,
-        departmentId: departmentId || decoded.departmentId,
+        company: {
+          connect: { id: user.companyId },
+        },
+        requester: {
+          connect: { id: user.id },
+        },
+        department: {
+          connect: { id: departmentId || user.departmentId },
+        },
+        ...(workflow?.id && {
+          workflow: {
+            connect: { id: workflow.id },
+          },
+        }),
         title,
         description,
         priority: priority || 'NORMAL',
         status: 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
-        workflowId: workflow?.id,
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
