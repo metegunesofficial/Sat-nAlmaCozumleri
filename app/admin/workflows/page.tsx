@@ -252,7 +252,7 @@ export default function WorkflowsPage() {
             onChange={(e) => setFilterStatus(e.target.value as any)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
-            <option value="all">Tüm Workflow'lar</option>
+            <option value="all">Tüm Workflow&apos;lar</option>
             <option value="active">Aktif</option>
             <option value="inactive">Devre Dışı</option>
           </select>
@@ -303,7 +303,7 @@ export default function WorkflowsPage() {
         {loading ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-gray-600 mt-4">Workflow'lar yükleniyor...</p>
+            <p className="text-gray-600 mt-4">Workflow&apos;lar yükleniyor...</p>
           </div>
         ) : filteredWorkflows.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
