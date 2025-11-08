@@ -31,7 +31,7 @@ export interface NotificationPayload {
  */
 type MinimalTemplate = {
   id: string;
-  subject: string;
+  subject: string | null;
   body: string;
   isActive: boolean;
 }
