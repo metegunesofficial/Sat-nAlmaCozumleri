@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: Partial<CompanySettings> = {
 
 export default function SettingsPage() {
   const { token } = useAuth();
-  const { showNotification } = useNotification();
+  const { success, error: showError } = useNotification();
 
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,9 +70,9 @@ export default function SettingsPage() {
           setLogoPreview(data.data.logoUrl);
         }
       }
-    } catch (error) {
-      console.error('Load settings error:', error);
-      showNotification('Ayarlar yüklenemedi', 'error');
+    } catch (err) {
+      console.error('Load settings error:', err);
+      showError('Ayarlar yüklenemedi');
     } finally {
       setLoading(false);
     }
@@ -84,13 +84,13 @@ export default function SettingsPage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      showNotification('Lütfen bir resim dosyası seçin', 'error');
+      showError('Lütfen bir resim dosyası seçin');
       return;
     }
 
     // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
-      showNotification('Dosya boyutu en fazla 5MB olabilir', 'error');
+      showError('Dosya boyutu en fazla 5MB olabilir');
       return;
     }
 
@@ -124,18 +124,18 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.success) {
-        showNotification('Logo başarıyla yüklendi', 'success');
+        success('Logo başarıyla yüklendi');
         setSettings(data.data);
         setLogoFile(null);
 
         // Reload page to apply logo
         setTimeout(() => window.location.reload(), 1000);
       } else {
-        showNotification(data.error || 'Logo yüklenemedi', 'error');
+        showError(data.error || 'Logo yüklenemedi');
       }
-    } catch (error) {
-      console.error('Logo upload error:', error);
-      showNotification('Logo yüklenemedi', 'error');
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      showError('Logo yüklenemedi');
     } finally {
       setUploadingLogo(false);
     }
@@ -155,16 +155,16 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.success) {
-        showNotification('Logo silindi', 'success');
+        success('Logo silindi');
         setSettings(data.data);
         setLogoPreview(null);
         window.location.reload();
       } else {
-        showNotification(data.error || 'Logo silinemedi', 'error');
+        showError(data.error || 'Logo silinemedi');
       }
-    } catch (error) {
-      console.error('Delete logo error:', error);
-      showNotification('Logo silinemedi', 'error');
+    } catch (err) {
+      console.error('Delete logo error:', err);
+      showError('Logo silinemedi');
     }
   };
 
@@ -186,17 +186,17 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.success) {
-        showNotification('Ayarlar kaydedildi', 'success');
+        success('Ayarlar kaydedildi');
         setSettings(data.data);
 
         // Reload page to apply theme
         setTimeout(() => window.location.reload(), 1000);
       } else {
-        showNotification(data.error || 'Ayarlar kaydedilemedi', 'error');
+        showError(data.error || 'Ayarlar kaydedilemedi');
       }
-    } catch (error) {
-      console.error('Save settings error:', error);
-      showNotification('Ayarlar kaydedilemedi', 'error');
+    } catch (err) {
+      console.error('Save settings error:', err);
+      showError('Ayarlar kaydedilemedi');
     } finally {
       setSaving(false);
     }
