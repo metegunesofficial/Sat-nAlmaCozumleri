@@ -96,7 +96,8 @@ export async function POST(
     const canApprove =
       (currentStep.approverRole && user.role === currentStep.approverRole) ||
       (currentStep.approverId && decoded.userId === currentStep.approverId) ||
-      user.role === 'ADMIN' ||
+      user.role === 'COMPANY_ADMIN' ||
+      user.role === 'SUPER_ADMIN' ||
       user.role === 'GENERAL_MANAGER'
 
     if (!canApprove) {

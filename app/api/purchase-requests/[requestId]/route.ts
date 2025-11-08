@@ -81,7 +81,8 @@ export async function GET(
 
     // Check permissions
     const canView =
-      decoded.role === 'ADMIN' ||
+      decoded.role === 'COMPANY_ADMIN' ||
+      decoded.role === 'SUPER_ADMIN' ||
       decoded.role === 'FINANCE_MANAGER' ||
       decoded.role === 'GENERAL_MANAGER' ||
       purchaseRequest.requesterId === decoded.userId

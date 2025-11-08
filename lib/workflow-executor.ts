@@ -84,7 +84,7 @@ export async function startWorkflow(
         status: 'RUNNING',
         currentNodeId: startNode.id,
         variables: {
-          amount: purchaseRequest.totalAmount,
+          amount: purchaseRequest.estimatedTotal,
           requesterId: purchaseRequest.requesterId,
           departmentId: purchaseRequest.departmentId,
           priority: purchaseRequest.priority,
