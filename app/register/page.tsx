@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useNotification } from '@/contexts/NotificationContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { UserPlus, Mail, Lock, User, Phone, Building2 } from 'lucide-react'
 
 export default function RegisterPage() {
@@ -15,9 +16,9 @@ export default function RegisterPage() {
     phone: '',
     companyName: '',
   })
-  const [loading, setLoading] = useState(false)
   const router = useRouter()
   const { success, error } = useNotification()
+  const { register, loading } = useAuth()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -40,45 +41,24 @@ export default function RegisterPage() {
       return
     }
 
-    setLoading(true)
-
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          phone: formData.phone,
-          companyName: formData.companyName,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Kayıt başarısız')
-      }
-
-      // Store token and user data
-      localStorage.setItem('token', data.data.token)
-      localStorage.setItem('user', JSON.stringify(data.data.user))
+      await register(
+        formData.name,
+        formData.email,
+        formData.password,
+        formData.phone,
+        formData.companyName
+      )
 
       success('Kayıt başarılı! Yönlendiriliyorsunuz...')
 
       // Redirect to dashboard
       setTimeout(() => {
         router.push('/dashboard')
-        window.location.href = '/dashboard' // Force full page reload for auth state
       }, 1000)
 
     } catch (err: any) {
       error(err.message || 'Kayıt başarısız')
-    } finally {
-      setLoading(false)
     }
   }
 
