@@ -18,8 +18,8 @@ export function WaitNode({ data, selected }: NodeProps<WorkflowNode['data']>) {
         return `${config.durationHours || 0} saat bekle`;
       case 'until':
         return 'Belirli tarihe kadar';
-      case 'condition':
-        return 'Koşul sağlanana kadar';
+      case 'event':
+        return `${config.eventName || 'Olay'} gerçekleşene kadar`;
       default:
         return 'Bekle';
     }

@@ -53,11 +53,9 @@ export async function sendNotification(
       throw new Error(`Template not found or inactive: ${payload.templateName}`);
     }
 
-    // Prepare variables with helpers
-    const enrichedVariables = {
+    // Prepare variables with pre-formatted values
+    const enrichedVariables: Record<string, string | number | boolean | null | undefined> = {
       ...payload.variables,
-      formatCurrency: (amount: number) => formatCurrency(amount),
-      formatDate: (date: Date) => formatDate(date),
       priorityColor: payload.variables.priority
         ? getPriorityColor(payload.variables.priority)
         : '#0070f3',

@@ -3,14 +3,16 @@
  * All custom ReactFlow nodes for the visual workflow designer
  */
 
-export { StartNode } from './StartNode';
-export { EndNode } from './EndNode';
-export { ApprovalNode } from './ApprovalNode';
-export { DecisionNode } from './DecisionNode';
-export { NotificationNode } from './NotificationNode';
-export { WaitNode } from './WaitNode';
-export { ParallelSplitNode } from './ParallelSplitNode';
-export { ParallelJoinNode } from './ParallelJoinNode';
+import { StartNode } from './StartNode';
+import { EndNode } from './EndNode';
+import { ApprovalNode } from './ApprovalNode';
+import { DecisionNode } from './DecisionNode';
+import { NotificationNode } from './NotificationNode';
+import { WaitNode } from './WaitNode';
+import { ParallelSplitNode } from './ParallelSplitNode';
+import { ParallelJoinNode } from './ParallelJoinNode';
+
+export { StartNode, EndNode, ApprovalNode, DecisionNode, NotificationNode, WaitNode, ParallelSplitNode, ParallelJoinNode };
 
 /**
  * Node type definitions for ReactFlow

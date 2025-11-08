@@ -87,10 +87,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
+    const { managerId, parentId, ...departmentData } = body
 
     const department = await prisma.department.create({
-      data: body,
+      data: {
+        ...departmentData,
+        company: { connect: { id: user.companyId } },
+        ...(managerId && { manager: { connect: { id: managerId } } }),
+        ...(parentId && { parent: { connect: { id: parentId } } }),
+      },
       include: {
         manager: {
           select: {

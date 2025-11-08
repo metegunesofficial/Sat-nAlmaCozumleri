@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format tasks for response
-    const formattedTasks = tasks.map((task) => ({
+    const formattedTasks = tasks.map((task: typeof tasks[0]) => ({
       id: task.id,
       nodeId: task.nodeId,
       dueDate: task.dueDate,

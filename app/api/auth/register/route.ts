@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, generateToken } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       .replace(/^-+|-+$/g, '')
 
     // Create company and user in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create company
       const company = await tx.company.create({
         data: {

@@ -18,7 +18,7 @@ export function NotificationNode({ data, selected }: NodeProps<WorkflowNode['dat
         return <MessageSquare className="w-5 h-5 text-white" />;
       case 'whatsapp':
         return <Smartphone className="w-5 h-5 text-white" />;
-      case 'in_app':
+      case 'in-app':
         return <Bell className="w-5 h-5 text-white" />;
       default:
         return <Bell className="w-5 h-5 text-white" />;
@@ -33,7 +33,7 @@ export function NotificationNode({ data, selected }: NodeProps<WorkflowNode['dat
         return 'SMS';
       case 'whatsapp':
         return 'WhatsApp';
-      case 'in_app':
+      case 'in-app':
         return 'Uygulama içi';
       default:
         return 'Bildirim';
@@ -44,16 +44,17 @@ export function NotificationNode({ data, selected }: NodeProps<WorkflowNode['dat
     if (!config.recipientType) return 'Alıcı belirtilmedi';
 
     switch (config.recipientType) {
-      case 'requester':
-        return 'Talep sahibine';
-      case 'approver':
-        return 'Onaylayıcıya';
+      case 'dynamic':
+        // Dynamic can be requester, approver, etc.
+        return config.recipientValue === 'requester' ? 'Talep sahibine' :
+               config.recipientValue === 'approver' ? 'Onaylayıcıya' :
+               'Dinamik alıcı';
       case 'role':
-        return `${config.recipientRoles?.[0] || 'Rol'}`;
+        return `${config.recipientValue || 'Rol'}`;
       case 'user':
         return 'Belirli kullanıcı';
       case 'custom':
-        return config.recipientEmails?.[0] || 'Özel alıcı';
+        return config.recipientValue || 'Özel alıcı';
       default:
         return 'Alıcı belirtilmedi';
     }

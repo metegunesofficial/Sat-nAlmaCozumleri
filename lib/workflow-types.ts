@@ -160,7 +160,7 @@ export interface EndNodeConfig {
 // EDGE (CONNECTION)
 // ============================================
 
-export interface WorkflowEdge extends Edge {
+export type WorkflowEdge = Edge & {
   label?: string; // For decision branches (e.g., "If amount > 10000")
   data?: EdgeData;
 }

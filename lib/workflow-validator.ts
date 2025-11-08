@@ -162,17 +162,13 @@ function findOrphanNodes(nodes: WorkflowNode[], edges: WorkflowEdge[]): string[]
   const orphans: string[] = [];
 
   for (const node of nodes) {
-    // Start node doesn't need incoming edges
-    if (node.type === 'start') continue;
+    // Start node doesn't need incoming edges, end node doesn't need outgoing edges
+    if (node.type === 'start' || node.type === 'end') continue;
 
-    // End node doesn't need outgoing edges
-    const needsIncoming = node.type !== 'start';
-    const needsOutgoing = node.type !== 'end';
+    const hasIncoming = edges.some((e: any) => e.target === node.id);
+    const hasOutgoing = edges.some((e: any) => e.source === node.id);
 
-    const hasIncoming = edges.some((e) => e.target === node.id);
-    const hasOutgoing = edges.some((e) => e.source === node.id);
-
-    if ((needsIncoming && !hasIncoming) || (needsOutgoing && !hasOutgoing)) {
+    if (!hasIncoming || !hasOutgoing) {
       orphans.push(node.id);
     }
   }

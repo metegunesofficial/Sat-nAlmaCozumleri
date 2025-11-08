@@ -231,9 +231,9 @@ async function executeApprovalNode(
     if (approver) {
       await sendNotification({
         companyId: context.companyId,
+        userId: approver.id,
         channel: 'EMAIL',
-        recipientEmail: approver.email,
-        recipientName: approver.name,
+        recipient: approver.email,
         templateName: 'TEMPLATE_REQUEST_SUBMITTED',
         variables: {
           approverName: approver.name,
@@ -291,8 +291,7 @@ async function executeNotificationNode(
     await sendNotification({
       companyId: context.companyId,
       channel: config.channel?.toUpperCase() as any || 'EMAIL',
-      recipientEmail: recipient.email,
-      recipientName: recipient.name,
+      recipient: recipient.email,
       templateName: config.templateId || 'TEMPLATE_REQUEST_SUBMITTED',
       variables: context.variables,
     }).catch((err) => console.error('Failed to send notification:', err));
@@ -409,8 +408,8 @@ export async function handleApprovalDecision(
       },
     });
 
-    const approved = allTasks.filter((t) => t.status === 'COMPLETED').length;
-    const rejected = allTasks.filter((t) => t.status === 'REJECTED').length;
+    const approved = allTasks.filter((t: typeof allTasks[0]) => t.status === 'COMPLETED').length;
+    const rejected = allTasks.filter((t: typeof allTasks[0]) => t.status === 'REJECTED').length;
     const total = allTasks.length;
 
     let shouldContinue = false;
@@ -495,9 +494,9 @@ export async function handleApprovalDecision(
         if (task.workflowInstance.purchaseRequest) {
           await sendNotification({
             companyId: context.companyId,
+            userId: task.workflowInstance.purchaseRequest.requester.id,
             channel: 'EMAIL',
-            recipientEmail: task.workflowInstance.purchaseRequest.requester.email,
-            recipientName: task.workflowInstance.purchaseRequest.requester.name,
+            recipient: task.workflowInstance.purchaseRequest.requester.email,
             templateName:
               nextBranch === 'approved'
                 ? 'TEMPLATE_REQUEST_APPROVED'
@@ -528,12 +527,12 @@ function getNextNodeId(
   sourceHandle?: string
 ): string | null {
   const edge = definition.edges.find(
-    (e) =>
+    (e: any) =>
       e.source === currentNodeId &&
       (!sourceHandle || e.sourceHandle === sourceHandle)
-  );
+  ) as any;
 
-  return edge ? edge.target : null;
+  return edge?.target || null;
 }
 
 /**
@@ -553,7 +552,7 @@ async function getApprovers(
             role: config.approverValue as any,
           },
         });
-        return users.map((u) => u.id);
+        return users.map((u: typeof users[0]) => u.id);
       }
       return [];
 
@@ -585,18 +584,32 @@ async function getNotificationRecipient(
   context: ExecutionContext
 ): Promise<{ email: string; name: string } | null> {
   switch (config.recipientType) {
-    case 'requester':
-      const request = await prisma.purchaseRequest.findUnique({
-        where: { id: context.purchaseRequestId },
-        include: { requester: true },
-      });
-      return request
-        ? { email: request.requester.email, name: request.requester.name }
-        : null;
+    case 'dynamic':
+      // Handle dynamic recipients like 'requester', 'approver', etc.
+      if (config.recipientValue === 'requester') {
+        const request = await prisma.purchaseRequest.findUnique({
+          where: { id: context.purchaseRequestId },
+          include: { requester: true },
+        });
+        return request
+          ? { email: request.requester.email, name: request.requester.name }
+          : null;
+      }
+      return null;
+
+    case 'user':
+      // Specific user
+      if (config.recipientValue) {
+        const user = await prisma.user.findUnique({
+          where: { id: config.recipientValue },
+        });
+        return user ? { email: user.email, name: user.name } : null;
+      }
+      return null;
 
     case 'custom':
-      return config.recipientEmails && config.recipientEmails.length > 0
-        ? { email: config.recipientEmails[0], name: 'User' }
+      return config.recipientValue
+        ? { email: config.recipientValue, name: 'User' }
         : null;
 
     default:
@@ -641,8 +654,10 @@ function evaluateConditions(
     }
   });
 
-  // Apply logic operator
-  if (config.logicOperator === 'OR') {
+  // Check if any condition uses OR logic, otherwise use AND
+  const hasOrLogic = config.conditions.some((c) => c.logicOperator === 'OR');
+
+  if (hasOrLogic) {
     return results.some((r) => r);
   } else {
     // Default to AND

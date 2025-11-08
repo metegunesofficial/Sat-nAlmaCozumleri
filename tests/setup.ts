@@ -15,7 +15,7 @@ process.env.JWT_SECRET = 'test-jwt-secret-min-32-characters-long';
 process.env.NEXTAUTH_SECRET = 'test-nextauth-secret-min-32-chars';
 process.env.NEXTAUTH_URL = 'http://localhost:3000';
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
-process.env.NODE_ENV = 'test';
+// process.env.NODE_ENV = 'test'; // NODE_ENV is read-only
 
 // Mock Prisma Client
 vi.mock('@/lib/prisma', () => ({
