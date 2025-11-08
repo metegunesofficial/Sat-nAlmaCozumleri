@@ -16,6 +16,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null
+  token: string | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -26,15 +27,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // Check if user is logged in (from localStorage)
     const storedUser = localStorage.getItem('user')
-    const token = localStorage.getItem('token')
+    const storedToken = localStorage.getItem('token')
 
-    if (storedUser && token) {
+    if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser))
+      setToken(storedToken)
     }
 
     setLoading(false)
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('token', mockToken)
 
       setUser(foundUser)
+      setToken(mockToken)
     } catch (error) {
       throw error
     } finally {
@@ -115,12 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('user')
     localStorage.removeItem('token')
     setUser(null)
+    setToken(null)
   }
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         loading,
         login,
         logout,
