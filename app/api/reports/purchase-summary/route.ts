@@ -24,12 +24,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const departmentId = searchParams.get('departmentId')
 
-    const where: any = {}
+    const where: any = {
+      companyId: user.companyId
+    }
 
     if (startDate && endDate) {
       where.createdAt = {
@@ -64,6 +78,9 @@ export async function GET(request: NextRequest) {
 
     // Get department names
     const departments = await prisma.department.findMany({
+      where: {
+        companyId: user.companyId
+      },
       select: {
         id: true,
         name: true,
@@ -126,6 +143,7 @@ export async function GET(request: NextRequest) {
     const productIds = topProducts.map((p: any) => p.productId).filter(Boolean) as string[]
     const products = await prisma.product.findMany({
       where: {
+        companyId: user.companyId,
         id: { in: productIds }
       },
       select: {

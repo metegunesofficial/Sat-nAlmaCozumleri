@@ -145,18 +145,37 @@ export async function POST(request: NextRequest) {
         companyId: user.companyId,
         isActive: true,
         OR: [
+          // New workflow's min is within existing range
           {
             AND: [
               { minAmount: { lte: minAmount } },
-              { maxAmount: maxAmount ? { gte: minAmount } : undefined },
+              {
+                OR: [
+                  { maxAmount: { gte: minAmount } },
+                  { maxAmount: null }
+                ]
+              },
             ],
           },
-          {
+          // New workflow's max is within existing range (if maxAmount is set)
+          ...(maxAmount ? [{
             AND: [
-              { minAmount: maxAmount ? { lte: maxAmount } : undefined },
-              { maxAmount: maxAmount ? { gte: maxAmount } : undefined },
+              { minAmount: { lte: maxAmount } },
+              {
+                OR: [
+                  { maxAmount: { gte: maxAmount } },
+                  { maxAmount: null }
+                ]
+              },
             ],
-          },
+          }] : []),
+          // Existing workflow is completely within new range
+          ...(maxAmount ? [{
+            AND: [
+              { minAmount: { gte: minAmount } },
+              { minAmount: { lte: maxAmount } },
+            ],
+          }] : []),
         ],
       },
     })
@@ -176,9 +195,10 @@ export async function POST(request: NextRequest) {
         minAmount,
         maxAmount,
         isActive: isActive ?? true,
+        departmentIds: body.departmentIds || [],
         steps: {
           create: steps.map((step: any, index: number) => ({
-            stepName: step.name,
+            stepName: step.stepName || step.name,
             stepOrder: index + 1,
             approverRole: step.approverRole || null,
             approverId: step.approverId || null,

@@ -30,8 +30,20 @@ export async function PUT(
     const body = await request.json()
     const { quantity } = body
 
+    // First verify ownership
+    const existingItem = await prisma.cartItem.findUnique({
+      where: { id: params.itemId },
+    })
+
+    if (!existingItem || existingItem.userId !== decoded.userId) {
+      return NextResponse.json(
+        { success: false, error: 'Sepet öğesi bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const cartItem = await prisma.cartItem.update({
-      where: { id: params.itemId, userId: decoded.userId },
+      where: { id: params.itemId },
       data: { quantity },
       include: { product: true },
     })
@@ -72,8 +84,11 @@ export async function DELETE(
       )
     }
 
-    await prisma.cartItem.delete({
-      where: { id: params.itemId, userId: decoded.userId },
+    await prisma.cartItem.deleteMany({
+      where: {
+        id: params.itemId,
+        userId: decoded.userId
+      },
     })
 
     return NextResponse.json({

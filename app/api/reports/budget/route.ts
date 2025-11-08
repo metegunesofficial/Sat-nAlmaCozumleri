@@ -24,6 +24,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString())
     const month = searchParams.get('month') ? parseInt(searchParams.get('month')!) : null
@@ -31,6 +43,7 @@ export async function GET(request: NextRequest) {
     // Get budgets
     const budgets = await prisma.budget.findMany({
       where: {
+        companyId: user.companyId,
         year,
         ...(month && { month })
       },

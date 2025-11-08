@@ -53,7 +53,7 @@ export async function GET(
     }
 
     // Check if user owns this order or is admin
-    if (order.userId !== decoded.userId && decoded.role !== 'ADMIN') {
+    if (order.userId !== decoded.userId && !['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
       return NextResponse.json(
         { success: false, error: 'Yetkisiz erişim' },
         { status: 403 }
@@ -88,7 +88,14 @@ export async function PUT(
     }
 
     const decoded = verifyToken(token)
-    if (!decoded || decoded.role !== 'ADMIN') {
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
       return NextResponse.json(
         { success: false, error: 'Yetkisiz erişim' },
         { status: 403 }

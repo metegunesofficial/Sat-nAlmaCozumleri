@@ -24,8 +24,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const departments = await prisma.department.findMany({
       where: {
+        companyId: user.companyId,
         isActive: true
       },
       include: {
@@ -80,7 +93,14 @@ export async function POST(request: NextRequest) {
     }
 
     const decoded = verifyToken(token)
-    if (!decoded || decoded.role !== 'ADMIN') {
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
       return NextResponse.json(
         { success: false, error: 'Yetkisiz erişim' },
         { status: 403 }

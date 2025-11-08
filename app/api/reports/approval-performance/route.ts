@@ -24,16 +24,34 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
-    const dateFilter = startDate && endDate ? {
-      actionDate: {
+    const dateFilter: any = {
+      request: {
+        companyId: user.companyId
+      }
+    }
+
+    if (startDate && endDate) {
+      dateFilter.actionDate = {
         gte: new Date(startDate),
         lte: new Date(endDate)
       }
-    } : {}
+    }
 
     // Approver performance
     const approverActions = await prisma.approvalAction.groupBy({
@@ -45,6 +63,7 @@ export async function GET(request: NextRequest) {
     const approverIds = [...new Set(approverActions.map((a: any) => a.approverId))]
     const approvers = await prisma.user.findMany({
       where: {
+        companyId: user.companyId,
         id: { in: approverIds }
       },
       select: {
@@ -81,15 +100,27 @@ export async function GET(request: NextRequest) {
     })
 
     // Average response time by approver
-    const avgResponseTimes = await prisma.$queryRaw`
-      SELECT
-        aa."approverId",
-        AVG(EXTRACT(EPOCH FROM (aa."actionDate" - pr."createdAt")) / 3600) as avg_hours
-      FROM "ApprovalAction" aa
-      JOIN "PurchaseRequest" pr ON aa."requestId" = pr.id
-      ${startDate && endDate ? prisma.$queryRawUnsafe('WHERE aa."actionDate" BETWEEN $1 AND $2', new Date(startDate), new Date(endDate)) : prisma.$queryRaw``}
-      GROUP BY aa."approverId"
-    ` as any[]
+    let avgResponseTimes: any[]
+    if (startDate && endDate) {
+      avgResponseTimes = await prisma.$queryRaw`
+        SELECT
+          aa."approverId",
+          AVG(EXTRACT(EPOCH FROM (aa."actionDate" - pr."createdAt")) / 3600) as avg_hours
+        FROM "ApprovalAction" aa
+        JOIN "PurchaseRequest" pr ON aa."requestId" = pr.id
+        WHERE aa."actionDate" BETWEEN ${new Date(startDate)} AND ${new Date(endDate)}
+        GROUP BY aa."approverId"
+      ` as any[]
+    } else {
+      avgResponseTimes = await prisma.$queryRaw`
+        SELECT
+          aa."approverId",
+          AVG(EXTRACT(EPOCH FROM (aa."actionDate" - pr."createdAt")) / 3600) as avg_hours
+        FROM "ApprovalAction" aa
+        JOIN "PurchaseRequest" pr ON aa."requestId" = pr.id
+        GROUP BY aa."approverId"
+      ` as any[]
+    }
 
     const responseTimeMap = new Map(avgResponseTimes.map((rt: any) => [rt.approverId, Number(rt.avg_hours)]))
 
@@ -102,6 +133,7 @@ export async function GET(request: NextRequest) {
     const requestsByStep = await prisma.purchaseRequest.groupBy({
       by: ['currentStep', 'status'],
       where: {
+        companyId: user.companyId,
         status: { in: ['SUBMITTED', 'IN_REVIEW'] }
       },
       _count: true
