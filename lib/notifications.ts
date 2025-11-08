@@ -27,6 +27,16 @@ export interface NotificationPayload {
 }
 
 /**
+ * Minimal template structure for default templates
+ */
+type MinimalTemplate = {
+  id: string;
+  subject: string;
+  body: string;
+  isActive: boolean;
+}
+
+/**
  * Send notification (stores in DB and sends via appropriate channel)
  */
 export async function sendNotification(
@@ -34,7 +44,7 @@ export async function sendNotification(
 ): Promise<{ success: boolean; logId?: string; error?: string }> {
   try {
     // Get template from database (if exists)
-    let template = await prisma.notificationTemplate.findUnique({
+    let dbTemplate = await prisma.notificationTemplate.findUnique({
       where: {
         companyId_name_channel: {
           companyId: payload.companyId,
@@ -45,9 +55,7 @@ export async function sendNotification(
     });
 
     // Fallback to default template
-    if (!template) {
-      template = getDefaultTemplate(payload.templateName, payload.channel);
-    }
+    const template: MinimalTemplate | null = dbTemplate || getDefaultTemplate(payload.templateName, payload.channel);
 
     if (!template || !template.isActive) {
       throw new Error(`Template not found or inactive: ${payload.templateName}`);
@@ -71,7 +79,7 @@ export async function sendNotification(
     const log = await prisma.notificationLog.create({
       data: {
         companyId: payload.companyId,
-        templateId: template.id,
+        templateId: template.id !== 'default' ? template.id : null,
         userId: payload.userId,
         channel: payload.channel,
         status: 'PENDING',
@@ -172,7 +180,7 @@ async function sendEmailNotification(
 function getDefaultTemplate(
   name: string,
   channel: string
-): { id: string; subject: string; body: string; isActive: boolean } | null {
+): MinimalTemplate | null {
   const templates: Record<string, any> = {
     'purchase_request_submitted': TEMPLATE_REQUEST_SUBMITTED,
     'purchase_request_approved': TEMPLATE_REQUEST_APPROVED,
