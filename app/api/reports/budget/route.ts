@@ -43,7 +43,9 @@ export async function GET(request: NextRequest) {
     // Get budgets
     const budgets = await prisma.budget.findMany({
       where: {
-        companyId: user.companyId,
+        department: {
+          companyId: user.companyId
+        },
         year,
         ...(month && { month })
       },

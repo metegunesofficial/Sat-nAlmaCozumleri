@@ -109,6 +109,7 @@ export async function GET(request: NextRequest) {
         FROM "ApprovalAction" aa
         JOIN "PurchaseRequest" pr ON aa."requestId" = pr.id
         WHERE aa."actionDate" BETWEEN ${new Date(startDate)} AND ${new Date(endDate)}
+          AND pr."companyId" = ${user.companyId}
         GROUP BY aa."approverId"
       ` as any[]
     } else {
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
           AVG(EXTRACT(EPOCH FROM (aa."actionDate" - pr."createdAt")) / 3600) as avg_hours
         FROM "ApprovalAction" aa
         JOIN "PurchaseRequest" pr ON aa."requestId" = pr.id
+        WHERE pr."companyId" = ${user.companyId}
         GROUP BY aa."approverId"
       ` as any[]
     }

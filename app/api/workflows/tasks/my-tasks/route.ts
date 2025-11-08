@@ -31,11 +31,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get user with companyId for multi-tenant filtering
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      );
+    }
+
     // Get user's pending tasks
     const tasks = await prisma.workflowTask.findMany({
       where: {
         assigneeId: decoded.userId,
         status: 'PENDING',
+        workflowInstance: {
+          workflow: {
+            companyId: user.companyId
+          }
+        }
       },
       include: {
         workflowInstance: {

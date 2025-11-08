@@ -28,6 +28,19 @@ export async function POST(
       )
     }
 
+    // Get user with companyId for multi-tenant filtering
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { companyId: true, role: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { action, comments } = body // action: APPROVED, REJECTED, RETURNED
 
@@ -46,6 +59,14 @@ export async function POST(
         approvalActions: true
       }
     })
+
+    // CRITICAL: Verify purchase request belongs to user's company
+    if (purchaseRequest && purchaseRequest.companyId !== user.companyId) {
+      return NextResponse.json(
+        { success: false, error: 'Talep bulunamadı' },
+        { status: 404 }
+      )
+    }
 
     if (!purchaseRequest) {
       return NextResponse.json(
@@ -73,10 +94,10 @@ export async function POST(
 
     // Check if user can approve
     const canApprove =
-      (currentStep.approverRole && decoded.role === currentStep.approverRole) ||
+      (currentStep.approverRole && user.role === currentStep.approverRole) ||
       (currentStep.approverId && decoded.userId === currentStep.approverId) ||
-      decoded.role === 'ADMIN' ||
-      decoded.role === 'GENERAL_MANAGER'
+      user.role === 'ADMIN' ||
+      user.role === 'GENERAL_MANAGER'
 
     if (!canApprove) {
       return NextResponse.json(
