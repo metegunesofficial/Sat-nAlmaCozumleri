@@ -28,7 +28,6 @@ export async function GET(request: NextRequest) {
     // Get user to access companyId (multi-tenant filtering)
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, companyId: true, role: true },
       include: { managedDepartments: true }
     })
 
