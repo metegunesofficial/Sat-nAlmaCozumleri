@@ -69,7 +69,7 @@ export default function WorkflowDesignerPage() {
       position: { x: 250, y: 250 },
       data: {
         label: getDefaultLabel(type),
-        config: {},
+        config: getDefaultConfig(type),
       },
     };
     setNodes((nds) => [...nds, newNode]);
@@ -87,6 +87,65 @@ export default function WorkflowDesignerPage() {
       parallelJoin: 'Paralel Birleştir',
     };
     return labels[type];
+  };
+
+  // Get default configuration for each node type
+  const getDefaultConfig = (type: WorkflowNode['type']) => {
+    switch (type) {
+      case 'start':
+        return {
+          type: 'start' as const,
+          triggerType: 'manual' as const,
+        };
+      case 'approval':
+        return {
+          type: 'approval' as const,
+          approverType: 'role' as const,
+          approverValue: 'APPROVER',
+          approvalThreshold: 'any' as const,
+          escalationEnabled: false,
+          allowDelegation: true,
+          allowComments: true,
+        };
+      case 'decision':
+        return {
+          type: 'decision' as const,
+          conditions: [],
+        };
+      case 'notification':
+        return {
+          type: 'notification' as const,
+          channel: 'email' as const,
+          recipientType: 'user' as const,
+        };
+      case 'wait':
+        return {
+          type: 'wait' as const,
+          waitType: 'duration' as const,
+          durationHours: 24,
+        };
+      case 'parallelSplit':
+        return {
+          type: 'parallelSplit' as const,
+          branches: [],
+          waitForAll: true,
+        };
+      case 'parallelJoin':
+        return {
+          type: 'parallelJoin' as const,
+          joinType: 'all' as const,
+        };
+      case 'end':
+        return {
+          type: 'end' as const,
+          status: 'completed' as const,
+        };
+      default:
+        return {
+          type: 'start' as const,
+          triggerType: 'manual' as const,
+        };
+    }
   };
 
   // Validate current workflow
