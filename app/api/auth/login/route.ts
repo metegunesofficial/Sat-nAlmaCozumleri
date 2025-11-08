@@ -17,9 +17,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Find user (use findFirst since email alone is not unique in multi-tenant schema)
+    const user = await prisma.user.findFirst({
       where: { email },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
     })
 
     if (!user) {

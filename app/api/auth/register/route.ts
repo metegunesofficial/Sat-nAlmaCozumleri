@@ -10,15 +10,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { email, password, name, phone, companyName, role } = body
 
-    if (!email || !password || !name) {
+    if (!email || !password || !name || !companyName) {
       return NextResponse.json(
-        { success: false, error: 'Gerekli alanlar eksik' },
+        { success: false, error: 'Email, şifre, isim ve şirket adı gerekli' },
         { status: 400 }
       )
     }
 
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
+    // Check if user exists (use findFirst for multi-tenant)
+    const existingUser = await prisma.user.findFirst({
       where: { email },
     })
 
@@ -32,32 +32,59 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password)
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        phone,
-        companyName,
-        role: role || 'CUSTOMER',
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        companyName: true,
-        phone: true,
-      },
+    // Create company slug from company name
+    const slug = companyName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+
+    // Create company and user in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create company
+      const company = await tx.company.create({
+        data: {
+          name: companyName,
+          slug: `${slug}-${Date.now()}`, // Add timestamp to ensure uniqueness
+          isActive: true,
+        },
+      })
+
+      // Create user
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          phone,
+          companyId: company.id,
+          role: role || 'COMPANY_ADMIN', // First user is company admin
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          phone: true,
+          companyId: true,
+          company: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      })
+
+      return { user, company }
     })
 
     // Generate token
-    const token = generateToken(user.id, user.email, user.role)
+    const token = generateToken(result.user.id, result.user.email, result.user.role)
 
     return NextResponse.json({
       success: true,
-      data: { user, token },
+      data: { user: result.user, token },
       message: 'Kayıt başarılı',
     })
   } catch (error) {
