@@ -1,13 +1,40 @@
 'use client'
 
-import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useNotification } from '@/contexts/NotificationContext'
-import { useAuth } from '@/contexts/AuthContext'
-import { UserPlus, Mail, Lock, User, Phone, Building2 } from 'lucide-react'
+import { Building2 } from 'lucide-react'
+import { useEffect } from 'react'
 
 export default function RegisterPage() {
+  const router = useRouter()
+
+  useEffect(() => {
+    // Public registration disabled - redirect to login
+    router.push('/login')
+  }, [router])
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8 text-center">
+        <Building2 size={64} className="mx-auto text-dental-blue mb-4" />
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          Kayıt Kapalı
+        </h1>
+        <p className="text-gray-600 mb-6">
+          Bu platform davetiye ile çalışmaktadır. Şirketiniz için hesap oluşturulması için lütfen platform yöneticinizle iletişime geçin.
+        </p>
+        <Link
+          href="/login"
+          className="inline-block bg-dental-blue text-white px-6 py-3 rounded-lg font-semibold hover:bg-dental-dark transition"
+        >
+          Giriş Sayfasına Dön
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+export function RegisterPageOLD() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
