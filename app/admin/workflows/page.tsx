@@ -14,7 +14,7 @@ const mockWorkflows = [
     maxAmount: 10000,
     isActive: true,
     steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
+      { stepOrder: 0, approverRole: 'DEPARTMENT_MANAGER', stepName: 'Departman Müdürü' },
     ],
   },
   {
@@ -24,8 +24,8 @@ const mockWorkflows = [
     maxAmount: 50000,
     isActive: true,
     steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
+      { stepOrder: 0, approverRole: 'DEPARTMENT_MANAGER', stepName: 'Departman Müdürü' },
+      { stepOrder: 1, approverRole: 'FINANCE_MANAGER', stepName: 'Finans Müdürü' },
     ],
   },
   {
@@ -35,9 +35,9 @@ const mockWorkflows = [
     maxAmount: null,
     isActive: true,
     steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-      { order: 2, approverRole: 'GENERAL_MANAGER', name: 'Genel Müdür' },
+      { stepOrder: 0, approverRole: 'DEPARTMENT_MANAGER', stepName: 'Departman Müdürü' },
+      { stepOrder: 1, approverRole: 'FINANCE_MANAGER', stepName: 'Finans Müdürü' },
+      { stepOrder: 2, approverRole: 'GENERAL_MANAGER', stepName: 'Genel Müdür' },
     ],
   },
 ]
@@ -225,7 +225,7 @@ export default function WorkflowsPage() {
                         <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
                           {idx + 1}
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{step.name}</span>
+                        <span className="text-sm font-medium text-gray-900">{step.stepName}</span>
                       </div>
                       {idx < workflow.steps.length - 1 && (
                         <ChevronRight size={20} className="text-gray-400" />
