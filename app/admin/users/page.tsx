@@ -1,19 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
+import { usersApi, ApiError } from '@/lib/api'
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from 'lucide-react'
-
-const mockUsers = [
-  { id: 'u1', name: 'Ahmet Yıldırım', email: 'admin@attelia.com', role: 'COMPANY_ADMIN', department: 'Yönetim', status: 'active' },
-  { id: 'u2', name: 'John Doe', email: 'john.doe@attelia.com', role: 'EMPLOYEE', department: 'Bilgi İşlem', status: 'active' },
-  { id: 'u3', name: 'Jane Smith', email: 'jane.smith@attelia.com', role: 'DEPARTMENT_MANAGER', department: 'İnsan Kaynakları', status: 'active' },
-  { id: 'u4', name: 'Mehmet Kaya', email: 'finance@attelia.com', role: 'FINANCE_MANAGER', department: 'Muhasebe', status: 'active' },
-  { id: 'u5', name: 'Ayşe Demir', email: 'general@attelia.com', role: 'GENERAL_MANAGER', department: 'Yönetim', status: 'active' },
-]
 
 const roles = [
   { value: 'SUPER_ADMIN', label: 'Süper Admin' },
@@ -27,6 +20,8 @@ const roles = [
 
 export default function UsersPage() {
   const { success, error } = useNotification()
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -37,6 +32,29 @@ export default function UsersPage() {
     password: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true)
+        const response = await usersApi.getAll()
+        if (response.success) {
+          setUsers(response.data)
+        } else {
+          error('Kullanıcılar yüklenemedi')
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          error(err.message)
+        } else {
+          error('Bir hata oluştu')
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadUsers()
+  }, [])
 
   const openCreateModal = () => {
     setEditingUser(null)
@@ -172,41 +190,49 @@ export default function UsersPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Users className="text-blue-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{mockUsers.length}</p>
-                <p className="text-sm text-gray-600">Toplam Kullanıcı</p>
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <Users className="text-blue-600" size={24} />
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                  <p className="text-sm text-gray-600">Toplam Kullanıcı</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <UserCheck className="text-green-600" size={24} />
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {users.filter((u) => u.status === 'active').length}
+                  </p>
+                  <p className="text-sm text-gray-600">Aktif Kullanıcı</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <UserX className="text-gray-600" size={24} />
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {users.filter((u) => u.status !== 'active').length}
+                  </p>
+                  <p className="text-sm text-gray-600">Pasif Kullanıcı</p>
+                </div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <UserCheck className="text-green-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status === 'active').length}
-                </p>
-                <p className="text-sm text-gray-600">Aktif Kullanıcı</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <UserX className="text-gray-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status !== 'active').length}
-                </p>
-                <p className="text-sm text-gray-600">Pasif Kullanıcı</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
 
-        <DataTable data={mockUsers} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-600">Kullanıcılar yükleniyor...</p>
+          </div>
+        ) : (
+          <DataTable data={users} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        )}
       </div>
 
       <Modal

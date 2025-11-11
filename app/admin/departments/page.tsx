@@ -1,22 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
+import { departmentsApi, ApiError } from '@/lib/api'
 import { Plus, Edit, Trash2, Building2, TrendingUp } from 'lucide-react'
-
-const mockDepartments = [
-  { id: 'd1', name: 'Bilgi İşlem', code: 'IT', budget: 500000, spent: 145000, employeeCount: 12, status: 'active' },
-  { id: 'd2', name: 'İnsan Kaynakları', code: 'HR', budget: 200000, spent: 85000, employeeCount: 5, status: 'active' },
-  { id: 'd3', name: 'Muhasebe', code: 'ACC', budget: 150000, spent: 65000, employeeCount: 8, status: 'active' },
-  { id: 'd4', name: 'Satış', code: 'SALES', budget: 300000, spent: 195000, employeeCount: 15, status: 'active' },
-  { id: 'd5', name: 'Pazarlama', code: 'MKT', budget: 250000, spent: 180000, employeeCount: 10, status: 'active' },
-]
 
 export default function DepartmentsPage() {
   const { success, error } = useNotification()
+  const [departments, setDepartments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDept, setEditingDept] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -25,6 +20,29 @@ export default function DepartmentsPage() {
     budget: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        setLoading(true)
+        const response = await departmentsApi.getAll()
+        if (response.success) {
+          setDepartments(response.data)
+        } else {
+          error('Departmanlar yüklenemedi')
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          error(err.message)
+        } else {
+          error('Bir hata oluştu')
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadDepartments()
+  }, [])
 
   const openCreateModal = () => {
     setEditingDept(null)
@@ -166,9 +184,9 @@ export default function DepartmentsPage() {
     },
   ]
 
-  const totalBudget = mockDepartments.reduce((sum, d) => sum + d.budget, 0)
-  const totalSpent = mockDepartments.reduce((sum, d) => sum + d.spent, 0)
-  const totalEmployees = mockDepartments.reduce((sum, d) => sum + d.employeeCount, 0)
+  const totalBudget = departments.reduce((sum, d) => sum + (d.budget || 0), 0)
+  const totalSpent = departments.reduce((sum, d) => sum + (d.spent || 0), 0)
+  const totalEmployees = departments.reduce((sum, d) => sum + (d.employeeCount || 0), 0)
 
   return (
     <DashboardLayout>
@@ -187,50 +205,58 @@ export default function DepartmentsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="text-blue-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{mockDepartments.length}</p>
-                <p className="text-sm text-gray-600">Toplam Departman</p>
+        {!loading && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <Building2 className="text-blue-600" size={24} />
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{departments.length}</p>
+                  <p className="text-sm text-gray-600">Toplam Departman</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="text-green-600" size={24} />
+                <div>
+                  <p className="text-xl font-bold text-gray-900">
+                    {totalBudget.toLocaleString('tr-TR')} TL
+                  </p>
+                  <p className="text-sm text-gray-600">Toplam Bütçe</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="text-yellow-600" size={24} />
+                <div>
+                  <p className="text-xl font-bold text-gray-900">
+                    {totalSpent.toLocaleString('tr-TR')} TL
+                  </p>
+                  <p className="text-sm text-gray-600">Toplam Harcama</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex items-center gap-3">
+                <Building2 className="text-purple-600" size={24} />
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
+                  <p className="text-sm text-gray-600">Toplam Çalışan</p>
+                </div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="text-green-600" size={24} />
-              <div>
-                <p className="text-xl font-bold text-gray-900">
-                  {totalBudget.toLocaleString('tr-TR')} TL
-                </p>
-                <p className="text-sm text-gray-600">Toplam Bütçe</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="text-yellow-600" size={24} />
-              <div>
-                <p className="text-xl font-bold text-gray-900">
-                  {totalSpent.toLocaleString('tr-TR')} TL
-                </p>
-                <p className="text-sm text-gray-600">Toplam Harcama</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="text-purple-600" size={24} />
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{totalEmployees}</p>
-                <p className="text-sm text-gray-600">Toplam Çalışan</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
 
-        <DataTable data={mockDepartments} columns={columns} searchable searchPlaceholder="Departman ara..." />
+        {loading ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-600">Departmanlar yükleniyor...</p>
+          </div>
+        ) : (
+          <DataTable data={departments} columns={columns} searchable searchPlaceholder="Departman ara..." />
+        )}
       </div>
 
       <Modal

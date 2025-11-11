@@ -75,6 +75,9 @@ model User {
   approvalActions     ApprovalAction[]
   managedDepartments  Department[] @relation("DepartmentManager")
   userBudgets         UserBudget[]
+  approvalSteps       ApprovalStep[] @relation("ApprovalStepApprovers")
+  notifications       Notification[]
+  auditLogs           AuditLog[]
 
   @@unique([email, companyId])
   @@index([email])
@@ -523,6 +526,12 @@ model ApprovalStep {
   workflowId      String
   workflow        ApprovalWorkflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
+  name            String
+  description     String?
+  order           Int
+  requiredApprovals Int               @default(1)
+  action          String              @default("APPROVE")
+
   stepOrder       Int
   stepName        String
   approverRole    UserRole?
@@ -531,10 +540,13 @@ model ApprovalStep {
   isOptional      Boolean             @default(false)
   isParallel      Boolean             @default(false)
 
+  approvers       User[]              @relation("ApprovalStepApprovers")
+
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
   @@unique([workflowId, stepOrder])
+  @@unique([workflowId, order])
   @@index([workflowId])
 }
 
@@ -639,4 +651,69 @@ enum SupplierStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+// Bildirimler
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        NotificationType
+  title       String
+  message     String
+  data        Json?    // Additional data (requestId, etc.)
+
+  read        Boolean  @default(false)
+  readAt      DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  APPROVAL_REQUEST
+  APPROVAL_APPROVED
+  APPROVAL_REJECTED
+  APPROVAL_RETURNED
+  BUDGET_WARNING
+  BUDGET_CRITICAL
+  ORDER_STATUS
+  SYSTEM
+}
+
+// Audit Logs
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  action      AuditAction
+  entity      String   // Model name (User, Product, PurchaseRequest, etc.)
+  entityId    String?  // ID of the entity
+  changes     Json?    // What changed (before/after)
+  metadata    Json?    // Additional context (IP, user agent, etc.)
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  EXPORT
+  IMPORT
 }
