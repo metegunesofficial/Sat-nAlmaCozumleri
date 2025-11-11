@@ -62,7 +62,7 @@ export async function GET(
               },
             },
           },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
         _count: {
           select: {
@@ -197,11 +197,9 @@ export async function PUT(
       await prisma.approvalStep.createMany({
         data: steps.map((step: any, index: number) => ({
           workflowId: params.id,
-          name: step.name,
+          stepName: step.name || step.stepName,
           description: step.description,
-          order: index + 1,
-          requiredApprovals: step.requiredApprovals || 1,
-          action: step.action || 'APPROVE',
+          stepOrder: index + 1,
         })),
       })
 
@@ -212,7 +210,7 @@ export async function PUT(
           const createdStep = await prisma.approvalStep.findFirst({
             where: {
               workflowId: params.id,
-              order: i + 1,
+              stepOrder: i + 1,
             },
           })
 
@@ -251,7 +249,7 @@ export async function PUT(
               },
             },
           },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
       },
     })

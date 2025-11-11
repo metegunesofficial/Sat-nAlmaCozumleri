@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
         _count: {
           select: {
@@ -188,11 +188,9 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
         steps: {
           create: steps.map((step: any, index: number) => ({
-            name: step.name,
+            stepName: step.name || step.stepName,
             description: step.description,
-            order: index + 1,
-            requiredApprovals: step.requiredApprovals || 1,
-            action: step.action || 'APPROVE',
+            stepOrder: index + 1,
             approvers: {
               connect: step.approverIds?.map((id: string) => ({ id })) || [],
             },
@@ -211,7 +209,7 @@ export async function POST(request: NextRequest) {
               },
             },
           },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
       },
     })

@@ -526,14 +526,9 @@ model ApprovalStep {
   workflowId      String
   workflow        ApprovalWorkflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  name            String
-  description     String?
-  order           Int
-  requiredApprovals Int               @default(1)
-  action          String              @default("APPROVE")
-
   stepOrder       Int
   stepName        String
+  description     String?
   approverRole    UserRole?
   approverId      String?
   requiredAction  StepAction          @default(APPROVE)
@@ -546,7 +541,6 @@ model ApprovalStep {
   updatedAt       DateTime            @updatedAt
 
   @@unique([workflowId, stepOrder])
-  @@unique([workflowId, order])
   @@index([workflowId])
 }
 
