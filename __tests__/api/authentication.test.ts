@@ -380,8 +380,13 @@ describe('Authentication API Tests', () => {
           body: 'invalid-json',
         })
 
-        // Expect the function to handle the error
-        await expect(POST(request)).rejects.toThrow()
+        // The function catches the error and returns 500
+        const response = await POST(request)
+        const data = await response.json()
+
+        expect(response.status).toBe(500)
+        expect(data.success).toBe(false)
+        expect(data.error).toBe('Giriş işlemi başarısız')
       })
     })
 
