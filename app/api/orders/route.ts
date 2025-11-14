@@ -25,11 +25,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const where: any = {}
+    // Get user with company info
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, role: true, companyId: true }
+    })
 
-    // Admin can see all orders
-    if (decoded.role !== 'ADMIN') {
-      where.userId = decoded.userId
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    const where: any = {
+      companyId: user.companyId // CRITICAL: Always filter by company
+    }
+
+    // Non-admin users can only see their own orders
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN', 'GENERAL_MANAGER', 'FINANCE_MANAGER'].includes(user.role)) {
+      where.userId = user.id
     }
 
     const orders = await prisma.order.findMany({
@@ -89,11 +104,27 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get user with company info
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
 
-    // Get cart items
+    // Get cart items (with company filter for security)
     const cartItems = await prisma.cartItem.findMany({
-      where: { userId: decoded.userId },
+      where: {
+        userId: user.id,
+        user: { companyId: user.companyId } // Extra security check
+      },
       include: { product: true },
     })
 
@@ -125,55 +156,62 @@ export async function POST(request: NextRequest) {
     const tax = subtotal * 0.18 // 18% KDV
     const total = subtotal + shippingCost + tax
 
-    // Create order
-    const order = await prisma.order.create({
-      data: {
-        orderNumber: generateOrderNumber(),
-        userId: decoded.userId,
-        billingName: body.billingName,
-        billingEmail: body.billingEmail,
-        billingPhone: body.billingPhone,
-        billingAddress: body.billingAddress,
-        billingCity: body.billingCity,
-        billingDistrict: body.billingDistrict,
-        billingPostal: body.billingPostal,
-        shippingName: body.shippingName || body.billingName,
-        shippingPhone: body.shippingPhone || body.billingPhone,
-        shippingAddress: body.shippingAddress || body.billingAddress,
-        shippingCity: body.shippingCity || body.billingCity,
-        shippingDistrict: body.shippingDistrict || body.billingDistrict,
-        shippingPostal: body.shippingPostal || body.billingPostal,
-        subtotal,
-        shippingCost,
-        tax,
-        discount: 0,
-        total,
-        paymentMethod: body.paymentMethod,
-        notes: body.notes,
-        items: {
-          create: orderItems,
-        },
-      },
-      include: {
-        items: true,
-      },
-    })
-
-    // Clear cart
-    await prisma.cartItem.deleteMany({
-      where: { userId: decoded.userId },
-    })
-
-    // Update stock and sales count
-    for (const item of cartItems) {
-      await prisma.product.update({
-        where: { id: item.productId },
+    // Use transaction to ensure atomicity and fix N+1 query problem
+    const order = await prisma.$transaction(async (tx) => {
+      // 1. Create order
+      const newOrder = await tx.order.create({
         data: {
-          stock: { decrement: item.quantity },
-          salesCount: { increment: item.quantity },
+          orderNumber: generateOrderNumber(),
+          userId: user.id,
+          companyId: user.companyId, // CRITICAL: Set company ID
+          billingName: body.billingName,
+          billingEmail: body.billingEmail,
+          billingPhone: body.billingPhone,
+          billingAddress: body.billingAddress,
+          billingCity: body.billingCity,
+          billingDistrict: body.billingDistrict,
+          billingPostal: body.billingPostal,
+          shippingName: body.shippingName || body.billingName,
+          shippingPhone: body.shippingPhone || body.billingPhone,
+          shippingAddress: body.shippingAddress || body.billingAddress,
+          shippingCity: body.shippingCity || body.billingCity,
+          shippingDistrict: body.shippingDistrict || body.billingDistrict,
+          shippingPostal: body.shippingPostal || body.billingPostal,
+          subtotal,
+          shippingCost,
+          tax,
+          discount: 0,
+          total,
+          paymentMethod: body.paymentMethod,
+          notes: body.notes,
+          items: {
+            create: orderItems,
+          },
+        },
+        include: {
+          items: true,
         },
       })
-    }
+
+      // 2. Update stock and sales count in batch (fixes N+1 problem)
+      const stockUpdates = cartItems.map((item: any) =>
+        tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: { decrement: item.quantity },
+            salesCount: { increment: item.quantity },
+          },
+        })
+      )
+      await Promise.all(stockUpdates)
+
+      // 3. Clear cart
+      await tx.cartItem.deleteMany({
+        where: { userId: user.id },
+      })
+
+      return newOrder
+    })
 
     return NextResponse.json({
       success: true,

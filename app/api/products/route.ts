@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyToken } from '@/lib/auth'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    // Optional auth - public products endpoint
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    let companyId: string | undefined
+
+    // If token provided, extract companyId for tenant filtering
+    if (token) {
+      const decoded = verifyToken(token)
+      if (decoded) {
+        const user = await prisma.user.findUnique({
+          where: { id: decoded.userId },
+          select: { companyId: true }
+        })
+        companyId = user?.companyId
+      }
+    }
+
     const searchParams = request.nextUrl.searchParams
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
@@ -18,8 +35,13 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit
 
-    // Build where clause
+    // Build where clause with company isolation
     const where: any = { isActive: true }
+
+    // CRITICAL: Filter by company if user is authenticated
+    if (companyId) {
+      where.companyId = companyId
+    }
 
     if (category) {
       where.category = { slug: category }
@@ -86,10 +108,53 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Authentication required
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: 'Token gerekli' },
+        { status: 401 }
+      )
+    }
+
+    const decoded = verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz token' },
+        { status: 401 }
+      )
+    }
+
+    // Get user with company info
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, role: true, companyId: true }
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
+    // Authorization: Only admin roles can create products
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN', 'PROCUREMENT_MANAGER'].includes(user.role)) {
+      return NextResponse.json(
+        { success: false, error: 'Yetkiniz yok' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
+    // CRITICAL: Always set companyId to user's company
     const product = await prisma.product.create({
-      data: body,
+      data: {
+        ...body,
+        companyId: user.companyId, // Enforce company isolation
+      },
       include: {
         category: true,
       },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { withAuth, RoleGroups, authErrorResponse } from '@/lib/middleware'
+import { supplierCreateSchema, validateRequest } from '@/lib/validations'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -8,42 +9,11 @@ export const dynamic = 'force-dynamic'
 // GET /api/suppliers - List all suppliers
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: { company: true },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can access suppliers
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN', 'PROCUREMENT_MANAGER'].includes(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
+    // Use centralized auth middleware
+    const user = await withAuth(request, [
+      ...RoleGroups.ADMIN,
+      'PROCUREMENT_MANAGER'
+    ])
 
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
@@ -70,8 +40,14 @@ export async function GET(request: NextRequest) {
       success: true,
       data: suppliers,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Suppliers fetch error:', error)
+
+    // Handle auth errors with proper status codes
+    if (error.message?.includes('Token') || error.message?.includes('yetki')) {
+      return authErrorResponse(error, error.message.includes('yetki') ? 403 : 401)
+    }
+
     return NextResponse.json(
       { success: false, error: 'Tedarikçiler yüklenemedi' },
       { status: 500 }
@@ -82,57 +58,22 @@ export async function GET(request: NextRequest) {
 // POST /api/suppliers - Create new supplier
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can create suppliers
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN', 'PROCUREMENT_MANAGER'].includes(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
+    // Use centralized auth middleware
+    const user = await withAuth(request, [
+      ...RoleGroups.ADMIN,
+      'PROCUREMENT_MANAGER'
+    ])
 
     const body = await request.json()
-    const { name, contactPerson, email, phone, address, city, taxNumber, website, notes, status } = body
 
-    if (!name || !email) {
-      return NextResponse.json(
-        { success: false, error: 'İsim ve e-posta gereklidir' },
-        { status: 400 }
-      )
-    }
+    // Validate request body with Zod
+    const validatedData = validateRequest(supplierCreateSchema, body)
 
     // Check if supplier with same email exists in company
     const existing = await prisma.supplier.findFirst({
       where: {
         companyId: user.companyId,
-        email,
+        email: validatedData.email,
       },
     })
 
@@ -145,17 +86,8 @@ export async function POST(request: NextRequest) {
 
     const supplier = await prisma.supplier.create({
       data: {
+        ...validatedData,
         companyId: user.companyId,
-        name,
-        contactPerson,
-        email,
-        phone,
-        address,
-        city,
-        taxNumber,
-        website,
-        notes,
-        status: status || 'ACTIVE',
       },
     })
 
@@ -164,8 +96,22 @@ export async function POST(request: NextRequest) {
       data: supplier,
       message: 'Tedarikçi başarıyla oluşturuldu',
     }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Supplier creation error:', error)
+
+    // Handle different error types
+    if (error.message?.includes('Token') || error.message?.includes('yetki')) {
+      return authErrorResponse(error, error.message.includes('yetki') ? 403 : 401)
+    }
+
+    // Validation errors
+    if (error.message?.includes(':')) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { success: false, error: 'Tedarikçi oluşturulamadı' },
       { status: 500 }
