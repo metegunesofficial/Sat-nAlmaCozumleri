@@ -2,8 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import ProductCard from '@/components/ProductCard'
-import { Filter, Grid, List, ChevronDown } from 'lucide-react'
+import { Filter, Grid, List, ChevronDown, X } from 'lucide-react'
 import { Product } from '@/types'
+
+interface Filters {
+  categories: string[]
+  minPrice: string
+  maxPrice: string
+  brands: string[]
+  inStock: boolean
+  outOfStock: boolean
+  search: string
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -11,26 +21,116 @@ export default function ProductsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState('createdAt')
   const [filterOpen, setFilterOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+
+  const [filters, setFilters] = useState<Filters>({
+    categories: [],
+    minPrice: '',
+    maxPrice: '',
+    brands: [],
+    inStock: false,
+    outOfStock: false,
+    search: '',
+  })
 
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/products?sort=${sortBy}&order=desc&limit=20`)
+
+      // Build query params
+      const params = new URLSearchParams()
+      params.append('sort', sortBy)
+      params.append('order', 'desc')
+      params.append('page', currentPage.toString())
+      params.append('limit', '12')
+
+      if (filters.search) {
+        params.append('search', filters.search)
+      }
+
+      if (filters.minPrice || filters.maxPrice) {
+        // Note: API needs to be updated to support price filtering
+        // For now, we'll filter client-side
+      }
+
+      const response = await fetch(`/api/products?${params.toString()}`)
       const data = await response.json()
 
       if (data.success) {
-        setProducts(data.data)
+        let filteredProducts = data.data
+
+        // Client-side filtering (until API supports these)
+        if (filters.minPrice) {
+          filteredProducts = filteredProducts.filter((p: Product) =>
+            (p.discountPrice || p.price) >= parseFloat(filters.minPrice)
+          )
+        }
+        if (filters.maxPrice) {
+          filteredProducts = filteredProducts.filter((p: Product) =>
+            (p.discountPrice || p.price) <= parseFloat(filters.maxPrice)
+          )
+        }
+        if (filters.inStock && !filters.outOfStock) {
+          filteredProducts = filteredProducts.filter((p: Product) => p.stock > 0)
+        }
+        if (filters.outOfStock && !filters.inStock) {
+          filteredProducts = filteredProducts.filter((p: Product) => p.stock === 0)
+        }
+
+        setProducts(filteredProducts)
+        setTotalPages(data.pagination?.totalPages || 1)
+        setTotal(data.pagination?.total || filteredProducts.length)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }
-  }, [sortBy])
+  }, [sortBy, currentPage, filters])
 
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  const handleFilterChange = (key: keyof Filters, value: any) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+    setCurrentPage(1) // Reset to first page when filters change
+  }
+
+  const handleArrayFilterToggle = (key: 'categories' | 'brands', value: string) => {
+    setFilters(prev => {
+      const array = prev[key]
+      const newArray = array.includes(value)
+        ? array.filter(item => item !== value)
+        : [...array, value]
+      return { ...prev, [key]: newArray }
+    })
+    setCurrentPage(1)
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      categories: [],
+      minPrice: '',
+      maxPrice: '',
+      brands: [],
+      inStock: false,
+      outOfStock: false,
+      search: '',
+    })
+    setCurrentPage(1)
+  }
+
+  const hasActiveFilters =
+    filters.categories.length > 0 ||
+    filters.brands.length > 0 ||
+    filters.minPrice ||
+    filters.maxPrice ||
+    filters.inStock ||
+    filters.outOfStock ||
+    filters.search
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -60,6 +160,18 @@ export default function ProductsPage() {
               </div>
 
               <div className={`space-y-6 ${filterOpen ? 'block' : 'hidden lg:block'}`}>
+                {/* Search */}
+                <div>
+                  <h4 className="font-semibold mb-3">Ara</h4>
+                  <input
+                    type="text"
+                    placeholder="Ürün ara..."
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
                 {/* Categories */}
                 <div>
                   <h4 className="font-semibold mb-3">Kategoriler</h4>
@@ -72,8 +184,13 @@ export default function ProductsPage() {
                       'Protezler',
                       'İmplantlar',
                     ].map((category) => (
-                      <label key={category} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" />
+                      <label key={category} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          className="rounded text-blue-600"
+                          checked={filters.categories.includes(category)}
+                          onChange={() => handleArrayFilterToggle('categories', category)}
+                        />
                         <span className="text-sm">{category}</span>
                       </label>
                     ))}
@@ -84,22 +201,20 @@ export default function ProductsPage() {
                 <div>
                   <h4 className="font-semibold mb-3">Fiyat Aralığı</h4>
                   <div className="space-y-2">
-                    <input
-                      type="range"
-                      min="0"
-                      max="10000"
-                      className="w-full"
-                    />
                     <div className="flex gap-2">
                       <input
                         type="number"
-                        placeholder="Min"
-                        className="w-full border rounded px-2 py-1 text-sm"
+                        placeholder="Min ₺"
+                        value={filters.minPrice}
+                        onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                       />
                       <input
                         type="number"
-                        placeholder="Max"
-                        className="w-full border rounded px-2 py-1 text-sm"
+                        placeholder="Max ₺"
+                        value={filters.maxPrice}
+                        onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -110,8 +225,13 @@ export default function ProductsPage() {
                   <h4 className="font-semibold mb-3">Markalar</h4>
                   <div className="space-y-2">
                     {['Oral-B', 'Colgate', 'Sensodyne', 'Listerine'].map((brand) => (
-                      <label key={brand} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="rounded" />
+                      <label key={brand} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          className="rounded text-blue-600"
+                          checked={filters.brands.includes(brand)}
+                          onChange={() => handleArrayFilterToggle('brands', brand)}
+                        />
                         <span className="text-sm">{brand}</span>
                       </label>
                     ))}
@@ -122,20 +242,36 @@ export default function ProductsPage() {
                 <div>
                   <h4 className="font-semibold mb-3">Stok Durumu</h4>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded" />
+                    <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        className="rounded text-blue-600"
+                        checked={filters.inStock}
+                        onChange={(e) => handleFilterChange('inStock', e.target.checked)}
+                      />
                       <span className="text-sm">Stokta Var</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" className="rounded" />
+                    <label className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        className="rounded text-blue-600"
+                        checked={filters.outOfStock}
+                        onChange={(e) => handleFilterChange('outOfStock', e.target.checked)}
+                      />
                       <span className="text-sm">Tükendi</span>
                     </label>
                   </div>
                 </div>
 
-                <button className="w-full bg-dental-blue text-white py-2 rounded-lg hover:bg-dental-dark">
-                  Filtreleri Uygula
-                </button>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Filtreleri Temizle
+                  </button>
+                )}
               </div>
             </div>
           </aside>
@@ -221,25 +357,53 @@ export default function ProductsPage() {
             )}
 
             {/* Pagination */}
-            {!loading && products.length > 0 && (
-              <div className="mt-8 flex justify-center">
-                <nav className="flex gap-2">
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    Önceki
-                  </button>
-                  <button className="px-4 py-2 bg-dental-blue text-white rounded">
-                    1
-                  </button>
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    2
-                  </button>
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    3
-                  </button>
-                  <button className="px-4 py-2 border rounded hover:bg-gray-50">
-                    Sonraki
-                  </button>
-                </nav>
+            {!loading && products.length > 0 && totalPages > 1 && (
+              <div className="mt-8 flex justify-center items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border"
+                >
+                  Önceki
+                </button>
+
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Show first page, last page, current page, and 2 pages around current
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      )
+                    })
+                    .map((page, index, array) => (
+                      <>
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span key={`ellipsis-${page}`} className="px-2 py-2">...</span>
+                        )}
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-4 py-2 rounded-lg ${
+                            page === currentPage
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-gray-700 hover:bg-gray-100 border'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </>
+                    ))}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-lg bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border"
+                >
+                  Sonraki
+                </button>
               </div>
             )}
           </div>
