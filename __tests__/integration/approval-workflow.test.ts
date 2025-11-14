@@ -346,7 +346,7 @@ describe('Approval Workflow Integration Tests', () => {
       })
 
       it('should return request to requester for revision', async () => {
-        const token = generateToken(mockApproverId, mockApproverEmail, 'DEPARTMENT_MANAGER')
+        const token = generateToken(mockApproverId, mockApproverEmail, 'FINANCE_MANAGER')
 
         const mockRequest = {
           id: mockRequestId,
