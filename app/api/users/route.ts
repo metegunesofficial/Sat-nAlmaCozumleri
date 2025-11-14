@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { withAuth, RoleGroups } from '@/lib/middleware'
+import { userCreateSchema, validateRequest } from '@/lib/validations'
 import bcrypt from 'bcryptjs'
 
 // Force dynamic rendering
@@ -9,48 +10,15 @@ export const dynamic = 'force-dynamic'
 // GET /api/users - List all users
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can list users
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
+    // Use centralized auth middleware - only admins can list users
+    const user = await withAuth(request, RoleGroups.ADMIN)
 
     const searchParams = request.nextUrl.searchParams
     const role = searchParams.get('role')
     const departmentId = searchParams.get('departmentId')
 
     const where: any = {
-      companyId: user.companyId,
+      companyId: user.companyId, // CRITICAL: Filter by company for multi-tenancy
     }
 
     if (role) {
@@ -88,11 +56,11 @@ export async function GET(request: NextRequest) {
       success: true,
       data: users,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Users fetch error:', error)
     return NextResponse.json(
-      { success: false, error: 'Kullanıcılar yüklenemedi' },
-      { status: 500 }
+      { success: false, error: error.message || 'Kullanıcılar yüklenemedi' },
+      { status: error.message?.includes('Token') || error.message?.includes('Yetki') ? 401 : 500 }
     )
   }
 }
@@ -100,69 +68,18 @@ export async function GET(request: NextRequest) {
 // POST /api/users - Create new user
 export async function POST(request: NextRequest) {
   try {
-    const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token gerekli' },
-        { status: 401 }
-      )
-    }
-
-    const decoded = verifyToken(token)
-    if (!decoded) {
-      return NextResponse.json(
-        { success: false, error: 'Geçersiz token' },
-        { status: 401 }
-      )
-    }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    })
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { success: false, error: 'Kullanıcı bulunamadı' },
-        { status: 404 }
-      )
-    }
-
-    // Only COMPANY_ADMIN and SUPER_ADMIN can create users
-    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(currentUser.role)) {
-      return NextResponse.json(
-        { success: false, error: 'Yetkiniz yok' },
-        { status: 403 }
-      )
-    }
+    // Use centralized auth middleware - only admins can create users
+    const currentUser = await withAuth(request, RoleGroups.ADMIN)
 
     const body = await request.json()
-    const {
-      email,
-      name,
-      password,
-      phone,
-      role,
-      departmentId,
-      position,
-      employeeId,
-      address,
-      city,
-      district,
-      postalCode,
-    } = body
 
-    if (!email || !name || !password || !role) {
-      return NextResponse.json(
-        { success: false, error: 'E-posta, isim, şifre ve rol gereklidir' },
-        { status: 400 }
-      )
-    }
+    // Validate request body with Zod schema
+    const validatedData = validateRequest(userCreateSchema, body)
 
     // Check if user with same email exists in company
     const existing = await prisma.user.findFirst({
       where: {
-        email,
+        email: validatedData.email,
         companyId: currentUser.companyId,
       },
     })
@@ -174,24 +91,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    // Verify department belongs to company if provided
+    if (validatedData.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: validatedData.departmentId },
+        select: { companyId: true }
+      })
+
+      if (!department || department.companyId !== currentUser.companyId) {
+        return NextResponse.json(
+          { success: false, error: 'Departman bulunamadı' },
+          { status: 404 }
+        )
+      }
+    }
+
+    // Hash password (12 rounds for security)
+    const hashedPassword = await bcrypt.hash(validatedData.password, 12)
 
     const newUser = await prisma.user.create({
       data: {
-        companyId: currentUser.companyId,
-        email,
-        name,
+        companyId: currentUser.companyId, // CRITICAL: Enforce company isolation
+        email: validatedData.email,
+        name: validatedData.name,
         password: hashedPassword,
-        phone,
-        role,
-        departmentId,
-        position,
-        employeeId,
-        address,
-        city,
-        district,
-        postalCode,
+        phone: validatedData.phone,
+        role: validatedData.role,
+        departmentId: validatedData.departmentId,
+        position: validatedData.position,
+        employeeId: validatedData.employeeId,
       },
       select: {
         id: true,
@@ -217,11 +145,11 @@ export async function POST(request: NextRequest) {
       data: newUser,
       message: 'Kullanıcı başarıyla oluşturuldu',
     }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('User creation error:', error)
     return NextResponse.json(
-      { success: false, error: 'Kullanıcı oluşturulamadı' },
-      { status: 500 }
+      { success: false, error: error.message || 'Kullanıcı oluşturulamadı' },
+      { status: error.message?.includes('Token') || error.message?.includes('Yetki') ? 401 : 500 }
     )
   }
 }
