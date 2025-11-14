@@ -190,7 +190,7 @@ describe('Utility Functions', () => {
 
     it('should handle uppercase Turkish characters', () => {
       const result = generateSlug('ĞÜŞIÖÇğüşıöç')
-      expect(result).toBe('gusıocgusıoc')
+      expect(result).toBe('gusiocgusioc')
     })
   })
 
@@ -213,7 +213,7 @@ describe('Utility Functions', () => {
 
     it('should start with ATL prefix', () => {
       const orderNumber = generateOrderNumber()
-      expect(orderNumber).toStartWith('ATL')
+      expect(orderNumber.startsWith('ATL')).toBe(true)
     })
 
     it('should include current year', () => {
