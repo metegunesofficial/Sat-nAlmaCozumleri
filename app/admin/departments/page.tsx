@@ -1,22 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Building2, TrendingUp } from 'lucide-react'
 
-const departments = [
-  { id: 'd1', name: 'Bilgi İşlem', code: 'IT', budget: 500000, spent: 145000, employeeCount: 12, status: 'active' },
-  { id: 'd2', name: 'İnsan Kaynakları', code: 'HR', budget: 200000, spent: 85000, employeeCount: 5, status: 'active' },
-  { id: 'd3', name: 'Muhasebe', code: 'ACC', budget: 150000, spent: 65000, employeeCount: 8, status: 'active' },
-  { id: 'd4', name: 'Satış', code: 'SALES', budget: 300000, spent: 195000, employeeCount: 15, status: 'active' },
-  { id: 'd5', name: 'Pazarlama', code: 'MKT', budget: 250000, spent: 180000, employeeCount: 10, status: 'active' },
-]
-
 export default function DepartmentsPage() {
   const { success, error } = useNotification()
+  const [departments, setDepartments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingDept, setEditingDept] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -25,6 +19,28 @@ export default function DepartmentsPage() {
     budget: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/departments', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setDepartments(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Departments fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDepartments()
+  }, [])
 
   const openCreateModal = () => {
     setEditingDept(null)

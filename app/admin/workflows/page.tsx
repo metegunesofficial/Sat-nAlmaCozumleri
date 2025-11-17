@@ -1,46 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Settings, ChevronRight } from 'lucide-react'
-
-const workflows = [
-  {
-    id: 'w1',
-    name: 'Standart Onay (0-10K TL)',
-    minAmount: 0,
-    maxAmount: 10000,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-    ],
-  },
-  {
-    id: 'w2',
-    name: 'Orta Seviye Onay (10-50K TL)',
-    minAmount: 10000,
-    maxAmount: 50000,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-    ],
-  },
-  {
-    id: 'w3',
-    name: 'Üst Düzey Onay (50K+ TL)',
-    minAmount: 50000,
-    maxAmount: null,
-    isActive: true,
-    steps: [
-      { order: 0, approverRole: 'DEPARTMENT_MANAGER', name: 'Departman Müdürü' },
-      { order: 1, approverRole: 'FINANCE_MANAGER', name: 'Finans Müdürü' },
-      { order: 2, approverRole: 'GENERAL_MANAGER', name: 'Genel Müdür' },
-    ],
-  },
-]
 
 const roles = [
   { value: 'DEPARTMENT_MANAGER', label: 'Departman Müdürü' },
@@ -52,6 +16,8 @@ const roles = [
 
 export default function WorkflowsPage() {
   const { success, error } = useNotification()
+  const [workflows, setWorkflows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingWorkflow, setEditingWorkflow] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -61,6 +27,28 @@ export default function WorkflowsPage() {
     isActive: true,
     steps: [{ approverRole: 'DEPARTMENT_MANAGER' }],
   })
+
+  useEffect(() => {
+    const fetchWorkflows = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/workflows', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setWorkflows(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Workflows fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchWorkflows()
+  }, [])
 
   const openCreateModal = () => {
     setEditingWorkflow(null)
@@ -219,7 +207,7 @@ export default function WorkflowsPage() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Onay Adımları:</h4>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {workflow.steps.map((step, idx) => (
+                  {workflow.steps.map((step: any, idx: number) => (
                     <div key={idx} className="flex items-center gap-2">
                       <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2">
                         <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">

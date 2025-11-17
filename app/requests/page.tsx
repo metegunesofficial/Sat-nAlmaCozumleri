@@ -30,11 +30,28 @@ export default function RequestsPage() {
   const [requests, setRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // TODO: Fetch real data from API
   useEffect(() => {
-    // Placeholder - will fetch from /api/purchase-requests
-    setRequests([])
-    setLoading(false)
+    const fetchRequests = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/purchase-requests', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setRequests(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Requests fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRequests()
   }, [])
 
   const filteredRequests = requests.filter((req) => {

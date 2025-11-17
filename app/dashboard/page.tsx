@@ -41,10 +41,39 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // TODO: Fetch from API
-    // fetch('/api/purchase-requests').then(res => res.json()).then(data => setPurchaseRequests(data))
-    // fetch('/api/reports/budget').then(res => res.json()).then(data => setBudgetData(data))
-    setLoading(false)
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token')
+
+        // Fetch purchase requests
+        const requestsRes = await fetch('/api/purchase-requests', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (requestsRes.ok) {
+          const requestsData = await requestsRes.json()
+          if (requestsData.success) {
+            setPurchaseRequests(requestsData.data)
+          }
+        }
+
+        // Fetch budget data
+        const budgetRes = await fetch('/api/reports/budget', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (budgetRes.ok) {
+          const budgetDataRes = await budgetRes.json()
+          if (budgetDataRes.success) {
+            setBudgetData(budgetDataRes.data)
+          }
+        }
+      } catch (err) {
+        console.error('Dashboard data fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
   }, [])
 
   const totalRequests = purchaseRequests.length

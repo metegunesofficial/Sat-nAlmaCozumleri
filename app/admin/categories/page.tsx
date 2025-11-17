@@ -1,22 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, ChevronRight, GitBranch } from 'lucide-react'
 
-const categories = [
-  { id: '1', name: 'Bilgi İşlem', parent: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
-  { id: '2', name: 'Bilgisayarlar', parent: 'Bilgi İşlem', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
-  { id: '3', name: 'Yazıcılar', parent: 'Bilgi İşlem', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
-  { id: '4', name: 'Ofis Malzemeleri', parent: null, productCount: 78, monthlyLimit: 15000, requiresApproval: false },
-  { id: '5', name: 'Kırtasiye', parent: 'Ofis Malzemeleri', productCount: 45, monthlyLimit: 5000, requiresApproval: false },
-  { id: '6', name: 'Mobilya', parent: null, productCount: 23, monthlyLimit: 75000, requiresApproval: true },
-]
-
 export default function CategoriesPage() {
   const { success, error } = useNotification()
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -26,6 +19,28 @@ export default function CategoriesPage() {
     requiresApproval: false,
     minApprovalAmount: '',
   })
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/categories', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setCategories(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Categories fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCategories()
+  }, [])
 
   const openCreateModal = () => {
     setEditingCategory(null)

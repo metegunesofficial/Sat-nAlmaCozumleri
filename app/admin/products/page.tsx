@@ -1,22 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Package } from 'lucide-react'
 
-const products = [
-  { id: 'p1', name: 'Dell Latitude 5430 Laptop', sku: 'DL-5430', price: 35000, category: 'Bilgisayar', stock: 12, status: 'active' },
-  { id: 'p2', name: 'HP LaserJet Pro Printer', sku: 'HP-LJ-PRO', price: 8500, category: 'Yazıcı', stock: 8, status: 'active' },
-  { id: 'p3', name: 'Logitech MX Master Mouse', sku: 'LG-MXM', price: 1200, category: 'Aksesuar', stock: 45, status: 'active' },
-  { id: 'p4', name: 'Samsung 27" Monitor', sku: 'SM-27-MON', price: 6500, category: 'Monitör', stock: 15, status: 'active' },
-  { id: 'p5', name: 'Microsoft Office 365 Lisans', sku: 'MS-O365', price: 450, category: 'Yazılım', stock: 0, status: 'inactive' },
-]
-
 export default function ProductsPage() {
   const { success, error } = useNotification()
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -28,6 +22,28 @@ export default function ProductsPage() {
     status: 'active',
     description: '',
   })
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/products', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setProducts(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Products fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
 
   const openCreateModal = () => {
     setEditingProduct(null)

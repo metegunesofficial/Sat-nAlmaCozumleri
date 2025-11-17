@@ -45,9 +45,27 @@ export default function RequestDetailPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // TODO: Fetch from API
-    // fetch(`/api/purchase-requests/${params.id}`).then(res => res.json()).then(data => setRequest(data))
-    setLoading(false)
+    const fetchRequest = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`/api/purchase-requests/${params.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setRequest(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Request fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRequest()
   }, [params.id])
 
   if (!request) {

@@ -1,19 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
 import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from 'lucide-react'
-
-const users = [
-  { id: 'u1', name: 'Ahmet Yıldırım', email: 'admin@attelia.com', role: 'COMPANY_ADMIN', department: 'Yönetim', status: 'active' },
-  { id: 'u2', name: 'John Doe', email: 'john.doe@attelia.com', role: 'EMPLOYEE', department: 'Bilgi İşlem', status: 'active' },
-  { id: 'u3', name: 'Jane Smith', email: 'jane.smith@attelia.com', role: 'DEPARTMENT_MANAGER', department: 'İnsan Kaynakları', status: 'active' },
-  { id: 'u4', name: 'Mehmet Kaya', email: 'finance@attelia.com', role: 'FINANCE_MANAGER', department: 'Muhasebe', status: 'active' },
-  { id: 'u5', name: 'Ayşe Demir', email: 'general@attelia.com', role: 'GENERAL_MANAGER', department: 'Yönetim', status: 'active' },
-]
 
 const roles = [
   { value: 'SUPER_ADMIN', label: 'Süper Admin' },
@@ -27,6 +19,8 @@ const roles = [
 
 export default function UsersPage() {
   const { success, error } = useNotification()
+  const [users, setUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [formData, setFormData] = useState({
@@ -37,6 +31,28 @@ export default function UsersPage() {
     password: '',
     status: 'active',
   })
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch('/api/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setUsers(data.data)
+          }
+        }
+      } catch (err) {
+        console.error('Users fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchUsers()
+  }, [])
 
   const openCreateModal = () => {
     setEditingUser(null)
