@@ -51,7 +51,7 @@ export default function DashboardPage() {
         })
         if (requestsRes.ok) {
           const requestsData = await requestsRes.json()
-          if (requestsData.success) {
+          if (requestsData.success && Array.isArray(requestsData.data)) {
             setPurchaseRequests(requestsData.data)
           }
         }
@@ -62,8 +62,12 @@ export default function DashboardPage() {
         })
         if (budgetRes.ok) {
           const budgetDataRes = await budgetRes.json()
-          if (budgetDataRes.success) {
-            setBudgetData(budgetDataRes.data)
+          if (budgetDataRes.success && budgetDataRes.data) {
+            setBudgetData({
+              departments: Array.isArray(budgetDataRes.data.departments)
+                ? budgetDataRes.data.departments
+                : []
+            })
           }
         }
       } catch (err) {
@@ -86,7 +90,7 @@ export default function DashboardPage() {
   const recentRequests = purchaseRequests.slice(0, 5)
 
   // Budget utilization chart data
-  const budgetChartData = budgetData.departments.map((dept) => ({
+  const budgetChartData = (budgetData?.departments || []).map((dept) => ({
     name: dept.name,
     budget: dept.budget,
     spent: dept.spent,
