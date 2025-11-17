@@ -91,6 +91,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // Get user to access companyId
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, companyId: true },
+    })
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Kullanıcı bulunamadı' },
+        { status: 404 }
+      )
+    }
+
     // Get cart items
     const cartItems = await prisma.cartItem.findMany({
       where: { userId: decoded.userId },
@@ -129,6 +142,7 @@ export async function POST(request: NextRequest) {
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
+        companyId: user.companyId,
         userId: decoded.userId,
         billingName: body.billingName,
         billingEmail: body.billingEmail,
