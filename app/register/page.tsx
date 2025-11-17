@@ -19,6 +19,14 @@ export default function RegisterPage() {
   const router = useRouter()
   const { success, error } = useNotification()
 
+  const validateTurkishPhone = (phone: string): boolean => {
+    // Türk telefon numarası formatları:
+    // +90 5XX XXX XX XX veya 0 5XX XXX XX XX veya 5XX XXX XX XX
+    const phoneRegex = /^(\+90|0)?5\d{9}$/
+    const cleanPhone = phone.replace(/\s/g, '')
+    return phoneRegex.test(cleanPhone)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -29,6 +37,11 @@ export default function RegisterPage() {
 
     if (formData.password.length < 6) {
       error('Şifre en az 6 karakter olmalıdır')
+      return
+    }
+
+    if (!validateTurkishPhone(formData.phone)) {
+      error('Geçerli bir Türk telefon numarası giriniz (örn: 0555 123 4567)')
       return
     }
 
@@ -234,7 +247,7 @@ export default function RegisterPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Telefon
+                  Telefon *
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -243,10 +256,11 @@ export default function RegisterPage() {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dental-blue"
-                    placeholder="+90 555 123 4567"
+                    placeholder="0555 123 4567"
                     required
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Türk telefon numarası giriniz (0 veya +90 ile başlamalı)</p>
               </div>
 
               <div>

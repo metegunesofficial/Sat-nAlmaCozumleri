@@ -5,6 +5,14 @@ import { hashPassword, generateToken } from '@/lib/auth'
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
+function validateTurkishPhone(phone: string): boolean {
+  // Türk telefon numarası formatları:
+  // +90 5XX XXX XX XX veya 0 5XX XXX XX XX veya 5XX XXX XX XX
+  const phoneRegex = /^(\+90|0)?5\d{9}$/
+  const cleanPhone = phone.replace(/\s/g, '')
+  return phoneRegex.test(cleanPhone)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -13,6 +21,13 @@ export async function POST(request: NextRequest) {
     if (!email || !password || !name || !companyId) {
       return NextResponse.json(
         { success: false, error: 'Gerekli alanlar eksik (email, password, name, companyId)' },
+        { status: 400 }
+      )
+    }
+
+    if (!phone || !validateTurkishPhone(phone)) {
+      return NextResponse.json(
+        { success: false, error: 'Geçerli bir Türk telefon numarası giriniz (örn: 0555 123 4567)' },
         { status: 400 }
       )
     }

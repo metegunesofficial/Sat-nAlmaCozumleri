@@ -17,9 +17,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
+    // Find user with company and department info
     const user = await prisma.user.findFirst({
       where: { email },
+      include: {
+        company: true,
+        department: true,
+      },
     })
 
     if (!user) {
@@ -43,7 +47,12 @@ export async function POST(request: NextRequest) {
     const token = generateToken(user.id, user.email, user.role)
 
     // Return user without password
-    const { password: _, ...userWithoutPassword } = user
+    const { password: _, company, department, ...userFields } = user
+    const userWithoutPassword = {
+      ...userFields,
+      companyName: company.name,
+      departmentName: department?.name,
+    }
 
     return NextResponse.json({
       success: true,

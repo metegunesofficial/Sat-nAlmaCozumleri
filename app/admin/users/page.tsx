@@ -26,6 +26,7 @@ export default function UsersPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     role: 'EMPLOYEE',
     department: '',
     password: '',
@@ -54,11 +55,20 @@ export default function UsersPage() {
     fetchUsers()
   }, [])
 
+  const validateTurkishPhone = (phone: string): boolean => {
+    // Türk telefon numarası formatları:
+    // +90 5XX XXX XX XX veya 0 5XX XXX XX XX veya 5XX XXX XX XX
+    const phoneRegex = /^(\+90|0)?5\d{9}$/
+    const cleanPhone = phone.replace(/\s/g, '')
+    return phoneRegex.test(cleanPhone)
+  }
+
   const openCreateModal = () => {
     setEditingUser(null)
     setFormData({
       name: '',
       email: '',
+      phone: '',
       role: 'EMPLOYEE',
       department: '',
       password: '',
@@ -72,6 +82,7 @@ export default function UsersPage() {
     setFormData({
       name: user.name,
       email: user.email,
+      phone: user.phone || '',
       role: user.role,
       department: user.department,
       password: '',
@@ -83,6 +94,10 @@ export default function UsersPage() {
   const handleSubmit = () => {
     if (!formData.name || !formData.email || !formData.role) {
       error('Lütfen tüm gerekli alanları doldurun')
+      return
+    }
+    if (!formData.phone || !validateTurkishPhone(formData.phone)) {
+      error('Geçerli bir Türk telefon numarası giriniz (örn: 0555 123 4567)')
       return
     }
     if (!editingUser && !formData.password) {
@@ -256,6 +271,7 @@ export default function UsersPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ahmet Yıldız"
               />
             </div>
             <div>
@@ -265,8 +281,22 @@ export default function UsersPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="ahmet@sirket.com"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Telefon *</label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="0555 123 4567"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">Türk telefon numarası giriniz (0 veya +90 ile başlamalı)</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
