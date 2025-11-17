@@ -81,20 +81,82 @@ export default function NewRequestPage() {
 
   const totalAmount = items.reduce((sum, item) => sum + item.total, 0)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !categoryId || items.length === 0) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
     }
 
-    // Here would be API call
-    success('Satın alma talebi başarıyla oluşturuldu!')
-    router.push('/requests')
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/purchase-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          categoryId,
+          priority,
+          items: items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          }))
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Talep oluşturulamadı')
+      }
+
+      success('Satın alma talebi başarıyla oluşturuldu!')
+      router.push('/requests')
+    } catch (err: any) {
+      error(err.message || 'Bir hata oluştu')
+    }
   }
 
-  const saveDraft = () => {
-    success('Taslak kaydedildi')
-    router.push('/requests')
+  const saveDraft = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/purchase-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          categoryId,
+          priority,
+          status: 'DRAFT',
+          items: items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          }))
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Taslak kaydedilemedi')
+      }
+
+      success('Taslak kaydedildi')
+      router.push('/requests')
+    } catch (err: any) {
+      error(err.message || 'Bir hata oluştu')
+    }
   }
 
   return (

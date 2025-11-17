@@ -133,7 +133,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, priority, items, requiredDate, departmentId } = body
+    const { title, description, priority, items, requiredDate, departmentId, status, categoryId } = body
+
+    // Validation
+    if (!title || !items || items.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Başlık ve en az bir ürün gerekli' },
+        { status: 400 }
+      )
+    }
 
     // Get user to access companyId
     const user = await prisma.user.findUnique({
@@ -160,45 +168,50 @@ export async function POST(request: NextRequest) {
     const count = await prisma.purchaseRequest.count() + 1
     const requestNumber = `PR${year}${month}${String(count).padStart(4, '0')}`
 
-    // Find appropriate workflow
-    const workflow = await prisma.approvalWorkflow.findFirst({
-      where: {
-        isActive: true,
-        OR: [
-          {
-            AND: [
-              { minAmount: { lte: estimatedTotal } },
-              { maxAmount: { gte: estimatedTotal } }
-            ]
-          },
-          {
-            minAmount: { lte: estimatedTotal },
-            maxAmount: null
+    const targetDepartmentId = departmentId || user.departmentId
+
+    // Find appropriate workflow (only if not draft)
+    let workflow = null
+    if (status !== 'DRAFT' && targetDepartmentId) {
+      workflow = await prisma.approvalWorkflow.findFirst({
+        where: {
+          isActive: true,
+          OR: [
+            {
+              AND: [
+                { minAmount: { lte: estimatedTotal } },
+                { maxAmount: { gte: estimatedTotal } }
+              ]
+            },
+            {
+              minAmount: { lte: estimatedTotal },
+              maxAmount: null
+            }
+          ],
+          departmentIds: {
+            has: targetDepartmentId
           }
-        ],
-        departmentIds: {
-          has: departmentId
-        }
-      },
-      include: {
-        steps: {
-          orderBy: {
-            stepOrder: 'asc'
+        },
+        include: {
+          steps: {
+            orderBy: {
+              stepOrder: 'asc'
+            }
           }
         }
-      }
-    })
+      })
+    }
 
     const purchaseRequest = await prisma.purchaseRequest.create({
       data: {
         requestNumber,
         companyId: user.companyId,
         requesterId: decoded.userId,
-        departmentId: departmentId || user.departmentId,
+        departmentId: targetDepartmentId,
         title,
         description,
         priority: priority || 'NORMAL',
-        status: 'SUBMITTED',
+        status: status || 'SUBMITTED',
         estimatedTotal,
         requiredDate: requiredDate ? new Date(requiredDate) : null,
         ...(workflow?.id && { workflowId: workflow.id }),
