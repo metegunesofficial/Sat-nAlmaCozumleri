@@ -8,23 +8,35 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, name, phone, companyName, role } = body
+    const { email, password, name, phone, companyId, role } = body
 
-    if (!email || !password || !name) {
+    if (!email || !password || !name || !companyId) {
       return NextResponse.json(
-        { success: false, error: 'Gerekli alanlar eksik' },
+        { success: false, error: 'Gerekli alanlar eksik (email, password, name, companyId)' },
         { status: 400 }
       )
     }
 
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
-      where: { email },
+      where: { email, companyId },
     })
 
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: 'Bu email zaten kullanılıyor' },
+        { status: 400 }
+      )
+    }
+
+    // Verify company exists
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+    })
+
+    if (!company) {
+      return NextResponse.json(
+        { success: false, error: 'Geçersiz şirket ID' },
         { status: 400 }
       )
     }
@@ -39,15 +51,15 @@ export async function POST(request: NextRequest) {
         password: hashedPassword,
         name,
         phone,
-        companyName,
-        role: role || 'CUSTOMER',
+        companyId,
+        role: role || 'EMPLOYEE',
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        companyName: true,
+        companyId: true,
         phone: true,
       },
     })
