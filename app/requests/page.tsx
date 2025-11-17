@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests } from '@/lib/mockData'
 import { Plus, Filter, Download } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -28,8 +27,17 @@ export default function RequestsPage() {
   const router = useRouter()
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [dateFilter, setDateFilter] = useState<string>('ALL')
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filteredRequests = mockPurchaseRequests.filter((req) => {
+  // TODO: Fetch real data from API
+  useEffect(() => {
+    // Placeholder - will fetch from /api/purchase-requests
+    setRequests([])
+    setLoading(false)
+  }, [])
+
+  const filteredRequests = requests.filter((req) => {
     if (statusFilter !== 'ALL' && req.status !== statusFilter) return false
     // Date filtering could be implemented here
     return true

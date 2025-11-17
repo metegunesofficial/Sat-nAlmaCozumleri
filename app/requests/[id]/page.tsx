@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
-import { mockPurchaseRequests } from '@/lib/mockData'
+// TODO: Import removed - using empty state
 import { useParams, useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
 import {
@@ -34,6 +34,9 @@ const statusLabels: Record<string, string> = {
   REJECTED: 'Reddedildi',
   COMPLETED: 'Tamamlandı',
 }
+
+// TODO: Replace with real API calls
+const mockPurchaseRequests: any[] = []
 
 export default function RequestDetailPage() {
   const params = useParams()

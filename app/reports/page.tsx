@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
-import { mockBudgetData, mockPurchaseRequests } from '@/lib/mockData'
+// TODO: Import removed - using empty state
 import {
   TrendingUp,
   DollarSign,
@@ -30,6 +30,16 @@ import {
 } from 'recharts'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
+
+// TODO: Replace with real API calls
+const mockBudgetData = {
+  departments: [] as Array<{ name: string; budget: number; spent: number; remaining: number; utilization: number }>,
+  company: {
+    total: 0,
+    spent: 0,
+    reserved: 0,
+  }
+}
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState('monthly')

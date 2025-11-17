@@ -3,7 +3,7 @@
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests, mockBudgetData } from '@/lib/mockData'
+// TODO: Import removed - fetch from API instead
 import {
   ShoppingCart,
   Clock,
@@ -32,6 +32,12 @@ const statusLabels: Record<string, string> = {
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+
+// TODO: Replace with real API calls
+const mockPurchaseRequests: any[] = []
+const mockBudgetData = {
+  departments: [] as Array<{ name: string; budget: number; spent: number; utilization: number }>
+}
 
 export default function DashboardPage() {
   const totalRequests = mockPurchaseRequests.length
