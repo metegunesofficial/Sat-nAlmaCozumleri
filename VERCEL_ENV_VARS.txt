@@ -1,0 +1,52 @@
+# ============================================
+# VERCEL ENVIRONMENT VARIABLES
+# ============================================
+# Copy-paste these to Vercel Dashboard
+# Settings → Environment Variables
+# Select: Production, Preview, Development (all 3)
+
+# ============================================
+# DATABASE CONFIGURATION
+# ============================================
+
+DATABASE_URL
+prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19aTU5rUjZnT3FZZ3U0bGdienFOdUEiLCJhcGlfa2V5IjoiMDFLOUMxOThLN1ExV0FNR0RKWThEMzBNOFgiLCJ0ZW5hbnRfaWQiOiIwOWU4ZTAyYmRmNmQ1YmI4MmJhNmJmNGViYzhhYTBmZDNkZWFjNjM0MzExODEyOTQ5MDhiMjZlOTg0ODk4MGFiIiwiaW50ZXJuYWxfc2VjcmV0IjoiZjZkNTIwMTctMDgwYy00NmI1LTk1NjQtYzA4NTY2ZmIxOWRhIn0.QLpX9CvRrfpn80EtNvFRzzZXNuXG_D_PD0IweeHOboE
+
+POSTGRES_URL
+postgres://09e8e02bdf6d5bb82ba6bf4ebc8aa0fd3deac63431181294908b26e9848980ab:sk_ZMNkR6gOqYgu4lgbzqNuA@db.prisma.io:5432/postgres?sslmode=require
+
+# ============================================
+# AUTHENTICATION
+# ============================================
+
+NEXTAUTH_URL
+https://sat-nalma-cozumleri.vercel.app
+
+NEXTAUTH_SECRET
+SAvXqjV/MdCCzNDC5Oig2GcfOjEZgtiTQqjJ/Yt6h4c=
+
+JWT_SECRET
+Eap/SbDMJsUpxT51KfMo+8UiIkWCcq94I9z+sfmNf4E=
+
+# ============================================
+# APPLICATION
+# ============================================
+
+NEXT_PUBLIC_APP_NAME
+Attelia Dental
+
+NEXT_PUBLIC_APP_URL
+https://sat-nalma-cozumleri.vercel.app
+
+# ============================================
+# HOW TO ADD TO VERCEL:
+# ============================================
+# 1. Go to: https://vercel.com/dashboard
+# 2. Select your project
+# 3. Settings → Environment Variables
+# 4. Add each variable above
+# 5. For each variable, select all 3 environments:
+#    - Production ✓
+#    - Preview ✓
+#    - Development ✓
+# 6. Click "Save"
