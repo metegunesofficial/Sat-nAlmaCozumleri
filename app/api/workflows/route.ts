@@ -59,17 +59,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         steps: {
-          include: {
-            approvers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
         _count: {
           select: {
@@ -188,30 +178,19 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
         steps: {
           create: steps.map((step: any, index: number) => ({
-            name: step.name,
-            description: step.description,
-            order: index + 1,
-            requiredApprovals: step.requiredApprovals || 1,
-            action: step.action || 'APPROVE',
-            approvers: {
-              connect: step.approverIds?.map((id: string) => ({ id })) || [],
-            },
+            stepName: step.name || step.stepName,
+            stepOrder: index + 1,
+            approverRole: step.approverRole,
+            approverId: step.approverId,
+            requiredAction: step.requiredAction || 'APPROVE',
+            isOptional: step.isOptional || false,
+            isParallel: step.isParallel || false,
           })),
         },
       },
       include: {
         steps: {
-          include: {
-            approvers: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: { order: 'asc' },
+          orderBy: { stepOrder: 'asc' },
         },
       },
     })
