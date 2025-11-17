@@ -49,10 +49,21 @@ export async function POST(request: NextRequest) {
       success: true,
       data: company,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Company create error:', error)
+
+    // Check if it's a Prisma/database error
+    const errorMessage = error?.message || 'Şirket oluşturulamadı'
+    const isDatabaseError = errorMessage.includes('table') || errorMessage.includes('relation') || errorMessage.includes('database')
+
     return NextResponse.json(
-      { success: false, error: 'Şirket oluşturulamadı' },
+      {
+        success: false,
+        error: isDatabaseError
+          ? 'Veritabanı henüz hazır değil. Lütfen birkaç dakika sonra tekrar deneyin.'
+          : `Şirket oluşturulamadı: ${errorMessage}`,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     )
   }

@@ -36,6 +36,7 @@ export default function RegisterPage() {
 
     try {
       // First create company
+      console.log('Creating company:', formData.companyName)
       const companyRes = await fetch('/api/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -44,15 +45,28 @@ export default function RegisterPage() {
         }),
       })
 
-      const companyData = await companyRes.json()
+      console.log('Company response status:', companyRes.status)
+
+      let companyData
+      try {
+        companyData = await companyRes.json()
+        console.log('Company response data:', companyData)
+      } catch (jsonError) {
+        console.error('Failed to parse company response:', jsonError)
+        throw new Error('Sunucudan geçersiz yanıt alındı. Lütfen daha sonra tekrar deneyin.')
+      }
 
       if (!companyRes.ok || !companyData.success) {
-        throw new Error(companyData.error || 'Şirket oluşturulamadı')
+        const errorMsg = companyData.error || `Şirket oluşturulamadı (HTTP ${companyRes.status})`
+        console.error('Company creation failed:', errorMsg)
+        throw new Error(errorMsg)
       }
 
       const companyId = companyData.data.id
+      console.log('Company created with ID:', companyId)
 
       // Then create user
+      console.log('Creating user for company:', companyId)
       const userRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,18 +80,32 @@ export default function RegisterPage() {
         }),
       })
 
-      const userData = await userRes.json()
+      console.log('User response status:', userRes.status)
 
-      if (!userRes.ok || !userData.success) {
-        throw new Error(userData.error || 'Kayıt başarısız')
+      let userData
+      try {
+        userData = await userRes.json()
+        console.log('User response data:', userData)
+      } catch (jsonError) {
+        console.error('Failed to parse user response:', jsonError)
+        throw new Error('Kullanıcı oluşturulurken hata oluştu')
       }
 
+      if (!userRes.ok || !userData.success) {
+        const errorMsg = userData.error || `Kayıt başarısız (HTTP ${userRes.status})`
+        console.error('User creation failed:', errorMsg)
+        throw new Error(errorMsg)
+      }
+
+      console.log('Registration successful!')
       success('Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...')
       setTimeout(() => {
         router.push('/login')
       }, 2000)
     } catch (err: any) {
-      error(err.message || 'Bir hata oluştu')
+      console.error('Registration error:', err)
+      const errorMessage = err.message || 'Bir hata oluştu. Lütfen tekrar deneyin.'
+      error(errorMessage)
     } finally {
       setLoading(false)
     }
