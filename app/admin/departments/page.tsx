@@ -7,7 +7,7 @@ import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Building2, TrendingUp } from 'lucide-react'
 
-const mockDepartments = [
+const departments = [
   { id: 'd1', name: 'Bilgi İşlem', code: 'IT', budget: 500000, spent: 145000, employeeCount: 12, status: 'active' },
   { id: 'd2', name: 'İnsan Kaynakları', code: 'HR', budget: 200000, spent: 85000, employeeCount: 5, status: 'active' },
   { id: 'd3', name: 'Muhasebe', code: 'ACC', budget: 150000, spent: 65000, employeeCount: 8, status: 'active' },
@@ -166,9 +166,9 @@ export default function DepartmentsPage() {
     },
   ]
 
-  const totalBudget = mockDepartments.reduce((sum, d) => sum + d.budget, 0)
-  const totalSpent = mockDepartments.reduce((sum, d) => sum + d.spent, 0)
-  const totalEmployees = mockDepartments.reduce((sum, d) => sum + d.employeeCount, 0)
+  const totalBudget = departments.reduce((sum, d) => sum + d.budget, 0)
+  const totalSpent = departments.reduce((sum, d) => sum + d.spent, 0)
+  const totalEmployees = departments.reduce((sum, d) => sum + d.employeeCount, 0)
 
   return (
     <DashboardLayout>
@@ -192,7 +192,7 @@ export default function DepartmentsPage() {
             <div className="flex items-center gap-3">
               <Building2 className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockDepartments.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{departments.length}</p>
                 <p className="text-sm text-gray-600">Toplam Departman</p>
               </div>
             </div>
@@ -230,7 +230,7 @@ export default function DepartmentsPage() {
           </div>
         </div>
 
-        <DataTable data={mockDepartments} columns={columns} searchable searchPlaceholder="Departman ara..." />
+        <DataTable data={departments} columns={columns} searchable searchPlaceholder="Departman ara..." />
       </div>
 
       <Modal

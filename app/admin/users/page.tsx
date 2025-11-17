@@ -7,7 +7,7 @@ import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Users, UserCheck, UserX } from 'lucide-react'
 
-const mockUsers = [
+const users = [
   { id: 'u1', name: 'Ahmet Yıldırım', email: 'admin@attelia.com', role: 'COMPANY_ADMIN', department: 'Yönetim', status: 'active' },
   { id: 'u2', name: 'John Doe', email: 'john.doe@attelia.com', role: 'EMPLOYEE', department: 'Bilgi İşlem', status: 'active' },
   { id: 'u3', name: 'Jane Smith', email: 'jane.smith@attelia.com', role: 'DEPARTMENT_MANAGER', department: 'İnsan Kaynakları', status: 'active' },
@@ -177,7 +177,7 @@ export default function UsersPage() {
             <div className="flex items-center gap-3">
               <Users className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockUsers.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kullanıcı</p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function UsersPage() {
               <UserCheck className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status === 'active').length}
+                  {users.filter((u) => u.status === 'active').length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif Kullanıcı</p>
               </div>
@@ -198,7 +198,7 @@ export default function UsersPage() {
               <UserX className="text-gray-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockUsers.filter((u) => u.status !== 'active').length}
+                  {users.filter((u) => u.status !== 'active').length}
                 </p>
                 <p className="text-sm text-gray-600">Pasif Kullanıcı</p>
               </div>
@@ -206,7 +206,7 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <DataTable data={mockUsers} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
+        <DataTable data={users} columns={columns} searchable searchPlaceholder="Kullanıcı ara..." />
       </div>
 
       <Modal

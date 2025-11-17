@@ -7,7 +7,7 @@ import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Package } from 'lucide-react'
 
-const mockProducts = [
+const products = [
   { id: 'p1', name: 'Dell Latitude 5430 Laptop', sku: 'DL-5430', price: 35000, category: 'Bilgisayar', stock: 12, status: 'active' },
   { id: 'p2', name: 'HP LaserJet Pro Printer', sku: 'HP-LJ-PRO', price: 8500, category: 'Yazıcı', stock: 8, status: 'active' },
   { id: 'p3', name: 'Logitech MX Master Mouse', sku: 'LG-MXM', price: 1200, category: 'Aksesuar', stock: 45, status: 'active' },
@@ -188,7 +188,7 @@ export default function ProductsPage() {
             <div className="flex items-center gap-3">
               <Package className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockProducts.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{products.length}</p>
                 <p className="text-sm text-gray-600">Toplam Ürün</p>
               </div>
             </div>
@@ -198,7 +198,7 @@ export default function ProductsPage() {
               <Package className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.status === 'active').length}
+                  {products.filter((p) => p.status === 'active').length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif Ürün</p>
               </div>
@@ -209,7 +209,7 @@ export default function ProductsPage() {
               <Package className="text-yellow-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.stock < 10 && p.stock > 0).length}
+                  {products.filter((p) => p.stock < 10 && p.stock > 0).length}
                 </p>
                 <p className="text-sm text-gray-600">Düşük Stok</p>
               </div>
@@ -220,7 +220,7 @@ export default function ProductsPage() {
               <Package className="text-red-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockProducts.filter((p) => p.stock === 0).length}
+                  {products.filter((p) => p.stock === 0).length}
                 </p>
                 <p className="text-sm text-gray-600">Stokta Yok</p>
               </div>
@@ -229,7 +229,7 @@ export default function ProductsPage() {
         </div>
 
         <DataTable
-          data={mockProducts}
+          data={products}
           columns={columns}
           searchable
           searchPlaceholder="Ürün ara..."

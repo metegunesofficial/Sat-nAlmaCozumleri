@@ -6,7 +6,7 @@ import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, ChevronRight, GitBranch } from 'lucide-react'
 
-const mockCategories = [
+const categories = [
   { id: '1', name: 'Bilgi İşlem', parent: null, productCount: 45, monthlyLimit: 100000, requiresApproval: true },
   { id: '2', name: 'Bilgisayarlar', parent: 'Bilgi İşlem', productCount: 25, monthlyLimit: 50000, requiresApproval: true },
   { id: '3', name: 'Yazıcılar', parent: 'Bilgi İşlem', productCount: 12, monthlyLimit: 20000, requiresApproval: false },
@@ -72,8 +72,8 @@ export default function CategoriesPage() {
   }
 
   // Group categories by parent
-  const rootCategories = mockCategories.filter((c) => !c.parent)
-  const childCategories = mockCategories.filter((c) => c.parent)
+  const rootCategories = categories.filter((c) => !c.parent)
+  const childCategories = categories.filter((c) => c.parent)
 
   return (
     <DashboardLayout>
@@ -97,7 +97,7 @@ export default function CategoriesPage() {
             <div className="flex items-center gap-3">
               <GitBranch className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockCategories.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
                 <p className="text-sm text-gray-600">Toplam Kategori</p>
               </div>
             </div>

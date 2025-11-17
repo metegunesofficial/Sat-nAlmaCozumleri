@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
-// TODO: Import removed - using empty state
 import { useParams, useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
 import {
@@ -35,9 +34,6 @@ const statusLabels: Record<string, string> = {
   COMPLETED: 'Tamamlandı',
 }
 
-// TODO: Replace with real API calls
-const mockPurchaseRequests: any[] = []
-
 export default function RequestDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -45,8 +41,14 @@ export default function RequestDetailPage() {
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
   const [comments, setComments] = useState('')
+  const [request, setRequest] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
-  const request = mockPurchaseRequests.find((r) => r.id === params.id)
+  useEffect(() => {
+    // TODO: Fetch from API
+    // fetch(`/api/purchase-requests/${params.id}`).then(res => res.json()).then(data => setRequest(data))
+    setLoading(false)
+  }, [params.id])
 
   if (!request) {
     return (

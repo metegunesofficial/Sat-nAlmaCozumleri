@@ -17,7 +17,7 @@ interface RequestItem {
   notes?: string
 }
 
-const mockProducts = [
+const products = [
   { id: 'p1', name: 'Dell Latitude 5430 Laptop', price: 35000, category: 'Bilgisayar' },
   { id: 'p2', name: 'HP LaserJet Pro Printer', price: 8500, category: 'Yazıcı' },
   { id: 'p3', name: 'Logitech MX Master Mouse', price: 1200, category: 'Aksesuar' },
@@ -25,7 +25,7 @@ const mockProducts = [
   { id: 'p5', name: 'Microsoft Office 365 Lisans', price: 450, category: 'Yazılım' },
 ]
 
-const mockCategories = [
+const categories = [
   { id: 'cat1', name: 'Bilgi İşlem', requiresApproval: true },
   { id: 'cat2', name: 'Ofis Malzemeleri', requiresApproval: false },
   { id: 'cat3', name: 'Mobilya', requiresApproval: true },
@@ -187,7 +187,7 @@ export default function NewRequestPage() {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Kategori Seçin</option>
-                  {mockCategories.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
                     </option>
@@ -315,7 +315,7 @@ export default function NewRequestPage() {
                 <div>
                   <span className="text-sm text-gray-600">Kategori:</span>
                   <p className="font-medium text-gray-900">
-                    {mockCategories.find((c) => c.id === categoryId)?.name}
+                    {categories.find((c) => c.id === categoryId)?.name}
                   </p>
                 </div>
                 <div>
@@ -418,7 +418,7 @@ export default function NewRequestPage() {
         size="lg"
       >
         <div className="space-y-3">
-          {mockProducts.map((product) => (
+          {products.map((product) => (
             <div
               key={product.id}
               className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"

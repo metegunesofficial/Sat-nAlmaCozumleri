@@ -1,9 +1,9 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-// TODO: Import removed - fetch from API instead
 import {
   ShoppingCart,
   Clock,
@@ -33,24 +33,31 @@ const statusLabels: Record<string, string> = {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
-// TODO: Replace with real API calls
-const mockPurchaseRequests: any[] = []
-const mockBudgetData = {
-  departments: [] as Array<{ name: string; budget: number; spent: number; utilization: number }>
-}
-
 export default function DashboardPage() {
-  const totalRequests = mockPurchaseRequests.length
-  const pendingRequests = mockPurchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
-  const approvedRequests = mockPurchaseRequests.filter((r) => r.status === 'APPROVED').length
-  const totalSpent = mockPurchaseRequests
+  const [purchaseRequests, setPurchaseRequests] = useState<any[]>([])
+  const [budgetData, setBudgetData] = useState<{
+    departments: Array<{ name: string; budget: number; spent: number; utilization: number }>
+  }>({ departments: [] })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch from API
+    // fetch('/api/purchase-requests').then(res => res.json()).then(data => setPurchaseRequests(data))
+    // fetch('/api/reports/budget').then(res => res.json()).then(data => setBudgetData(data))
+    setLoading(false)
+  }, [])
+
+  const totalRequests = purchaseRequests.length
+  const pendingRequests = purchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
+  const approvedRequests = purchaseRequests.filter((r) => r.status === 'APPROVED').length
+  const totalSpent = purchaseRequests
     .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
     .reduce((sum, r) => sum + r.estimatedTotal, 0)
 
-  const recentRequests = mockPurchaseRequests.slice(0, 5)
+  const recentRequests = purchaseRequests.slice(0, 5)
 
   // Budget utilization chart data
-  const budgetChartData = mockBudgetData.departments.map((dept) => ({
+  const budgetChartData = budgetData.departments.map((dept) => ({
     name: dept.name,
     budget: dept.budget,
     spent: dept.spent,
@@ -59,7 +66,7 @@ export default function DashboardPage() {
 
   // Status distribution pie chart data
   const statusDistribution = Object.entries(
-    mockPurchaseRequests.reduce((acc, req) => {
+    purchaseRequests.reduce((acc, req) => {
       acc[req.status] = (acc[req.status] || 0) + 1
       return acc
     }, {} as Record<string, number>)

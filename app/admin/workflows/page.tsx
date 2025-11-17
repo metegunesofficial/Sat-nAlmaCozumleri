@@ -6,7 +6,7 @@ import Modal from '@/components/Modal'
 import { useNotification } from '@/contexts/NotificationContext'
 import { Plus, Edit, Trash2, Settings, ChevronRight } from 'lucide-react'
 
-const mockWorkflows = [
+const workflows = [
   {
     id: 'w1',
     name: 'Standart Onay (0-10K TL)',
@@ -147,7 +147,7 @@ export default function WorkflowsPage() {
             <div className="flex items-center gap-3">
               <Settings className="text-blue-600" size={24} />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{mockWorkflows.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{workflows.length}</p>
                 <p className="text-sm text-gray-600">Toplam İş Akışı</p>
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function WorkflowsPage() {
               <Settings className="text-green-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {mockWorkflows.filter((w) => w.isActive).length}
+                  {workflows.filter((w) => w.isActive).length}
                 </p>
                 <p className="text-sm text-gray-600">Aktif İş Akışı</p>
               </div>
@@ -168,7 +168,7 @@ export default function WorkflowsPage() {
               <Settings className="text-purple-600" size={24} />
               <div>
                 <p className="text-2xl font-bold text-gray-900">
-                  {Math.max(...mockWorkflows.map((w) => w.steps.length))}
+                  {Math.max(...workflows.map((w) => w.steps.length))}
                 </p>
                 <p className="text-sm text-gray-600">Maksimum Adım</p>
               </div>
@@ -177,7 +177,7 @@ export default function WorkflowsPage() {
         </div>
 
         <div className="space-y-4">
-          {mockWorkflows.map((workflow) => (
+          {workflows.map((workflow) => (
             <div key={workflow.id} className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>

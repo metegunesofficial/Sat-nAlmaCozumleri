@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
-// TODO: Import removed - using empty state
 import {
   TrendingUp,
   DollarSign,
@@ -31,22 +30,26 @@ import {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
-// TODO: Replace with real API calls
-const mockBudgetData = {
-  departments: [] as Array<{ name: string; budget: number; spent: number; remaining: number; utilization: number }>,
-  company: {
-    total: 0,
-    spent: 0,
-    reserved: 0,
-  }
-}
-
 export default function ReportsPage() {
   const [period, setPeriod] = useState('monthly')
   const [department, setDepartment] = useState('all')
+  const [budgetReportData, setBudgetReportData] = useState<{
+    departments: Array<{ name: string; budget: number; spent: number; remaining: number; utilization: number }>
+    company: { total: number; spent: number; reserved: number }
+  }>({
+    departments: [],
+    company: { total: 0, spent: 0, reserved: 0 }
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // TODO: Fetch from API
+    // fetch('/api/reports/budget').then(res => res.json()).then(data => setBudgetReportData(data))
+    setLoading(false)
+  }, [period, department])
 
   // Budget utilization data
-  const budgetData = mockBudgetData.departments.map((dept) => ({
+  const budgetData = budgetReportData.departments.map((dept) => ({
     name: dept.name,
     budget: dept.budget,
     spent: dept.spent,
@@ -54,37 +57,31 @@ export default function ReportsPage() {
     utilization: dept.utilization,
   }))
 
-  // Monthly spending trend (mock data)
+  // Monthly spending trend
   const monthlySpendingData = [
-    { month: 'Oca', spending: 125000, budget: 200000 },
-    { month: 'Şub', spending: 145000, budget: 200000 },
-    { month: 'Mar', spending: 168000, budget: 200000 },
-    { month: 'Nis', spending: 152000, budget: 200000 },
-    { month: 'May', spending: 187000, budget: 200000 },
-    { month: 'Haz', spending: 195000, budget: 200000 },
+    { month: 'Oca', spending: 0, budget: 0 },
+    { month: 'Şub', spending: 0, budget: 0 },
+    { month: 'Mar', spending: 0, budget: 0 },
+    { month: 'Nis', spending: 0, budget: 0 },
+    { month: 'May', spending: 0, budget: 0 },
+    { month: 'Haz', spending: 0, budget: 0 },
   ]
 
   // Category spending distribution
-  const categorySpendingData = [
-    { name: 'Bilgi İşlem', value: 145000 },
-    { name: 'Ofis Malzemeleri', value: 45000 },
-    { name: 'Mobilya', value: 85000 },
-    { name: 'Yazılım Lisansları', value: 65000 },
-    { name: 'Diğer', value: 35000 },
-  ]
+  const categorySpendingData: Array<{ name: string; value: number }> = []
 
   // Department comparison
-  const departmentComparisonData = mockBudgetData.departments.slice(0, 6).map((dept) => ({
+  const departmentComparisonData = budgetReportData.departments.slice(0, 6).map((dept) => ({
     name: dept.name,
     harcama: dept.spent,
     bütçe: dept.budget,
   }))
 
-  const totalBudget = mockBudgetData.company.total
-  const totalSpent = mockBudgetData.company.spent
-  const totalReserved = mockBudgetData.company.reserved
+  const totalBudget = budgetReportData.company.total
+  const totalSpent = budgetReportData.company.spent
+  const totalReserved = budgetReportData.company.reserved
   const totalRemaining = totalBudget - totalSpent - totalReserved
-  const utilizationPercentage = ((totalSpent + totalReserved) / totalBudget) * 100
+  const utilizationPercentage = totalBudget > 0 ? ((totalSpent + totalReserved) / totalBudget) * 100 : 0
 
   const handleExport = (format: string) => {
     alert(`Rapor ${format.toUpperCase()} formatında dışa aktarılıyor...`)
@@ -142,7 +139,7 @@ export default function ReportsPage() {
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">Tüm Departmanlar</option>
-                {mockBudgetData.departments.map((dept) => (
+                {budgetReportData.departments.map((dept) => (
                   <option key={dept.name} value={dept.name}>
                     {dept.name}
                   </option>
