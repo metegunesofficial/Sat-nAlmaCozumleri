@@ -294,6 +294,7 @@ export default function UsersPage() {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0555 123 4567"
+              maxLength={16}
               required
             />
             <p className="text-xs text-gray-500 mt-1">Türk telefon numarası giriniz (0 veya +90 ile başlamalı)</p>
