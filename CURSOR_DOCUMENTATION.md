@@ -1961,9 +1961,296 @@ import {
 
 ---
 
-## 35. İletişim ve Destek
+---
 
-- **Proje Sahibi:** Attelia Dental
-- **Dokümantasyon:** Bu dosya ve README.md
-- **Deployment Kılavuzu:** DEPLOYMENT.md
-- **Cursor Dök:** CURSOR_DOCUMENTATION.md
+## 36. Root Layout ve App Yapısı
+
+### app/layout.tsx
+```typescript
+import type { Metadata } from 'next'
+import './globals.css'
+import Providers from '@/components/Providers'
+
+export const metadata: Metadata = {
+  title: 'Attelia - Enterprise Satın Alma Yönetimi',
+  description: 'Çok aşamalı onay sistemi ile kurumsal satın alma platformu',
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="tr">
+      <body className="font-sans antialiased">
+        <Providers>
+          {children}
+        </Providers>
+      </body>
+    </html>
+  )
+}
+```
+
+### app/page.tsx (Ana Sayfa)
+```typescript
+// Otomatik olarak /login'e yönlendirir
+export default function Home() {
+  const router = useRouter()
+  useEffect(() => {
+    router.push('/login')
+  }, [router])
+  // Loading spinner gösterir
+}
+```
+
+### components/Providers.tsx
+```typescript
+// Context provider sıralaması ÖNEMLİ
+export default function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <NotificationProvider>  {/* Dışta */}
+      <AuthProvider>         {/* İçte */}
+        {children}
+      </AuthProvider>
+    </NotificationProvider>
+  )
+}
+```
+
+---
+
+## 37. Utility Fonksiyonları (lib/utils.ts)
+
+```typescript
+import { clsx, type ClassValue } from 'clsx'
+
+// Tailwind class birleştirme
+export function cn(...inputs: ClassValue[]) {
+  return clsx(inputs)
+}
+
+// Para formatı
+export function formatPrice(price: number | string): string {
+  const numPrice = typeof price === 'string' ? parseFloat(price) : price
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+  }).format(numPrice)
+}
+// Örnek: formatPrice(35000) → "₺35.000,00"
+
+// Tarih formatı
+export function formatDate(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  return new Intl.DateTimeFormat('tr-TR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(dateObj)
+}
+// Örnek: formatDate('2024-11-01') → "1 Kasım 2024"
+
+// Türkçe karakterli slug oluşturma
+export function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+// Örnek: generateSlug('Ürün Adı') → "urun-adi"
+
+// Sipariş numarası oluşturma
+export function generateOrderNumber(): string {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+  return `ATL${year}${month}${day}${random}`
+}
+// Örnek: "ATL202411200001"
+```
+
+---
+
+## 38. Login Sayfası Detayları
+
+### Quick Login Butonları
+```typescript
+const quickLogins = [
+  { email: 'admin@attelia.com', role: 'Company Admin' },
+  { email: 'john.doe@attelia.com', role: 'Employee' },
+  { email: 'it.manager@attelia.com', role: 'IT Manager' },
+  { email: 'finance@attelia.com', role: 'Finance Manager' },
+]
+
+// Tıklandığında formu doldurur
+onClick={() => {
+  setEmail(account.email)
+  setPassword('password123')
+}}
+```
+
+### UI Yapısı
+- **Sol Panel (lg:w-1/2)**: Marka bilgisi, 3 özellik (Çok Aşamalı Onay, 3 Katmanlı Bütçe, Detaylı Raporlama)
+- **Sağ Panel**: Login formu + Quick login grid
+
+---
+
+## 39. Seed Verileri Detayları (prisma/seed.ts)
+
+### Oluşturulan Veriler
+
+#### Şirketler
+```typescript
+company1: {
+  name: 'Attelia Dental Merkez',
+  slug: 'attelia-merkez',
+  city: 'Ankara',
+  settings: { currency: 'TRY', timezone: 'Europe/Istanbul', fiscalYearStart: 1 }
+}
+
+company2: {
+  name: 'Attelia Dental İstanbul',
+  slug: 'attelia-istanbul',
+  city: 'İstanbul'
+}
+```
+
+#### Departmanlar (Company 1)
+| Kod | Ad | Aylık Bütçe | Yıllık Bütçe |
+|-----|-----|-------------|--------------|
+| IT | Bilgi İşlem | 50.000 ₺ | 600.000 ₺ |
+| PROC | Satın Alma | 200.000 ₺ | 2.400.000 ₺ |
+| HR | İnsan Kaynakları | 30.000 ₺ | 360.000 ₺ |
+| FIN | Finans | 100.000 ₺ | 1.200.000 ₺ |
+
+#### Kullanıcılar (Company 1)
+| Email | Ad | Rol | Departman | Employee ID |
+|-------|-----|-----|-----------|-------------|
+| superadmin@attelia.com | Super Admin | SUPER_ADMIN | - | - |
+| admin@attelia.com | Ahmet Yıldırım | COMPANY_ADMIN | - | - |
+| it.manager@attelia.com | Mehmet Demir | DEPARTMENT_MANAGER | IT | EMP001 |
+| procurement@attelia.com | Ayşe Kaya | PROCUREMENT_MANAGER | PROC | EMP002 |
+| finance@attelia.com | Can Öztürk | FINANCE_MANAGER | FIN | EMP003 |
+| john.doe@attelia.com | John Doe | EMPLOYEE | IT | EMP004 |
+| jane.smith@attelia.com | Jane Smith | EMPLOYEE | HR | EMP005 |
+
+#### Onay İş Akışları (WORKFLOW)
+| Ad | Tutar Aralığı | Adımlar |
+|-----|---------------|---------|
+| Standart Onay | 0 - 10.000 ₺ | 1. Departman Müdürü |
+| İki Aşamalı Onay | 10.000 - 50.000 ₺ | 1. Departman Müdürü → 2. Satın Alma Müdürü |
+| Üç Aşamalı Onay | 50.000+ ₺ | 1. Departman Müdürü → 2. Satın Alma Müdürü → 3. Finans Müdürü |
+
+#### Kategoriler
+1. Ofis Malzemeleri (ofis-malzemeleri)
+2. Bilgisayar ve Donanım (bilgisayar-donanim)
+3. Dental Malzemeler (dental-malzemeler)
+4. Temizlik Malzemeleri (temizlik-malzemeleri)
+
+#### Ürünler
+| SKU | Ad | Fiyat | Stok | Kategori |
+|-----|-----|-------|------|----------|
+| OFF-A4-500 | A4 Kağıt (500 sayfa) | 45.90 ₺ | 500 | Ofis |
+| IT-DELL-5430 | Dell Latitude 5430 Laptop | 35.000 ₺ | 10 | Bilgisayar |
+| IT-LG-27 | LG 27" Monitor | 4.500 ₺ | 25 | Bilgisayar |
+| DEN-GLOVE-100 | Dental Eldiven (100lü) | 125 ₺ | 1000 | Dental |
+
+#### Örnek Satın Alma Talepleri
+1. **PR{YYYY}{MM}0001** - Yeni Laptop Talebi (35.000 ₺, HIGH, SUBMITTED)
+2. **PR{YYYY}{MM}0002** - Ofis Malzemeleri (500 ₺, NORMAL, DRAFT)
+
+---
+
+## 40. Package.json Scripts
+
+```json
+{
+  "scripts": {
+    "dev": "next dev",           // Geliştirme sunucusu (localhost:3000)
+    "build": "next build",       // Production build
+    "start": "next start",       // Production sunucu
+    "lint": "next lint",         // ESLint kontrolü
+    "db:migrate": "prisma migrate dev",   // Migration oluştur ve uygula
+    "db:seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
+    "db:studio": "prisma studio",         // Veritabanı görsel arayüz (localhost:5555)
+    "db:reset": "prisma migrate reset"    // Veritabanını sıfırla ve seed
+  }
+}
+```
+
+### Tam Dependency Listesi
+```json
+{
+  "dependencies": {
+    "@prisma/client": "^5.11.0",
+    "bcryptjs": "^2.4.3",
+    "clsx": "^2.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.263.1",
+    "next": "^14.2.0",
+    "next-auth": "^4.24.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "recharts": "^3.3.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.4.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.6",
+    "eslint": "^8.57.0",
+    "ts-node": "^10.9.2"
+  }
+}
+```
+
+---
+
+## 41. Talep Numarası Formatları
+
+### PurchaseRequest
+```
+PR{YYYY}{MM}{XXXX}
+Örnek: PR202411001
+```
+
+### Order
+```
+ATL{YYYY}{MM}{DD}{XXXX}
+Örnek: ATL202411200001
+```
+
+---
+
+## 42. Dosya İsimlendirme Kuralları
+
+### Sayfalar
+- `page.tsx` - Her route için ana sayfa
+- `[param]/page.tsx` - Dinamik route
+
+### Bileşenler
+- PascalCase: `DataTable.tsx`, `StatCard.tsx`
+
+### Kütüphaneler
+- camelCase: `api.ts`, `auth.ts`, `mockData.ts`
+
+### API Routes
+- `route.ts` - Her endpoint için
+
+---
+
+## 43. İletişim ve Destek
+
+- **Proje Adı:** Attelia Dental - Enterprise Satın Alma Yönetim Platformu
+- **Versiyon:** 1.0.0
+- **Dokümantasyon:** CURSOR_DOCUMENTATION.md (bu dosya)
+- **README:** README.md
+- **Deployment:** DEPLOYMENT.md
+- **Tüm şifreler:** password123
