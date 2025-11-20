@@ -1314,8 +1314,656 @@ enum SupplierStatus {
 
 ---
 
-## 25. İletişim ve Destek
+---
+
+## 26. Bileşen Props ve Kullanım Detayları
+
+### DashboardLayout
+```typescript
+// components/DashboardLayout.tsx
+interface Props {
+  children: React.ReactNode
+}
+
+// Özellikler:
+// - Kullanıcı login kontrolü yapar
+// - Login değilse /login'e yönlendirir
+// - Sidebar + main içerik yapısı
+// - Otomatik auth redirect
+```
+
+**Kullanım:**
+```tsx
+<DashboardLayout>
+  <YourPageContent />
+</DashboardLayout>
+```
+
+### DataTable
+```typescript
+// components/DataTable.tsx
+interface Column<T> {
+  key: string
+  label: string
+  sortable?: boolean
+  render?: (value: any, row: T) => React.ReactNode
+}
+
+interface DataTableProps<T> {
+  data: T[]
+  columns: Column<T>[]
+  onRowClick?: (row: T) => void
+  searchable?: boolean
+  searchPlaceholder?: string
+}
+
+// Özellikler:
+// - Generic tip desteği
+// - Sıralama (asc/desc)
+// - Arama filtreleme
+// - Özel render fonksiyonları
+// - Satır tıklama eventi
+```
+
+**Kullanım:**
+```tsx
+const columns = [
+  { key: 'name', label: 'Ad', sortable: true },
+  {
+    key: 'status',
+    label: 'Durum',
+    render: (value) => <Badge>{value}</Badge>
+  },
+]
+
+<DataTable
+  data={myData}
+  columns={columns}
+  searchable
+  searchPlaceholder="İsim ara..."
+  onRowClick={(row) => router.push(`/details/${row.id}`)}
+/>
+```
+
+### StatCard
+```typescript
+// components/StatCard.tsx
+interface StatCardProps {
+  title: string
+  value: string | number
+  subtitle?: string
+  icon: LucideIcon
+  trend?: {
+    value: number
+    isPositive: boolean
+  }
+  color?: 'blue' | 'green' | 'yellow' | 'red' | 'purple'
+}
+```
+
+**Kullanım:**
+```tsx
+<StatCard
+  title="Toplam Talepler"
+  value={125}
+  subtitle="Bu ay"
+  icon={ShoppingCart}
+  color="blue"
+  trend={{ value: 12, isPositive: true }}
+/>
+```
+
+### Modal
+```typescript
+// components/Modal.tsx
+interface ModalProps {
+  isOpen: boolean
+  onClose: () => void
+  title: string
+  children: React.ReactNode
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  footer?: React.ReactNode
+}
+
+// Boyutlar: sm (max-w-md), md (max-w-lg), lg (max-w-2xl), xl (max-w-4xl), full (max-w-7xl)
+```
+
+**Kullanım:**
+```tsx
+<Modal
+  isOpen={showModal}
+  onClose={() => setShowModal(false)}
+  title="Talep Detayları"
+  size="lg"
+  footer={
+    <>
+      <button onClick={onCancel}>İptal</button>
+      <button onClick={onSave}>Kaydet</button>
+    </>
+  }
+>
+  <FormContent />
+</Modal>
+```
+
+---
+
+## 27. Context'ler ve Hook'lar
+
+### AuthContext (contexts/AuthContext.tsx)
+```typescript
+interface User {
+  id: string
+  email: string
+  name: string
+  role: string
+  companyId: string
+  companyName: string
+  departmentId?: string
+  departmentName?: string
+  position?: string
+}
+
+interface AuthContextType {
+  user: User | null
+  loading: boolean
+  login: (email: string, password: string) => Promise<void>
+  logout: () => void
+  isAuthenticated: boolean
+}
+
+// Hook
+export function useAuth(): AuthContextType
+```
+
+**Kullanım:**
+```tsx
+'use client'
+import { useAuth } from '@/contexts/AuthContext'
+
+function MyComponent() {
+  const { user, isAuthenticated, login, logout } = useAuth()
+
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={login} />
+  }
+
+  return <div>Hoşgeldin {user.name}</div>
+}
+```
+
+### NotificationContext (contexts/NotificationContext.tsx)
+```typescript
+type NotificationType = 'success' | 'error' | 'warning' | 'info'
+
+interface NotificationContextType {
+  showNotification: (type: NotificationType, message: string, duration?: number) => void
+  success: (message: string, duration?: number) => void
+  error: (message: string, duration?: number) => void
+  warning: (message: string, duration?: number) => void
+  info: (message: string, duration?: number) => void
+}
+
+// Hook
+export function useNotification(): NotificationContextType
+```
+
+**Kullanım:**
+```tsx
+'use client'
+import { useNotification } from '@/contexts/NotificationContext'
+
+function MyComponent() {
+  const { success, error } = useNotification()
+
+  const handleSave = async () => {
+    try {
+      await saveData()
+      success('Kaydedildi!')
+    } catch (e) {
+      error('Kayıt başarısız')
+    }
+  }
+}
+```
+
+**Stil Varyantları:**
+- success: yeşil arkaplan
+- error: kırmızı arkaplan
+- warning: sarı arkaplan
+- info: mavi arkaplan
+
+---
+
+## 28. Mock Data Yapısı (lib/mockData.ts)
+
+### Mevcut Mock Veriler
+```typescript
+// Şirketler
+export const mockCompanies = [
+  {
+    id: 'company1',
+    name: 'Attelia Dental Merkez',
+    slug: 'attelia-merkez',
+    email: 'merkez@attelia.com',
+    phone: '+90 312 123 45 67',
+    city: 'Ankara'
+  },
+  // ...
+]
+
+// Departmanlar
+export const mockDepartments = [
+  { id: 'dept1', name: 'Bilgi İşlem', code: 'IT', companyId: 'company1', budget: 50000, spent: 15000 },
+  { id: 'dept2', name: 'Satın Alma', code: 'PROC', companyId: 'company1', budget: 200000, spent: 75000 },
+  { id: 'dept3', name: 'İnsan Kaynakları', code: 'HR', companyId: 'company1', budget: 30000, spent: 12000 },
+  { id: 'dept4', name: 'Finans', code: 'FIN', companyId: 'company1', budget: 100000, spent: 45000 },
+]
+
+// Satın Alma Talepleri
+export const mockPurchaseRequests = [
+  {
+    id: 'pr1',
+    requestNumber: 'PR202411001',
+    title: 'Yeni Laptop Talebi',
+    description: 'Yazılım geliştirme için güçlü laptop',
+    status: 'IN_REVIEW',
+    priority: 'HIGH',
+    estimatedTotal: 35000,
+    requester: { name: 'John Doe', department: 'Bilgi İşlem' },
+    department: 'Bilgi İşlem',
+    currentStep: 0,
+    createdAt: '2024-11-01T10:00:00Z',
+    items: [
+      { name: 'Dell Latitude 5430', quantity: 1, unitPrice: 35000, total: 35000 }
+    ],
+    approvalActions: []
+  },
+  // ...
+]
+
+// Ürünler
+export const mockProducts = [
+  {
+    id: 'prod1',
+    name: 'Dell Latitude 5430 Laptop',
+    slug: 'dell-latitude-5430',
+    sku: 'IT-DELL-5430',
+    price: 35000,
+    discountPrice: 32000,
+    stock: 10,
+    category: { name: 'Bilgisayar ve Donanım' },
+    // ...
+  },
+]
+
+// Kategoriler
+export const mockCategories = [
+  { id: 'cat1', name: 'Ofis Malzemeleri', slug: 'ofis-malzemeleri', productCount: 125 },
+  { id: 'cat2', name: 'Bilgisayar ve Donanım', slug: 'bilgisayar-donanim', productCount: 87 },
+  { id: 'cat3', name: 'Dental Malzemeler', slug: 'dental-malzemeler', productCount: 234 },
+  { id: 'cat4', name: 'Temizlik Malzemeleri', slug: 'temizlik', productCount: 56 },
+]
+
+// Bütçe Verileri
+export const mockBudgetData = {
+  company: {
+    total: 2000000,
+    spent: 850000,
+    reserved: 300000,
+    available: 850000,
+    utilizationPercent: 42.5
+  },
+  departments: [
+    {
+      name: 'Bilgi İşlem',
+      budget: 50000,
+      spent: 15000,
+      reserved: 10000,
+      available: 25000,
+      utilization: 30,
+      status: 'normal'
+    },
+    // ...
+  ]
+}
+
+// Rapor Verileri
+export const mockReportData = {
+  purchaseSummary: {
+    byStatus: [...],
+    byDepartment: [...],
+    avgApprovalTime: 2.5,
+    topProducts: [...]
+  },
+  approvalPerformance: {
+    approvers: [
+      {
+        name: 'Mehmet Demir',
+        role: 'IT Manager',
+        totalActions: 45,
+        approved: 38,
+        rejected: 5,
+        returned: 2,
+        approvalRate: 84.4,
+        avgResponseTime: 1.8
+      },
+      // ...
+    ]
+  }
+}
+```
+
+### Yardımcı Fonksiyonlar
+```typescript
+// Tip bazlı veri getirme
+export const getMockData = (type: string) => {
+  switch (type) {
+    case 'companies': return mockCompanies
+    case 'departments': return mockDepartments
+    case 'requests': return mockPurchaseRequests
+    case 'products': return mockProducts
+    case 'categories': return mockCategories
+    case 'budget': return mockBudgetData
+    case 'reports': return mockReportData
+    default: return []
+  }
+}
+
+// Gecikme simülasyonu
+export const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// Mock API çağrısı
+export const mockApiCall = async <T,>(data: T, delayMs = 500): Promise<T> => {
+  await delay(delayMs)
+  return data
+}
+```
+
+---
+
+## 29. Durum Renkleri ve Etiketleri
+
+### RequestStatus
+```typescript
+const statusColors: Record<string, string> = {
+  DRAFT: 'bg-gray-100 text-gray-800',
+  SUBMITTED: 'bg-blue-100 text-blue-800',
+  IN_REVIEW: 'bg-yellow-100 text-yellow-800',
+  APPROVED: 'bg-green-100 text-green-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
+  COMPLETED: 'bg-blue-100 text-blue-800',
+}
+
+const statusLabels: Record<string, string> = {
+  DRAFT: 'Taslak',
+  SUBMITTED: 'Gönderildi',
+  IN_REVIEW: 'İncelemede',
+  APPROVED: 'Onaylandı',
+  REJECTED: 'Reddedildi',
+  CANCELLED: 'İptal Edildi',
+  COMPLETED: 'Tamamlandı',
+}
+```
+
+### OrderStatus
+```typescript
+const orderStatusLabels: Record<string, string> = {
+  PENDING: 'Beklemede',
+  CONFIRMED: 'Onaylandı',
+  PROCESSING: 'İşleniyor',
+  SHIPPED: 'Kargoya Verildi',
+  DELIVERED: 'Teslim Edildi',
+  CANCELLED: 'İptal Edildi',
+  REFUNDED: 'İade Edildi',
+}
+```
+
+### Priority
+```typescript
+const priorityColors: Record<string, string> = {
+  LOW: 'bg-gray-100 text-gray-800',
+  NORMAL: 'bg-blue-100 text-blue-800',
+  HIGH: 'bg-orange-100 text-orange-800',
+  URGENT: 'bg-red-100 text-red-800',
+}
+
+const priorityLabels: Record<string, string> = {
+  LOW: 'Düşük',
+  NORMAL: 'Normal',
+  HIGH: 'Yüksek',
+  URGENT: 'Acil',
+}
+```
+
+---
+
+## 30. Dashboard Sayfası Yapısı
+
+### Bölümler
+1. **Header** - Sayfa başlığı ve açıklama
+2. **Stats Grid** - 4'lü istatistik kartları
+3. **Charts Grid** - Bütçe kullanımı ve durum dağılımı grafikleri
+4. **Budget Alert** - Bütçe uyarı bildirimi
+5. **Recent Requests** - Son 5 talep tablosu
+6. **Quick Actions** - 3'lü hızlı eylem butonları
+
+### Kullanılan Kütüphaneler
+- **Recharts**: BarChart, PieChart, ResponsiveContainer
+- **Lucide React**: İkonlar
+
+### Grafik Renk Paleti
+```typescript
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+// Blue, Green, Yellow, Red, Purple
+```
+
+---
+
+## 31. Para Birimi ve Tarih Formatları
+
+### Para Birimi (TRY)
+```typescript
+// Sayıyı TL formatına çevir
+value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+// Örnek: 35000 → "₺35.000,00"
+```
+
+### Tarih Formatları
+```typescript
+// ISO string'den tarihe
+const date = new Date('2024-11-01T10:00:00Z')
+
+// Türkçe format
+date.toLocaleDateString('tr-TR')  // "01.11.2024"
+date.toLocaleTimeString('tr-TR')  // "13:00:00"
+```
+
+---
+
+## 32. Tailwind Özel Renkler
+
+### tailwind.config.ts
+```typescript
+colors: {
+  primary: {
+    50: '#eff6ff',
+    100: '#dbeafe',
+    200: '#bfdbfe',
+    300: '#93c5fd',
+    400: '#60a5fa',
+    500: '#3b82f6',
+    600: '#2563eb',
+    700: '#1d4ed8',
+    800: '#1e40af',
+    900: '#1e3a8a',
+  },
+  dental: {
+    blue: '#1e40af',
+    light: '#60a5fa',
+    dark: '#1e3a8a',
+  },
+}
+```
+
+---
+
+## 33. API Route Handler Pattern'leri
+
+### Temel GET Handler
+```typescript
+export async function GET(request: NextRequest) {
+  try {
+    // 1. Token doğrulama
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    const decoded = verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // 2. Query parametreleri
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const search = searchParams.get('search') || ''
+
+    // 3. Rol bazlı filtreleme
+    const where: any = { companyId: decoded.companyId }
+    if (decoded.role === 'EMPLOYEE') {
+      where.requesterId = decoded.userId
+    }
+
+    // 4. Veritabanı sorgusu
+    const [data, total] = await Promise.all([
+      prisma.model.findMany({
+        where,
+        include: { /* relations */ },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.model.count({ where }),
+    ])
+
+    // 5. Response
+    return NextResponse.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
+  } catch (error) {
+    console.error('Error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+```
+
+### Temel POST Handler
+```typescript
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Token doğrulama
+    const token = request.headers.get('authorization')?.replace('Bearer ', '')
+    const decoded = verifyToken(token)
+    if (!decoded) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // 2. Body parsing
+    const body = await request.json()
+
+    // 3. Validasyon
+    if (!body.requiredField) {
+      return NextResponse.json({ error: 'requiredField is required' }, { status: 400 })
+    }
+
+    // 4. Yetki kontrolü (opsiyonel)
+    if (!['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(decoded.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // 5. Veritabanı işlemi
+    const data = await prisma.model.create({
+      data: {
+        ...body,
+        companyId: decoded.companyId,
+        createdById: decoded.userId,
+      },
+    })
+
+    // 6. Response
+    return NextResponse.json({ success: true, data }, { status: 201 })
+  } catch (error) {
+    console.error('Error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+  }
+}
+```
+
+---
+
+## 34. Sık Kullanılan Import'lar
+
+### Sayfa Bileşenleri
+```typescript
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
+import { useNotification } from '@/contexts/NotificationContext'
+import DashboardLayout from '@/components/DashboardLayout'
+import DataTable from '@/components/DataTable'
+import Modal from '@/components/Modal'
+import Loading from '@/components/Loading'
+import EmptyState from '@/components/EmptyState'
+```
+
+### API Route'ları
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { verifyToken, hashPassword } from '@/lib/auth'
+```
+
+### İkonlar (Lucide)
+```typescript
+import {
+  ShoppingCart,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  TrendingUp,
+  DollarSign,
+  Package,
+  Users,
+  Settings,
+  BarChart3,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  ChevronDown,
+  ChevronUp,
+  X,
+  LogOut,
+} from 'lucide-react'
+```
+
+---
+
+## 35. İletişim ve Destek
 
 - **Proje Sahibi:** Attelia Dental
 - **Dokümantasyon:** Bu dosya ve README.md
 - **Deployment Kılavuzu:** DEPLOYMENT.md
+- **Cursor Dök:** CURSOR_DOCUMENTATION.md
