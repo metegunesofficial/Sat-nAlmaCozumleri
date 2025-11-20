@@ -901,7 +901,420 @@ Seed çalıştırdıktan sonra:
 
 ---
 
-## 18. İletişim ve Destek
+## 18. Navigasyon ve Menü Yapısı
+
+### Sidebar Menü Tanımları (components/Sidebar.tsx)
+```typescript
+const menuItems: MenuItem[] = [
+  {
+    icon: LayoutDashboard,
+    label: 'Dashboard',
+    href: '/dashboard',
+  },
+  {
+    icon: ShoppingCart,
+    label: 'Satın Alma Talepleri',
+    href: '/requests',
+    children: [
+      { label: 'Tüm Talepler', href: '/requests' },
+      { label: 'Yeni Talep', href: '/requests/new' },
+      { label: 'Bekleyen Onaylar', href: '/requests/pending' },  // TODO: Sayfa eksik
+    ],
+  },
+  {
+    icon: BarChart3,
+    label: 'Raporlar',
+    href: '/reports',
+    roles: ['COMPANY_ADMIN', 'FINANCE_MANAGER', 'GENERAL_MANAGER'],
+  },
+  {
+    icon: Settings,
+    label: 'Yönetim',
+    href: '/admin',
+    roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
+    children: [
+      { label: 'Ürünler', href: '/admin/products' },
+      { label: 'Kategoriler', href: '/admin/categories' },
+      { label: 'Departmanlar', href: '/admin/departments' },
+      { label: 'Kullanıcılar', href: '/admin/users' },
+      { label: 'Tedarikçiler', href: '/admin/suppliers' },
+      { label: 'Onay İş Akışları', href: '/admin/workflows' },
+    ],
+  },
+]
+```
+
+### Rol Bazlı Menü Erişimi
+- `canAccessMenu()` fonksiyonu ile kontrol edilir
+- `roles` dizisi tanımlı değilse herkes erişebilir
+- Tanımlıysa sadece o roller görebilir
+
+---
+
+## 19. API Client Detayları (lib/api.ts)
+
+### Mevcut API Modülleri
+```typescript
+// Tedarikçiler
+export const suppliersApi = {
+  getAll: () => fetchWithAuth('/api/suppliers'),
+  getById: (id: string) => fetchWithAuth(`/api/suppliers/${id}`),
+  create: (data: any) => fetchWithAuth('/api/suppliers', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => fetchWithAuth(`/api/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => fetchWithAuth(`/api/suppliers/${id}`, { method: 'DELETE' }),
+}
+
+// Kullanıcılar
+export const usersApi = {
+  getAll: (params?: { role?: string; departmentId?: string }) => {...},
+  getById: (id: string) => {...},
+  create: (data: any) => {...},
+  update: (id: string, data: any) => {...},
+  delete: (id: string) => {...},
+}
+
+// İş Akışları
+export const workflowsApi = {
+  getAll: (params?: { isActive?: boolean }) => {...},
+  getById: (id: string) => {...},
+  create: (data: any) => {...},
+  update: (id: string, data: any) => {...},
+  delete: (id: string) => {...},
+}
+
+// Ürünler
+export const productsApi = {
+  getAll: (params?: { categoryId?: string; search?: string }) => {...},
+  getBySlug: (slug: string) => {...},
+  create: (data: any) => {...},
+  update: (slug: string, data: any) => {...},
+  delete: (slug: string) => {...},
+}
+
+// Kategoriler
+export const categoriesApi = {
+  getAll: () => {...},
+  create: (data: any) => {...},
+}
+
+// Departmanlar
+export const departmentsApi = {
+  getAll: () => {...},
+  create: (data: any) => {...},
+}
+```
+
+### EKSİK API Modülleri (Eklenmesi Gereken)
+- `purchaseRequestsApi` - Satın alma talepleri
+- `cartApi` - Sepet işlemleri
+- `ordersApi` - Sipariş işlemleri
+- `reportsApi` - Raporlama
+- `authApi` - Giriş/kayıt
+
+---
+
+## 20. TypeScript Tip Uyumsuzlukları
+
+### DİKKAT: types/index.ts vs Prisma Schema
+
+`types/index.ts` dosyasındaki tipler Prisma schema ile **TAM UYUMLU DEĞİL**. Güncellenmeleri gerekiyor.
+
+#### Mevcut types/index.ts
+```typescript
+// User - EKSİK ALANLAR
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: 'ADMIN' | 'CUSTOMER' | 'DEALER'  // YANLIŞ! Prisma'daki roller farklı
+  companyName?: string
+  phone?: string
+  address?: string
+  city?: string
+}
+
+// Eksik: companyId, departmentId, position, employeeId
+// Yanlış roller: ADMIN, CUSTOMER, DEALER yerine UserRole enum kullanılmalı
+```
+
+#### Doğru Olması Gereken
+```typescript
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  companyId: string
+  departmentId?: string
+  position?: string
+  phone?: string
+  address?: string
+  city?: string
+  district?: string
+  postalCode?: string
+  employeeId?: string
+}
+
+export type UserRole =
+  | 'SUPER_ADMIN'
+  | 'COMPANY_ADMIN'
+  | 'EMPLOYEE'
+  | 'DEPARTMENT_MANAGER'
+  | 'FINANCE_MANAGER'
+  | 'GENERAL_MANAGER'
+  | 'PROCUREMENT_MANAGER'
+```
+
+### Eksik Tipler (Eklenmesi Gereken)
+- `Department`
+- `Budget`, `CompanyBudget`, `UserBudget`
+- `PurchaseRequest`, `PurchaseRequestItem`
+- `ApprovalWorkflow`, `ApprovalStep`, `ApprovalAction`
+- `Supplier`
+- `PurchaseCategory`
+
+---
+
+## 21. AuthContext Mock Kullanıcılar
+
+### DİKKAT: Mock Login Sistemi
+`contexts/AuthContext.tsx` dosyasında gerçek API yerine **mock login** kullanılıyor.
+
+```typescript
+const mockUsers = [
+  {
+    id: '1',
+    email: 'admin@attelia.com',
+    name: 'Ahmet Yıldırım',
+    role: 'COMPANY_ADMIN',
+    companyId: 'company1',
+    companyName: 'Attelia Dental Merkez',
+    position: 'Genel Müdür'
+  },
+  {
+    id: '2',
+    email: 'john.doe@attelia.com',
+    name: 'John Doe',
+    role: 'EMPLOYEE',
+    companyId: 'company1',
+    companyName: 'Attelia Dental Merkez',
+    departmentId: 'dept1',
+    departmentName: 'Bilgi İşlem',
+    position: 'Yazılım Geliştirici'
+  },
+  {
+    id: '3',
+    email: 'it.manager@attelia.com',
+    name: 'Mehmet Demir',
+    role: 'DEPARTMENT_MANAGER',
+    // ...
+  },
+  {
+    id: '4',
+    email: 'finance@attelia.com',
+    name: 'Can Öztürk',
+    role: 'FINANCE_MANAGER',
+    // ...
+  }
+]
+
+// Tüm şifreler: password123
+```
+
+### Gerçek API'ye Geçiş İçin
+`login` fonksiyonundaki mock kısmı şununla değiştirilmeli:
+```typescript
+const response = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password })
+})
+const data = await response.json()
+if (data.success) {
+  localStorage.setItem('user', JSON.stringify(data.user))
+  localStorage.setItem('token', data.token)
+  setUser(data.user)
+}
+```
+
+---
+
+## 22. Tam Dosya Listesi
+
+### Sayfalar (app/)
+```
+app/
+├── page.tsx                        # Ana sayfa (redirect to login/dashboard)
+├── layout.tsx                      # Root layout
+├── globals.css                     # Global stiller
+├── login/page.tsx                  # Giriş sayfası
+├── dashboard/page.tsx              # Dashboard
+├── cart/page.tsx                   # Sepet
+├── products/
+│   ├── page.tsx                    # Ürün kataloğu
+│   └── [slug]/page.tsx             # Ürün detayı
+├── requests/
+│   ├── page.tsx                    # Talepler listesi
+│   ├── new/page.tsx                # Yeni talep oluştur
+│   └── [id]/page.tsx               # Talep detayı
+├── reports/page.tsx                # Raporlar
+├── admin/
+│   ├── page.tsx                    # Admin ana sayfa
+│   ├── products/page.tsx           # Ürün yönetimi
+│   ├── categories/page.tsx         # Kategori yönetimi
+│   ├── departments/page.tsx        # Departman yönetimi
+│   ├── users/page.tsx              # Kullanıcı yönetimi
+│   ├── suppliers/page.tsx          # Tedarikçi yönetimi
+│   └── workflows/page.tsx          # İş akışı yönetimi
+```
+
+### API Routes (app/api/)
+```
+app/api/
+├── route-config.ts                 # API konfigürasyonu
+├── auth/
+│   ├── login/route.ts
+│   └── register/route.ts
+├── products/
+│   ├── route.ts                    # GET (list), POST (create)
+│   └── [slug]/route.ts             # GET, PUT, DELETE
+├── categories/route.ts             # GET, POST
+├── departments/route.ts            # GET, POST
+├── users/
+│   ├── route.ts                    # GET, POST
+│   └── [id]/route.ts               # GET, PUT, DELETE
+├── suppliers/
+│   ├── route.ts                    # GET, POST
+│   └── [id]/route.ts               # GET, PUT, DELETE
+├── workflows/
+│   ├── route.ts                    # GET, POST
+│   └── [id]/route.ts               # GET, PUT, DELETE
+├── cart/
+│   ├── route.ts                    # GET, POST
+│   └── [itemId]/route.ts           # PUT, DELETE
+├── orders/
+│   ├── route.ts                    # GET, POST
+│   └── [orderId]/route.ts          # GET, PUT
+├── purchase-requests/
+│   ├── route.ts                    # GET, POST
+│   ├── [requestId]/route.ts        # GET, PUT
+│   └── [requestId]/approve/route.ts # POST
+└── reports/
+    ├── purchase-summary/route.ts
+    ├── budget/route.ts
+    └── approval-performance/route.ts
+```
+
+### Bileşenler (components/)
+```
+components/
+├── DashboardLayout.tsx    # Ana layout wrapper (Sidebar + içerik)
+├── Sidebar.tsx            # Sol menü navigasyonu
+├── Header.tsx             # Üst başlık
+├── Footer.tsx             # Alt bilgi
+├── Loading.tsx            # Yükleme spinner/skeleton
+├── Modal.tsx              # Modal dialog
+├── DataTable.tsx          # Genel veri tablosu
+├── StatCard.tsx           # Dashboard istatistik kartı
+├── ProductCard.tsx        # Ürün gösterim kartı
+├── EmptyState.tsx         # Boş durum gösterimi
+├── Providers.tsx          # Context provider wrapper
+```
+
+---
+
+## 23. Prisma Tam Enum Listesi
+
+```prisma
+enum UserRole {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  EMPLOYEE
+  DEPARTMENT_MANAGER
+  FINANCE_MANAGER
+  GENERAL_MANAGER
+  PROCUREMENT_MANAGER
+}
+
+enum RequestPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum StepAction {
+  APPROVE
+  REVIEW
+  VERIFY
+}
+
+enum ActionType {
+  APPROVED
+  REJECTED
+  RETURNED
+  COMMENTED
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+```
+
+---
+
+## 24. Kritik Yapılacaklar (TODO)
+
+### Yüksek Öncelikli
+1. **types/index.ts güncellemesi** - Prisma schema ile uyumlu hale getir
+2. **AuthContext gerçek API entegrasyonu** - Mock login'i kaldır
+3. **`/requests/pending` sayfası** - Menüde var ama sayfa yok
+4. **Eksik API client fonksiyonları** - purchaseRequests, cart, orders, auth
+
+### Orta Öncelikli
+5. **Satın alma talebi formu** - `/requests/new` sayfası UI
+6. **Talep onay arayüzü** - Onay/red işlemleri
+7. **Bütçe yönetim ekranları** - 3 katmanlı bütçe UI
+8. **Dashboard grafikleri** - Recharts entegrasyonu
+
+### Düşük Öncelikli
+9. **Email bildirimleri** - SMTP entegrasyonu
+10. **Dosya ekleri** - S3 veya local storage
+11. **Excel/PDF export** - Rapor dışa aktarımı
+12. **Audit logging** - İşlem geçmişi
+
+---
+
+## 25. İletişim ve Destek
 
 - **Proje Sahibi:** Attelia Dental
 - **Dokümantasyon:** Bu dosya ve README.md
