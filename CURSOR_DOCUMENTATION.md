@@ -1292,25 +1292,250 @@ enum SupplierStatus {
 
 ---
 
-## 24. Kritik Yapılacaklar (TODO)
+## 24. Proje Eksikleri ve Yapılacaklar (TODO)
 
-### Yüksek Öncelikli
-1. **types/index.ts güncellemesi** - Prisma schema ile uyumlu hale getir
-2. **AuthContext gerçek API entegrasyonu** - Mock login'i kaldır
-3. **`/requests/pending` sayfası** - Menüde var ama sayfa yok
-4. **Eksik API client fonksiyonları** - purchaseRequests, cart, orders, auth
+### KRİTİK - Hemen Düzeltilmeli
 
-### Orta Öncelikli
-5. **Satın alma talebi formu** - `/requests/new` sayfası UI
-6. **Talep onay arayüzü** - Onay/red işlemleri
-7. **Bütçe yönetim ekranları** - 3 katmanlı bütçe UI
-8. **Dashboard grafikleri** - Recharts entegrasyonu
+#### 1. types/index.ts Uyumsuzluğu
+**Dosya:** `types/index.ts`
+**Sorun:** Mevcut tipler Prisma schema ile uyumsuz
+```typescript
+// MEVCUT (YANLIŞ)
+role: 'ADMIN' | 'CUSTOMER' | 'DEALER'
 
-### Düşük Öncelikli
-9. **Email bildirimleri** - SMTP entegrasyonu
-10. **Dosya ekleri** - S3 veya local storage
-11. **Excel/PDF export** - Rapor dışa aktarımı
-12. **Audit logging** - İşlem geçmişi
+// OLMASI GEREKEN
+role: 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'EMPLOYEE' | 'DEPARTMENT_MANAGER' | 'FINANCE_MANAGER' | 'GENERAL_MANAGER' | 'PROCUREMENT_MANAGER'
+```
+**Eksik Tipler:** Department, Budget, CompanyBudget, UserBudget, PurchaseRequest, PurchaseRequestItem, ApprovalWorkflow, ApprovalStep, ApprovalAction, Supplier, PurchaseCategory
+
+#### 2. AuthContext Mock Login
+**Dosya:** `contexts/AuthContext.tsx`
+**Sorun:** Gerçek API yerine hardcoded mock kullanıcılar var
+**Çözüm:** `login` fonksiyonunu `/api/auth/login` endpoint'ine bağla
+```typescript
+// DEĞİŞTİRİLECEK (satır 43-106)
+const response = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email, password })
+})
+```
+
+#### 3. Eksik Sayfa: /requests/pending
+**Dosya:** `app/requests/pending/page.tsx` (YOK)
+**Sorun:** Sidebar menüsünde link var ama sayfa oluşturulmamış
+**Çözüm:** Bekleyen onayları listeleyen sayfa oluştur
+
+#### 4. Eksik API Client Fonksiyonları
+**Dosya:** `lib/api.ts`
+**Eksik Modüller:**
+```typescript
+// EKLENMESİ GEREKEN
+export const purchaseRequestsApi = {
+  getAll: () => fetchWithAuth('/api/purchase-requests'),
+  getById: (id: string) => fetchWithAuth(`/api/purchase-requests/${id}`),
+  create: (data: any) => fetchWithAuth('/api/purchase-requests', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => fetchWithAuth(`/api/purchase-requests/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  approve: (id: string, data: any) => fetchWithAuth(`/api/purchase-requests/${id}/approve`, { method: 'POST', body: JSON.stringify(data) }),
+}
+
+export const cartApi = {
+  get: () => fetchWithAuth('/api/cart'),
+  add: (data: any) => fetchWithAuth('/api/cart', { method: 'POST', body: JSON.stringify(data) }),
+  update: (itemId: string, data: any) => fetchWithAuth(`/api/cart/${itemId}`, { method: 'PUT', body: JSON.stringify(data) }),
+  remove: (itemId: string) => fetchWithAuth(`/api/cart/${itemId}`, { method: 'DELETE' }),
+}
+
+export const ordersApi = {
+  getAll: () => fetchWithAuth('/api/orders'),
+  getById: (id: string) => fetchWithAuth(`/api/orders/${id}`),
+  create: (data: any) => fetchWithAuth('/api/orders', { method: 'POST', body: JSON.stringify(data) }),
+}
+
+export const authApi = {
+  login: (email: string, password: string) => fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  }).then(r => r.json()),
+  register: (data: any) => fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+}
+
+export const reportsApi = {
+  getPurchaseSummary: (params?: any) => fetchWithAuth('/api/reports/purchase-summary'),
+  getBudget: (params?: any) => fetchWithAuth('/api/reports/budget'),
+  getApprovalPerformance: (params?: any) => fetchWithAuth('/api/reports/approval-performance'),
+}
+```
+
+---
+
+### YÜKSEK ÖNCELİK - UI Eksikleri
+
+#### 5. Satın Alma Talebi Formu
+**Dosya:** `app/requests/new/page.tsx`
+**Durum:** Sayfa var ama form UI eksik/yetersiz olabilir
+**Gerekli Özellikler:**
+- Ürün seçimi (katalogdan veya manuel giriş)
+- Miktar ve birim fiyat
+- Öncelik seçimi
+- Gerekli tarih
+- Gerekçe/açıklama
+- Taslak kaydetme
+- Toplam hesaplama
+
+#### 6. Talep Onay Arayüzü
+**Dosya:** `app/requests/[id]/page.tsx`
+**Eksik Özellikler:**
+- Onay/Red butonları
+- Yorum ekleme alanı
+- Onay geçmişi gösterimi
+- Mevcut adım gösterimi
+- Sonraki onaylayıcı bilgisi
+
+#### 7. Bütçe Yönetim Ekranları
+**Eksik Sayfalar:**
+- `app/admin/budgets/page.tsx` - Bütçe listesi
+- `app/admin/budgets/company/page.tsx` - Şirket bütçesi
+- `app/admin/budgets/department/page.tsx` - Departman bütçeleri
+- `app/admin/budgets/user/page.tsx` - Kullanıcı bütçeleri
+
+**Gerekli Özellikler:**
+- Bütçe oluşturma/düzenleme
+- Harcama takibi
+- Rezervasyon yönetimi
+- Uyarı eşikleri
+
+#### 8. Admin Sayfaları İyileştirmeleri
+**Mevcut Sayfalar:** products, categories, users, suppliers, workflows, departments
+**Eksik Özellikler:**
+- Silme onay dialogları
+- Bulk işlemler
+- Filtreleme
+- Sayfalama
+- Dışa aktarım
+
+---
+
+### ORTA ÖNCELİK - Fonksiyonel Eksikler
+
+#### 9. Dashboard Mock Data
+**Sorun:** Dashboard gerçek API yerine mockData kullanıyor
+**Dosya:** `app/dashboard/page.tsx`
+**Çözüm:** API endpoint'lerinden veri çek
+
+#### 10. Ürün Kataloğu Sayfası
+**Dosya:** `app/products/page.tsx`
+**Eksik Özellikler:**
+- Kategori filtreleme
+- Fiyat aralığı filtreleme
+- Arama
+- Sıralama
+- Grid/List görünüm
+
+#### 11. Sepet Sayfası
+**Dosya:** `app/cart/page.tsx`
+**Eksik Özellikler:**
+- Miktar güncelleme
+- Ürün silme
+- Toplam hesaplama
+- Checkout akışı
+
+#### 12. Sipariş Yönetimi
+**Dosya:** `app/orders/page.tsx` (YOK)
+**Gerekli:** Sipariş listesi ve detay sayfaları
+
+#### 13. Raporlar Sayfası
+**Dosya:** `app/reports/page.tsx`
+**Eksik:**
+- Gerçek API entegrasyonu
+- Tarih aralığı filtreleme
+- Grafik çeşitleri
+- PDF/Excel export
+
+---
+
+### DÜŞÜK ÖNCELİK - Gelecek Özellikler
+
+#### 14. Email/SMS Bildirimleri
+**Gerekli:**
+- SMTP konfigürasyonu
+- Email şablonları
+- Bildirim tetikleyicileri (onay bekliyor, onaylandı, reddedildi)
+
+#### 15. Dosya Ekleri
+**Gerekli:**
+- S3 veya local storage
+- Dosya upload bileşeni
+- Taleplere dosya ekleme
+- Dosya önizleme
+
+#### 16. Excel/PDF Export
+**Gerekli:**
+- Rapor dışa aktarım
+- Talep listesi export
+- Fatura oluşturma
+
+#### 17. Audit Logging
+**Gerekli:**
+- İşlem geçmişi kaydı
+- Kim, ne zaman, ne yaptı
+- Değişiklik logları
+
+#### 18. Register Sayfası
+**Dosya:** `app/register/page.tsx` (YOK)
+**Sorun:** Login'de link var ama sayfa yok
+
+#### 19. Profil Sayfası
+**Dosya:** `app/profile/page.tsx` (YOK)
+**Gerekli:** Kullanıcı profil düzenleme
+
+#### 20. Şifre Sıfırlama
+**Eksik:** Şifremi unuttum akışı
+
+---
+
+### TEKNİK BORÇ
+
+#### 21. Error Boundary
+**Eksik:** Global hata yakalama
+
+#### 22. Loading States
+**Eksik:** Skeleton loader'lar
+
+#### 23. Form Validasyon
+**Eksik:** Zod schema'ları client-side'da kullanılmıyor
+
+#### 24. Responsive Design
+**Kontrol Et:** Mobil uyumluluk
+
+#### 25. SEO
+**Eksik:** Sayfa bazlı metadata
+
+#### 26. Testing
+**Eksik:** Unit ve E2E testler
+
+#### 27. Error Messages
+**İyileştir:** Türkçe hata mesajları
+
+---
+
+### ÖNCELİK SIRASI (Önerilen Geliştirme Sırası)
+
+1. types/index.ts düzelt
+2. AuthContext'i gerçek API'ye bağla
+3. Eksik API client fonksiyonlarını ekle
+4. /requests/pending sayfası oluştur
+5. Satın alma talebi formunu tamamla
+6. Onay arayüzünü geliştir
+7. Dashboard'u gerçek veriye bağla
+8. Bütçe yönetim ekranları
+9. Raporları geliştir
+10. Diğer eksikler
 
 ---
 
