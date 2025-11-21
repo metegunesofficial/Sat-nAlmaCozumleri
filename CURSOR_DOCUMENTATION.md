@@ -807,20 +807,35 @@ Seed çalıştırdıktan sonra:
 - [x] Onay iş akışı motoru
 - [x] Temel bileşenler
 - [x] Admin sayfaları (temel)
+- [x] Dashboard UI iyileştirmeleri (hoş geldin mesajı, hızlı eylemler)
+- [x] Bütçe yönetim ekranları
+- [x] Raporlama grafikleri (API bağlantılı)
+- [x] Denetim günlükleri (aktivite log)
+- [x] Fatura yönetimi
+- [x] Doküman yönetimi
+- [x] Email şablonları yönetimi
+- [x] Sistem ayarları sayfası
+- [x] Bildirimler sayfası
+- [x] Global arama sayfası
+- [x] Yardım/SSS sayfası
+- [x] Tedarikçi yönetimi
+- [x] Bekleyen onaylar sayfası
+- [x] Sipariş detay sayfası
+- [x] Kullanıcı profil sayfası
+- [x] Kullanıcı kayıt sayfası
+- [x] Sidebar navigasyon güncellendi
 
 ### Devam Eden / Yapılacak
-- [ ] Dashboard UI iyileştirmeleri
-- [ ] Satın alma talebi oluşturma formu
-- [ ] Talep onay arayüzü
-- [ ] Bütçe yönetim ekranları
-- [ ] Raporlama grafikleri
-- [ ] Email/SMS bildirimleri
-- [ ] Dosya ekleri
+- [ ] Satın alma talebi oluşturma formu (gelişmiş)
+- [ ] Talep onay arayüzü (gelişmiş)
+- [ ] Email/SMS bildirimleri (backend entegrasyonu)
+- [ ] Dosya ekleri (upload sistemi)
 - [ ] Excel/PDF dışa aktarım
-- [ ] Denetim günlükleri (audit log)
 - [ ] Mobil uygulama
 - [ ] Sözleşme yönetimi
-- [ ] Fatura yönetimi
+- [ ] Dark mode desteği
+- [ ] Global error boundary
+- [ ] Test coverage
 
 ---
 
@@ -913,19 +928,44 @@ const menuItems: MenuItem[] = [
   },
   {
     icon: ShoppingCart,
-    label: 'Satın Alma Talepleri',
+    label: 'Satın Alma',
     href: '/requests',
     children: [
-      { label: 'Tüm Talepler', href: '/requests' },
-      { label: 'Yeni Talep', href: '/requests/new' },
-      { label: 'Bekleyen Onaylar', href: '/requests/pending' },  // ✅ Sayfa oluşturuldu
+      { icon: FileText, label: 'Talepler', href: '/requests' },
+      { icon: FileText, label: 'Yeni Talep', href: '/requests/new' },
+      { icon: ClipboardCheck, label: 'Onaylar', href: '/approvals' },
     ],
+  },
+  {
+    icon: Truck,
+    label: 'Siparişler',
+    href: '/orders',
+  },
+  {
+    icon: Package,
+    label: 'Ürünler',
+    href: '/products',
+  },
+  {
+    icon: Briefcase,
+    label: 'Tedarikçiler',
+    href: '/suppliers',
+  },
+  {
+    icon: Receipt,
+    label: 'Faturalar',
+    href: '/invoices',
+  },
+  {
+    icon: FolderOpen,
+    label: 'Dokümanlar',
+    href: '/documents',
   },
   {
     icon: BarChart3,
     label: 'Raporlar',
     href: '/reports',
-    roles: ['COMPANY_ADMIN', 'FINANCE_MANAGER', 'GENERAL_MANAGER'],
+    roles: ['COMPANY_ADMIN', 'FINANCE_MANAGER', 'GENERAL_MANAGER', 'DEPARTMENT_MANAGER'],
   },
   {
     icon: Settings,
@@ -933,13 +973,19 @@ const menuItems: MenuItem[] = [
     href: '/admin',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
     children: [
-      { label: 'Ürünler', href: '/admin/products' },
-      { label: 'Kategoriler', href: '/admin/categories' },
-      { label: 'Departmanlar', href: '/admin/departments' },
-      { label: 'Kullanıcılar', href: '/admin/users' },
-      { label: 'Tedarikçiler', href: '/admin/suppliers' },
-      { label: 'Onay İş Akışları', href: '/admin/workflows' },
+      { icon: Users, label: 'Kullanıcılar', href: '/admin/users' },
+      { icon: Building2, label: 'Departmanlar', href: '/admin/departments' },
+      { icon: GitBranch, label: 'Kategoriler', href: '/admin/categories' },
+      { icon: DollarSign, label: 'Bütçeler', href: '/admin/budgets' },
+      { icon: Mail, label: 'Email Şablonları', href: '/admin/email-templates' },
+      { icon: Activity, label: 'Aktivite Log', href: '/admin/activity' },
+      { icon: Settings, label: 'Ayarlar', href: '/admin/settings' },
     ],
+  },
+  {
+    icon: HelpCircle,
+    label: 'Yardım',
+    href: '/help',
   },
 ]
 ```
@@ -1148,8 +1194,13 @@ app/
 ├── layout.tsx                      # Root layout
 ├── globals.css                     # Global stiller
 ├── login/page.tsx                  # Giriş sayfası
-├── dashboard/page.tsx              # Dashboard
+├── register/page.tsx               # Kullanıcı kaydı
+├── dashboard/page.tsx              # Dashboard (hoş geldin, hızlı eylemler)
 ├── cart/page.tsx                   # Sepet
+├── profile/page.tsx                # Kullanıcı profili
+├── notifications/page.tsx          # Bildirimler
+├── search/page.tsx                 # Global arama
+├── help/page.tsx                   # Yardım ve SSS
 ├── products/
 │   ├── page.tsx                    # Ürün kataloğu
 │   └── [slug]/page.tsx             # Ürün detayı
@@ -1157,7 +1208,14 @@ app/
 │   ├── page.tsx                    # Talepler listesi
 │   ├── new/page.tsx                # Yeni talep oluştur
 │   └── [id]/page.tsx               # Talep detayı
-├── reports/page.tsx                # Raporlar
+├── approvals/page.tsx              # Bekleyen onaylar
+├── orders/
+│   ├── page.tsx                    # Siparişler listesi
+│   └── [id]/page.tsx               # Sipariş detayı
+├── suppliers/page.tsx              # Tedarikçiler
+├── invoices/page.tsx               # Faturalar
+├── documents/page.tsx              # Dokümanlar
+├── reports/page.tsx                # Raporlar (API bağlantılı)
 ├── admin/
 │   ├── page.tsx                    # Admin ana sayfa
 │   ├── products/page.tsx           # Ürün yönetimi
@@ -1165,7 +1223,11 @@ app/
 │   ├── departments/page.tsx        # Departman yönetimi
 │   ├── users/page.tsx              # Kullanıcı yönetimi
 │   ├── suppliers/page.tsx          # Tedarikçi yönetimi
-│   └── workflows/page.tsx          # İş akışı yönetimi
+│   ├── workflows/page.tsx          # İş akışı yönetimi
+│   ├── budgets/page.tsx            # Bütçe yönetimi
+│   ├── settings/page.tsx           # Sistem ayarları (4 tab)
+│   ├── activity/page.tsx           # Aktivite log
+│   └── email-templates/page.tsx    # Email şablonları
 ```
 
 ### API Routes (app/api/)

@@ -1,0 +1,232 @@
+# Attelia Dental B2B - Cursor Kuralları
+
+## Proje Yapısı
+- Next.js 14 App Router kullan
+- TypeScript ile strict mode
+- Tailwind CSS ile stillendirme
+- Prisma ORM ile veritabanı işlemleri
+
+## Kod Standartları
+
+### Dosya Organizasyonu
+- Sayfalar: `app/[route]/page.tsx`
+- Bileşenler: `components/[ComponentName].tsx`
+- API routes: `app/api/[resource]/route.ts`
+- Hooks: `hooks/use[HookName].ts`
+- Utilities: `lib/[utility].ts`
+- Types: `types/index.ts`
+
+### Sayfa Oluşturma Kuralları
+```typescript
+'use client'
+
+import { useState, useEffect } from 'react'
+import DashboardLayout from '@/components/DashboardLayout'
+import { useAuth } from '@/contexts/AuthContext'
+import { useNotification } from '@/contexts/NotificationContext'
+
+export default function PageName() {
+  const { user } = useAuth()
+  const { success, error } = useNotification()
+  const [loading, setLoading] = useState(true)
+
+  // Loading state
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* İçerik */}
+      </div>
+    </DashboardLayout>
+  )
+}
+```
+
+### API İstekleri
+- `lib/api.ts` içindeki `fetchWithAuth` fonksiyonunu kullan
+- API modüllerini kullan: `productsApi`, `ordersApi`, `usersApi`, vb.
+- Hata yönetimi için try-catch kullan
+- Loading state'leri göster
+
+### Durum Renkleri
+```typescript
+// Status colors
+const statusColors: Record<string, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  APPROVED: 'bg-green-100 text-green-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  COMPLETED: 'bg-blue-100 text-blue-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
+}
+
+// Priority colors
+const priorityColors: Record<string, string> = {
+  LOW: 'bg-gray-100 text-gray-800',
+  NORMAL: 'bg-blue-100 text-blue-800',
+  HIGH: 'bg-orange-100 text-orange-800',
+  URGENT: 'bg-red-100 text-red-800',
+}
+```
+
+### Türkçe Etiketler
+```typescript
+const statusLabels: Record<string, string> = {
+  PENDING: 'Beklemede',
+  APPROVED: 'Onaylandı',
+  REJECTED: 'Reddedildi',
+  COMPLETED: 'Tamamlandı',
+  CANCELLED: 'İptal Edildi',
+  DRAFT: 'Taslak',
+  SUBMITTED: 'Gönderildi',
+  IN_REVIEW: 'İncelemede',
+}
+```
+
+### Para Formatı
+```typescript
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY'
+  }).format(amount)
+}
+```
+
+### Tarih Formatı
+```typescript
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('tr-TR')
+}
+
+const formatDateTime = (date: string) => {
+  return new Date(date).toLocaleString('tr-TR')
+}
+```
+
+## Bileşen Kullanımı
+
+### Modal
+```typescript
+import Modal from '@/components/Modal'
+
+<Modal
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  title="Modal Başlığı"
+  footer={<>Butonlar</>}
+>
+  İçerik
+</Modal>
+```
+
+### DataTable
+```typescript
+import DataTable from '@/components/DataTable'
+
+<DataTable
+  columns={columns}
+  data={data}
+  searchable
+  searchPlaceholder="Ara..."
+/>
+```
+
+### Bildirimler
+```typescript
+const { success, error, warning, info } = useNotification()
+
+success('İşlem başarılı')
+error('Bir hata oluştu')
+```
+
+## Rol Bazlı Erişim
+
+### Kullanıcı Rolleri
+- SUPER_ADMIN: Platform yöneticisi
+- COMPANY_ADMIN: Şirket yöneticisi
+- GENERAL_MANAGER: Genel müdür
+- FINANCE_MANAGER: Finans müdürü
+- PROCUREMENT_MANAGER: Satın alma müdürü
+- DEPARTMENT_MANAGER: Departman müdürü
+- EMPLOYEE: Çalışan
+
+### Rol Kontrolü
+```typescript
+const { user } = useAuth()
+
+// Admin kontrolü
+const isAdmin = user?.role === 'COMPANY_ADMIN' || user?.role === 'SUPER_ADMIN'
+
+// Manager kontrolü
+const isManager = ['COMPANY_ADMIN', 'GENERAL_MANAGER', 'DEPARTMENT_MANAGER', 'FINANCE_MANAGER', 'PROCUREMENT_MANAGER'].includes(user?.role || '')
+```
+
+## İkon Kullanımı
+- Lucide React ikonları kullan
+- Tutarlı boyutlar: `size={20}` (normal), `size={24}` (büyük), `size={16}` (küçük)
+
+## CSS Kuralları
+- Tailwind CSS class'ları kullan
+- Özel CSS yerine Tailwind tercih et
+- Responsive tasarım: `md:`, `lg:` breakpoint'leri kullan
+- Spacing: `space-y-6`, `gap-4` kullan
+
+## Form Validasyonu
+- Required alanları kontrol et
+- Email formatını doğrula
+- Sayısal değerleri doğrula
+- Kullanıcı dostu hata mesajları göster
+
+## API Route Kuralları
+```typescript
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
+import prisma from '@/lib/prisma'
+
+export async function GET(request: NextRequest) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '')
+  const decoded = verifyToken(token)
+
+  if (!decoded) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const data = await prisma.model.findMany({
+      where: { companyId: decoded.companyId }
+    })
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+  }
+}
+```
+
+## Git Commit Mesajları
+- Türkçe veya İngilizce tutarlı kullan
+- Açıklayıcı mesajlar yaz
+- Örnekler:
+  - `Add supplier management page`
+  - `Fix budget calculation bug`
+  - `Update sidebar navigation`
+
+## Performans
+- useEffect bağımlılıklarını doğru kullan
+- Gereksiz re-render'lardan kaçın
+- Büyük listelerde pagination kullan
+- API çağrılarını optimize et
+
+## Güvenlik
+- Token'ları localStorage'da sakla
+- API'lerde token doğrulama yap
+- SQL injection'a karşı Prisma kullan
+- XSS'e karşı input'ları sanitize et
