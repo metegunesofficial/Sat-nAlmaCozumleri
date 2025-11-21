@@ -5,7 +5,7 @@ import DashboardLayout from '@/components/DashboardLayout'
 import { useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { Plus, Trash2, Search, ChevronRight, ChevronLeft, Calendar } from 'lucide-react'
+import { Plus, Trash2, Search, ChevronRight, ChevronLeft, Calendar, Edit3, Package } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { categoriesApi, productsApi, purchaseRequestsApi } from '@/lib/api'
 
@@ -17,6 +17,7 @@ interface RequestItem {
   unitPrice: number
   total: number
   notes?: string
+  isManual?: boolean
 }
 
 interface Category {
@@ -30,7 +31,10 @@ interface Product {
   name: string
   price: number
   category?: { name: string }
+  categoryId?: string
 }
+
+const DRAFT_KEY = 'purchase_request_draft'
 
 export default function NewRequestPage() {
   const router = useRouter()
@@ -38,6 +42,7 @@ export default function NewRequestPage() {
   const { user } = useAuth()
   const [step, setStep] = useState(1)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [isManualEntryOpen, setIsManualEntryOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -45,14 +50,22 @@ export default function NewRequestPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [productSearch, setProductSearch] = useState('')
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('')
 
   // Form state
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [justification, setJustification] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [priority, setPriority] = useState('NORMAL')
   const [requiredDate, setRequiredDate] = useState('')
   const [items, setItems] = useState<RequestItem[]>([])
+
+  // Manual entry state
+  const [manualProductName, setManualProductName] = useState('')
+  const [manualUnitPrice, setManualUnitPrice] = useState('')
+  const [manualQuantity, setManualQuantity] = useState('1')
+  const [manualNotes, setManualNotes] = useState('')
 
   // Load categories and products
   useEffect(() => {
@@ -73,6 +86,44 @@ export default function NewRequestPage() {
     }
     loadData()
   }, [])
+
+  // Load draft from localStorage
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(DRAFT_KEY)
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft)
+        setTitle(draft.title || '')
+        setDescription(draft.description || '')
+        setJustification(draft.justification || '')
+        setCategoryId(draft.categoryId || '')
+        setPriority(draft.priority || 'NORMAL')
+        setRequiredDate(draft.requiredDate || '')
+        setItems(draft.items || [])
+        success('Önceki taslak yüklendi')
+      } catch (e) {
+        console.error('Taslak yüklenemedi')
+      }
+    }
+  }, [])
+
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    const draft = {
+      title,
+      description,
+      justification,
+      categoryId,
+      priority,
+      requiredDate,
+      items
+    }
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+  }, [title, description, justification, categoryId, priority, requiredDate, items])
+
+  const clearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY)
+  }
 
   const addItem = (product: any) => {
     const newItem: RequestItem = {
@@ -108,6 +159,31 @@ export default function NewRequestPage() {
     success('Ürün kaldırıldı')
   }
 
+  const addManualItem = () => {
+    if (!manualProductName || !manualUnitPrice) {
+      error('Ürün adı ve birim fiyat zorunludur')
+      return
+    }
+
+    const newItem: RequestItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      productId: 'manual-' + Date.now(),
+      productName: manualProductName,
+      quantity: parseInt(manualQuantity) || 1,
+      unitPrice: parseFloat(manualUnitPrice) || 0,
+      total: (parseInt(manualQuantity) || 1) * (parseFloat(manualUnitPrice) || 0),
+      notes: manualNotes,
+      isManual: true
+    }
+    setItems([...items, newItem])
+    setIsManualEntryOpen(false)
+    setManualProductName('')
+    setManualUnitPrice('')
+    setManualQuantity('1')
+    setManualNotes('')
+    success('Manuel ürün eklendi')
+  }
+
   const totalAmount = items.reduce((sum, item) => sum + item.total, 0)
 
   const handleSubmit = async () => {
@@ -121,6 +197,7 @@ export default function NewRequestPage() {
       const requestData = {
         title,
         description,
+        justification,
         categoryId,
         priority,
         requiredDate: requiredDate ? new Date(requiredDate).toISOString() : null,
@@ -137,6 +214,7 @@ export default function NewRequestPage() {
       const response = await purchaseRequestsApi.create(requestData)
 
       if (response.success) {
+        clearDraft()
         success('Satın alma talebi başarıyla oluşturuldu!')
         router.push('/requests')
       } else {
@@ -182,10 +260,12 @@ export default function NewRequestPage() {
     }
   }
 
-  // Filter products by search
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase())
-  )
+  // Filter products by search and category
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase())
+    const matchesCategory = !selectedCategoryFilter || p.categoryId === selectedCategoryFilter
+    return matchesSearch && matchesCategory
+  })
 
   return (
     <DashboardLayout>
@@ -260,8 +340,21 @@ export default function NewRequestPage() {
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                rows={4}
+                rows={3}
                 placeholder="Satın alma talebinin detaylı açıklaması..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gerekçe
+              </label>
+              <textarea
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                rows={3}
+                placeholder="Bu satın alma talebinin neden gerekli olduğunu açıklayın..."
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -322,13 +415,22 @@ export default function NewRequestPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">Ürünler</h2>
-              <button
-                onClick={() => setIsProductModalOpen(true)}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                <Plus size={20} />
-                Ürün Ekle
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsManualEntryOpen(true)}
+                  className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                >
+                  <Edit3 size={20} />
+                  Manuel Giriş
+                </button>
+                <button
+                  onClick={() => setIsProductModalOpen(true)}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <Package size={20} />
+                  Katalogdan Seç
+                </button>
+              </div>
             </div>
 
             {items.length === 0 ? (
@@ -518,19 +620,31 @@ export default function NewRequestPage() {
       <Modal
         isOpen={isProductModalOpen}
         onClose={() => setIsProductModalOpen(false)}
-        title="Ürün Seç"
+        title="Katalogdan Ürün Seç"
         size="lg"
       >
         <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Ürün ara..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="Ürün ara..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <select
+              value={selectedCategoryFilter}
+              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tüm Kategoriler</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -561,6 +675,95 @@ export default function NewRequestPage() {
               ))
             )}
           </div>
+        </div>
+      </Modal>
+
+      {/* Manual Entry Modal */}
+      <Modal
+        isOpen={isManualEntryOpen}
+        onClose={() => setIsManualEntryOpen(false)}
+        title="Manuel Ürün Girişi"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setIsManualEntryOpen(false)}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              İptal
+            </button>
+            <button
+              onClick={addManualItem}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Ekle
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Ürün Adı *
+            </label>
+            <input
+              type="text"
+              value={manualProductName}
+              onChange={(e) => setManualProductName(e.target.value)}
+              placeholder="Ürün adını girin"
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Birim Fiyat (TL) *
+              </label>
+              <input
+                type="number"
+                value={manualUnitPrice}
+                onChange={(e) => setManualUnitPrice(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Miktar
+              </label>
+              <input
+                type="number"
+                value={manualQuantity}
+                onChange={(e) => setManualQuantity(e.target.value)}
+                min="1"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Not
+            </label>
+            <textarea
+              value={manualNotes}
+              onChange={(e) => setManualNotes(e.target.value)}
+              rows={2}
+              placeholder="Opsiyonel açıklama..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          {manualProductName && manualUnitPrice && (
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-sm text-gray-600">Tahmini Toplam:</p>
+              <p className="text-lg font-bold text-blue-600">
+                {((parseInt(manualQuantity) || 1) * (parseFloat(manualUnitPrice) || 0)).toLocaleString('tr-TR', {
+                  style: 'currency',
+                  currency: 'TRY',
+                })}
+              </p>
+            </div>
+          )}
         </div>
       </Modal>
     </DashboardLayout>
