@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
-import { mockBudgetData, mockPurchaseRequests } from '@/lib/mockData'
+import { reportsApi } from '@/lib/api'
+import { mockBudgetData } from '@/lib/mockData'
 import {
   TrendingUp,
   DollarSign,
@@ -34,18 +35,43 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 export default function ReportsPage() {
   const [period, setPeriod] = useState('monthly')
   const [department, setDepartment] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [reportData, setReportData] = useState<any>(null)
 
-  // Budget utilization data
-  const budgetData = mockBudgetData.departments.map((dept) => ({
+  useEffect(() => {
+    const loadReports = async () => {
+      try {
+        const [budgetRes, spendingRes] = await Promise.all([
+          reportsApi.getBudget(),
+          reportsApi.getSpending({ period, department: department === 'all' ? undefined : department })
+        ])
+
+        if (budgetRes.success || spendingRes.success) {
+          setReportData({
+            budget: budgetRes.data,
+            spending: spendingRes.data
+          })
+        }
+      } catch (err) {
+        console.error('Raporlar yüklenemedi:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadReports()
+  }, [period, department])
+
+  // Budget utilization data - use API data or fallback to mock
+  const budgetData = (reportData?.budget?.departments || mockBudgetData.departments).map((dept: any) => ({
     name: dept.name,
-    budget: dept.budget,
-    spent: dept.spent,
-    remaining: dept.budget - dept.spent,
-    utilization: dept.utilization,
+    budget: dept.budget || dept.totalBudget || 0,
+    spent: dept.spent || dept.usedBudget || 0,
+    remaining: (dept.budget || dept.totalBudget || 0) - (dept.spent || dept.usedBudget || 0),
+    utilization: dept.utilization || ((dept.spent || dept.usedBudget || 0) / (dept.budget || dept.totalBudget || 1) * 100),
   }))
 
-  // Monthly spending trend (mock data)
-  const monthlySpendingData = [
+  // Monthly spending trend
+  const monthlySpendingData = reportData?.spending?.monthly || [
     { month: 'Oca', spending: 125000, budget: 200000 },
     { month: 'Şub', spending: 145000, budget: 200000 },
     { month: 'Mar', spending: 168000, budget: 200000 },
@@ -55,7 +81,7 @@ export default function ReportsPage() {
   ]
 
   // Category spending distribution
-  const categorySpendingData = [
+  const categorySpendingData = reportData?.spending?.categories || [
     { name: 'Bilgi İşlem', value: 145000 },
     { name: 'Ofis Malzemeleri', value: 45000 },
     { name: 'Mobilya', value: 85000 },
@@ -64,20 +90,31 @@ export default function ReportsPage() {
   ]
 
   // Department comparison
-  const departmentComparisonData = mockBudgetData.departments.slice(0, 6).map((dept) => ({
+  const departmentComparisonData = budgetData.slice(0, 6).map((dept: any) => ({
     name: dept.name,
     harcama: dept.spent,
     bütçe: dept.budget,
   }))
 
-  const totalBudget = mockBudgetData.company.total
-  const totalSpent = mockBudgetData.company.spent
-  const totalReserved = mockBudgetData.company.reserved
+  const companyData = reportData?.budget?.company || mockBudgetData.company
+  const totalBudget = companyData.total || companyData.totalBudget || 0
+  const totalSpent = companyData.spent || companyData.usedBudget || 0
+  const totalReserved = companyData.reserved || companyData.reservedBudget || 0
   const totalRemaining = totalBudget - totalSpent - totalReserved
-  const utilizationPercentage = ((totalSpent + totalReserved) / totalBudget) * 100
+  const utilizationPercentage = totalBudget > 0 ? ((totalSpent + totalReserved) / totalBudget) * 100 : 0
 
   const handleExport = (format: string) => {
     alert(`Rapor ${format.toUpperCase()} formatında dışa aktarılıyor...`)
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
