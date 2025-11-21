@@ -5,12 +5,15 @@ import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import { reportsApi } from '@/lib/api'
 import { mockBudgetData } from '@/lib/mockData'
+import { exportToExcel, exportToPDF, generatePDFTable, generatePDFSummary } from '@/lib/export'
 import {
   TrendingUp,
   DollarSign,
   AlertTriangle,
   Download,
   Calendar,
+  FileSpreadsheet,
+  FileText,
 } from 'lucide-react'
 import {
   BarChart,
@@ -104,7 +107,52 @@ export default function ReportsPage() {
   const utilizationPercentage = totalBudget > 0 ? ((totalSpent + totalReserved) / totalBudget) * 100 : 0
 
   const handleExport = (format: string) => {
-    alert(`Rapor ${format.toUpperCase()} formatında dışa aktarılıyor...`)
+    if (format === 'excel') {
+      // Export budget data to Excel
+      const exportData = budgetData.map((dept: any) => ({
+        departman: dept.name,
+        butce: dept.budget,
+        harcama: dept.spent,
+        kalan: dept.remaining,
+        kullanimOrani: `%${dept.utilization.toFixed(1)}`
+      }))
+
+      exportToExcel(exportData, 'butce_raporu', [
+        { key: 'departman', label: 'Departman' },
+        { key: 'butce', label: 'Bütçe (TL)' },
+        { key: 'harcama', label: 'Harcama (TL)' },
+        { key: 'kalan', label: 'Kalan (TL)' },
+        { key: 'kullanimOrani', label: 'Kullanım Oranı' },
+      ])
+    } else if (format === 'pdf') {
+      // Export budget report to PDF
+      const tableContent = generatePDFTable(
+        budgetData.map((dept: any) => ({
+          departman: dept.name,
+          butce: dept.budget,
+          harcama: dept.spent,
+          kalan: dept.remaining,
+          kullanimOrani: `%${dept.utilization.toFixed(1)}`
+        })),
+        [
+          { key: 'departman', label: 'Departman' },
+          { key: 'butce', label: 'Bütçe (TL)' },
+          { key: 'harcama', label: 'Harcama (TL)' },
+          { key: 'kalan', label: 'Kalan (TL)' },
+          { key: 'kullanimOrani', label: 'Kullanım Oranı' },
+        ]
+      )
+
+      const summary = generatePDFSummary([
+        { label: 'Toplam Bütçe', value: `${totalBudget.toLocaleString('tr-TR')} TL` },
+        { label: 'Toplam Harcama', value: `${totalSpent.toLocaleString('tr-TR')} TL` },
+        { label: 'Rezerve Edilen', value: `${totalReserved.toLocaleString('tr-TR')} TL` },
+        { label: 'Kalan Bütçe', value: `${totalRemaining.toLocaleString('tr-TR')} TL` },
+        { label: 'Kullanım Oranı', value: `%${utilizationPercentage.toFixed(1)}` },
+      ])
+
+      exportToPDF('Bütçe ve Harcama Raporu', tableContent + summary)
+    }
   }
 
   if (loading) {

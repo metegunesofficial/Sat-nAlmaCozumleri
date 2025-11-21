@@ -20,7 +20,9 @@ import {
   MessageSquare,
   RotateCcw,
   AlertCircle,
+  Download,
 } from 'lucide-react'
+import { exportRequestToPDF } from '@/lib/export'
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -238,14 +240,26 @@ export default function RequestDetailPage() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Back Button */}
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft size={20} />
-          <span>Geri Dön</span>
-        </button>
+        {/* Back Button & Export */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft size={20} />
+            <span>Geri Dön</span>
+          </button>
+          <button
+            onClick={() => exportRequestToPDF({
+              ...request,
+              department: request.user.department
+            })}
+            className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Download size={18} />
+            PDF İndir
+          </button>
+        </div>
 
         {/* Header */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
