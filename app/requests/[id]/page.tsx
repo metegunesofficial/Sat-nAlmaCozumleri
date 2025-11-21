@@ -61,11 +61,13 @@ interface RequestDetail {
   requestNumber: string
   title: string
   description?: string
+  justification?: string
   status: string
   priority: string
   totalAmount: number
   createdAt: string
   requiredDate?: string
+  currentStep?: number
   user: {
     name: string
     email: string
@@ -77,6 +79,7 @@ interface RequestDetail {
     productName: string
     quantity: number
     unitPrice: number
+    notes?: string
   }>
   approvalActions?: Array<{
     id: string
@@ -86,11 +89,20 @@ interface RequestDetail {
     user: { name: string; role: string }
   }>
   workflow?: {
+    name: string
     steps: Array<{
+      id: string
       stepOrder: number
-      role: string
-      status: string
+      stepName: string
+      approverRole: string
+      isCompleted?: boolean
+      isCurrent?: boolean
     }>
+  }
+  budget?: {
+    total: number
+    used: number
+    available: number
   }
 }
 
@@ -354,6 +366,22 @@ export default function RequestDetailPage() {
                   <p className="text-gray-900">{request.description}</p>
                 </div>
               )}
+
+              {request.justification && (
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-600 mb-2">Gerekçe</p>
+                  <p className="text-gray-900">{request.justification}</p>
+                </div>
+              )}
+
+              {request.category && (
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-600 mb-2">Kategori</p>
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                    {request.category.name}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Items */}
@@ -474,38 +502,58 @@ export default function RequestDetailPage() {
           <div className="space-y-6">
             {/* Approval Workflow */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Onay Süreci</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Onay Süreci
+                {request.workflow && (
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    ({request.workflow.name})
+                  </span>
+                )}
+              </h3>
 
               <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle size={16} className="text-green-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">Departman Müdürü</p>
-                    <p className="text-sm text-gray-600">Onaylandı</p>
-                  </div>
-                </div>
+                {request.workflow?.steps?.map((step, index) => {
+                  const isCompleted = step.isCompleted ||
+                    (request.currentStep && step.stepOrder < request.currentStep)
+                  const isCurrent = step.isCurrent ||
+                    (request.currentStep && step.stepOrder === request.currentStep)
 
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                    <Clock size={16} className="text-yellow-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">Finans Müdürü</p>
-                    <p className="text-sm text-gray-600">Beklemede</p>
-                  </div>
-                </div>
+                  return (
+                    <div key={step.id || index} className="flex items-start gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        isCompleted ? 'bg-green-100' :
+                        isCurrent ? 'bg-yellow-100' : 'bg-gray-100'
+                      }`}>
+                        {isCompleted ? (
+                          <CheckCircle size={16} className="text-green-600" />
+                        ) : isCurrent ? (
+                          <Clock size={16} className="text-yellow-600" />
+                        ) : (
+                          <Clock size={16} className="text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`font-medium ${isCurrent ? 'text-yellow-700' : 'text-gray-900'}`}>
+                          {step.stepName}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {isCompleted ? 'Tamamlandı' : isCurrent ? 'Beklemede' : 'Sırada'}
+                        </p>
+                      </div>
+                      {isCurrent && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">
+                          Aktif
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
 
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <Clock size={16} className="text-gray-400" />
+                {!request.workflow?.steps?.length && (
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    Onay iş akışı tanımlanmamış
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">Genel Müdür</p>
-                    <p className="text-sm text-gray-600">Beklemede</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -513,35 +561,82 @@ export default function RequestDetailPage() {
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Bütçe Etkisi</h3>
 
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Departman Bütçesi</span>
-                    <span className="font-medium">50,000 TL</span>
+              {request.budget ? (
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Departman Bütçesi</span>
+                      <span className="font-medium">
+                        {request.budget.total.toLocaleString('tr-TR')} TL
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Kullanılan</span>
+                      <span className="font-medium">
+                        {request.budget.used.toLocaleString('tr-TR')} TL
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-gray-600">Bu Talep</span>
+                      <span className="font-medium text-blue-600">
+                        {request.totalAmount.toLocaleString('tr-TR')} TL
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full"
+                        style={{
+                          width: `${Math.min(((request.budget.used + request.totalAmount) / request.budget.total) * 100, 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Onaylanırsa %{(((request.budget.used + request.totalAmount) / request.budget.total) * 100).toFixed(1)}{' '}
+                      kullanılmış olacak
+                    </p>
+                    {request.budget.used + request.totalAmount > request.budget.total && (
+                      <p className="text-xs text-red-600 mt-1 font-medium">
+                        ⚠️ Bütçe aşımı!
+                      </p>
+                    )}
                   </div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Kullanılan</span>
-                    <span className="font-medium">15,000 TL</span>
-                  </div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-600">Bu Talep</span>
-                    <span className="font-medium text-blue-600">
-                      {request.totalAmount.toLocaleString('tr-TR')} TL
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 text-center py-4">
+                  Bütçe bilgisi mevcut değil
+                </div>
+              )}
+            </div>
+
+            {/* Quick Info */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Hızlı Bilgi</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Ürün Sayısı</span>
+                  <span className="font-medium">{request.items.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Ortalama Birim</span>
+                  <span className="font-medium">
+                    {(request.totalAmount / request.items.reduce((sum, item) => sum + item.quantity, 0) || 0).toLocaleString('tr-TR', {
+                      style: 'currency',
+                      currency: 'TRY',
+                    })}
+                  </span>
+                </div>
+                {request.requiredDate && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Kalan Gün</span>
+                    <span className={`font-medium ${
+                      Math.ceil((new Date(request.requiredDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) < 3
+                        ? 'text-red-600'
+                        : 'text-gray-900'
+                    }`}>
+                      {Math.ceil((new Date(request.requiredDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} gün
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{
-                        width: `${((15000 + request.totalAmount) / 50000) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Onaylanırsa %{(((15000 + request.totalAmount) / 50000) * 100).toFixed(1)}{' '}
-                    kullanılmış olacak
-                  </p>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -583,7 +678,7 @@ export default function RequestDetailPage() {
             </p>
             <p className="text-sm text-gray-700">
               <strong>Tutar:</strong>{' '}
-              {request.estimatedTotal.toLocaleString('tr-TR', {
+              {request.totalAmount.toLocaleString('tr-TR', {
                 style: 'currency',
                 currency: 'TRY',
               })}
