@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
-import { Plus, Trash2, Search, ChevronRight, ChevronLeft } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { Plus, Trash2, Search, ChevronRight, ChevronLeft, Calendar } from 'lucide-react'
 import Modal from '@/components/Modal'
+import { categoriesApi, productsApi, purchaseRequestsApi } from '@/lib/api'
 
 interface RequestItem {
   id: string
@@ -17,33 +19,60 @@ interface RequestItem {
   notes?: string
 }
 
-const mockProducts = [
-  { id: 'p1', name: 'Dell Latitude 5430 Laptop', price: 35000, category: 'Bilgisayar' },
-  { id: 'p2', name: 'HP LaserJet Pro Printer', price: 8500, category: 'Yazıcı' },
-  { id: 'p3', name: 'Logitech MX Master Mouse', price: 1200, category: 'Aksesuar' },
-  { id: 'p4', name: 'Samsung 27" Monitor', price: 6500, category: 'Monitör' },
-  { id: 'p5', name: 'Microsoft Office 365 Lisans', price: 450, category: 'Yazılım' },
-]
+interface Category {
+  id: string
+  name: string
+  description?: string
+}
 
-const mockCategories = [
-  { id: 'cat1', name: 'Bilgi İşlem', requiresApproval: true },
-  { id: 'cat2', name: 'Ofis Malzemeleri', requiresApproval: false },
-  { id: 'cat3', name: 'Mobilya', requiresApproval: true },
-  { id: 'cat4', name: 'Yazılım Lisansları', requiresApproval: true },
-]
+interface Product {
+  id: string
+  name: string
+  price: number
+  category?: { name: string }
+}
 
 export default function NewRequestPage() {
   const router = useRouter()
   const { success, error } = useNotification()
+  const { user } = useAuth()
   const [step, setStep] = useState(1)
   const [isProductModalOpen, setIsProductModalOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  // Data from API
+  const [categories, setCategories] = useState<Category[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [productSearch, setProductSearch] = useState('')
 
   // Form state
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [priority, setPriority] = useState('NORMAL')
+  const [requiredDate, setRequiredDate] = useState('')
   const [items, setItems] = useState<RequestItem[]>([])
+
+  // Load categories and products
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          categoriesApi.getAll(),
+          productsApi.getAll()
+        ])
+        if (catRes.success) setCategories(catRes.data || [])
+        if (prodRes.success) setProducts(prodRes.data || [])
+      } catch (err) {
+        console.error('Veri yüklenirken hata:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
 
   const addItem = (product: any) => {
     const newItem: RequestItem = {
@@ -81,21 +110,82 @@ export default function NewRequestPage() {
 
   const totalAmount = items.reduce((sum, item) => sum + item.total, 0)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !categoryId || items.length === 0) {
       error('Lütfen tüm gerekli alanları doldurun')
       return
     }
 
-    // Here would be API call
-    success('Satın alma talebi başarıyla oluşturuldu!')
-    router.push('/requests')
+    setSubmitting(true)
+    try {
+      const requestData = {
+        title,
+        description,
+        categoryId,
+        priority,
+        requiredDate: requiredDate ? new Date(requiredDate).toISOString() : null,
+        items: items.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          notes: item.notes
+        })),
+        totalAmount: totalAmount
+      }
+
+      const response = await purchaseRequestsApi.create(requestData)
+
+      if (response.success) {
+        success('Satın alma talebi başarıyla oluşturuldu!')
+        router.push('/requests')
+      } else {
+        error(response.error || 'Talep oluşturulurken hata oluştu')
+      }
+    } catch (err) {
+      error('Talep oluşturulurken hata oluştu')
+      console.error(err)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const saveDraft = () => {
-    success('Taslak kaydedildi')
-    router.push('/requests')
+  const saveDraft = async () => {
+    try {
+      const requestData = {
+        title: title || 'Taslak',
+        description,
+        categoryId,
+        priority,
+        requiredDate: requiredDate ? new Date(requiredDate).toISOString() : null,
+        items: items.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          notes: item.notes
+        })),
+        totalAmount: totalAmount,
+        status: 'DRAFT'
+      }
+
+      const response = await purchaseRequestsApi.create(requestData)
+
+      if (response.success) {
+        success('Taslak kaydedildi')
+        router.push('/requests')
+      } else {
+        error(response.error || 'Taslak kaydedilemedi')
+      }
+    } catch (err) {
+      error('Taslak kaydedilemedi')
+    }
   }
+
+  // Filter products by search
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(productSearch.toLowerCase())
+  )
 
   return (
     <DashboardLayout>
@@ -187,7 +277,7 @@ export default function NewRequestPage() {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Kategori Seçin</option>
-                  {mockCategories.map((cat) => (
+                  {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
                     </option>
@@ -210,6 +300,19 @@ export default function NewRequestPage() {
                   <option value="URGENT">Acil</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gerekli Tarih
+              </label>
+              <input
+                type="date"
+                value={requiredDate}
+                onChange={(e) => setRequiredDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
         )}
@@ -315,7 +418,7 @@ export default function NewRequestPage() {
                 <div>
                   <span className="text-sm text-gray-600">Kategori:</span>
                   <p className="font-medium text-gray-900">
-                    {mockCategories.find((c) => c.id === categoryId)?.name}
+                    {categories.find((c) => c.id === categoryId)?.name}
                   </p>
                 </div>
                 <div>
@@ -401,9 +504,10 @@ export default function NewRequestPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                disabled={submitting}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Talebi Gönder
+                {submitting ? 'Gönderiliyor...' : 'Talebi Gönder'}
               </button>
             )}
           </div>
@@ -417,27 +521,46 @@ export default function NewRequestPage() {
         title="Ürün Seç"
         size="lg"
       >
-        <div className="space-y-3">
-          {mockProducts.map((product) => (
-            <div
-              key={product.id}
-              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-              onClick={() => addItem(product)}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-medium text-gray-900">{product.name}</h4>
-                  <p className="text-sm text-gray-500">{product.category}</p>
-                </div>
-                <p className="font-semibold text-blue-600">
-                  {product.price.toLocaleString('tr-TR', {
-                    style: 'currency',
-                    currency: 'TRY',
-                  })}
-                </p>
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              placeholder="Ürün ara..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                {loading ? 'Yükleniyor...' : 'Ürün bulunamadı'}
               </div>
-            </div>
-          ))}
+            ) : (
+              filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => addItem(product)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{product.name}</h4>
+                      <p className="text-sm text-gray-500">{product.category?.name || 'Kategorisiz'}</p>
+                    </div>
+                    <p className="font-semibold text-blue-600">
+                      {product.price.toLocaleString('tr-TR', {
+                        style: 'currency',
+                        currency: 'TRY',
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </Modal>
     </DashboardLayout>

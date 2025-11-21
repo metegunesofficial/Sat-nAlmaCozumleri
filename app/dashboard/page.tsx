@@ -1,9 +1,11 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import StatCard from '@/components/StatCard'
 import DataTable from '@/components/DataTable'
-import { mockPurchaseRequests, mockBudgetData } from '@/lib/mockData'
+import { purchaseRequestsApi, reportsApi } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 import {
   ShoppingCart,
   Clock,
@@ -17,6 +19,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  PENDING: 'bg-yellow-100 text-yellow-800',
   IN_REVIEW: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
@@ -25,6 +28,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Taslak',
+  PENDING: 'Beklemede',
   IN_REVIEW: 'İncelemede',
   APPROVED: 'Onaylandı',
   REJECTED: 'Reddedildi',
@@ -33,27 +37,68 @@ const statusLabels: Record<string, string> = {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
 
-export default function DashboardPage() {
-  const totalRequests = mockPurchaseRequests.length
-  const pendingRequests = mockPurchaseRequests.filter((r) => r.status === 'IN_REVIEW').length
-  const approvedRequests = mockPurchaseRequests.filter((r) => r.status === 'APPROVED').length
-  const totalSpent = mockPurchaseRequests
-    .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
-    .reduce((sum, r) => sum + r.estimatedTotal, 0)
+interface PurchaseRequest {
+  id: string
+  requestNumber: string
+  title: string
+  status: string
+  totalAmount: number
+  createdAt: string
+  user: {
+    name: string
+    department?: { name: string }
+  }
+}
 
-  const recentRequests = mockPurchaseRequests.slice(0, 5)
+export default function DashboardPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [requests, setRequests] = useState<PurchaseRequest[]>([])
+  const [budgetData, setBudgetData] = useState<any>(null)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [reqRes, budgetRes] = await Promise.all([
+          purchaseRequestsApi.getAll(),
+          reportsApi.getBudget()
+        ])
+
+        if (reqRes.success) {
+          setRequests(reqRes.data || [])
+        }
+        if (budgetRes.success) {
+          setBudgetData(budgetRes.data)
+        }
+      } catch (err) {
+        console.error('Dashboard verileri yüklenemedi:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  const totalRequests = requests.length
+  const pendingRequests = requests.filter((r) => ['PENDING', 'IN_REVIEW'].includes(r.status)).length
+  const approvedRequests = requests.filter((r) => r.status === 'APPROVED').length
+  const totalSpent = requests
+    .filter((r) => r.status === 'APPROVED' || r.status === 'COMPLETED')
+    .reduce((sum, r) => sum + r.totalAmount, 0)
+
+  const recentRequests = requests.slice(0, 5)
 
   // Budget utilization chart data
-  const budgetChartData = mockBudgetData.departments.map((dept) => ({
+  const budgetChartData = budgetData?.departments?.map((dept: any) => ({
     name: dept.name,
     budget: dept.budget,
     spent: dept.spent,
     remaining: dept.budget - dept.spent,
-  }))
+  })) || []
 
   // Status distribution pie chart data
   const statusDistribution = Object.entries(
-    mockPurchaseRequests.reduce((acc, req) => {
+    requests.reduce((acc, req) => {
       acc[req.status] = (acc[req.status] || 0) + 1
       return acc
     }, {} as Record<string, number>)
@@ -74,22 +119,22 @@ export default function DashboardPage() {
       sortable: true,
     },
     {
-      key: 'requester',
+      key: 'user',
       label: 'Talep Eden',
       render: (value: any) => (
         <div>
-          <div className="font-medium">{value.name}</div>
-          <div className="text-xs text-gray-500">{value.department}</div>
+          <div className="font-medium">{value?.name || '-'}</div>
+          <div className="text-xs text-gray-500">{value?.department?.name || '-'}</div>
         </div>
       ),
     },
     {
-      key: 'estimatedTotal',
+      key: 'totalAmount',
       label: 'Tutar',
       sortable: true,
       render: (value: number) => (
         <span className="font-semibold">
-          {value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
+          {(value || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}
         </span>
       ),
     },
@@ -97,8 +142,8 @@ export default function DashboardPage() {
       key: 'status',
       label: 'Durum',
       render: (value: string) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value]}`}>
-          {statusLabels[value]}
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[value] || 'bg-gray-100'}`}>
+          {statusLabels[value] || value}
         </span>
       ),
     },
@@ -106,8 +151,19 @@ export default function DashboardPage() {
       key: 'createdAt',
       label: 'Tarih',
       sortable: true,
+      render: (value: string) => value ? new Date(value).toLocaleDateString('tr-TR') : '-',
     },
   ]
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </DashboardLayout>
+    )
+  }
 
   return (
     <DashboardLayout>
@@ -223,7 +279,7 @@ export default function DashboardPage() {
           <DataTable
             data={recentRequests}
             columns={columns}
-            onRowClick={(row) => console.log('Clicked:', row)}
+            onRowClick={(row) => router.push(`/requests/${row.id}`)}
           />
         </div>
 

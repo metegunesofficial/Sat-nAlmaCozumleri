@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/DashboardLayout'
 import Modal from '@/components/Modal'
-import { mockPurchaseRequests } from '@/lib/mockData'
 import { useParams, useRouter } from 'next/navigation'
 import { useNotification } from '@/contexts/NotificationContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { purchaseRequestsApi } from '@/lib/api'
 import {
   CheckCircle,
   XCircle,
@@ -17,59 +18,210 @@ import {
   DollarSign,
   FileText,
   MessageSquare,
+  RotateCcw,
+  AlertCircle,
 } from 'lucide-react'
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
+  PENDING: 'bg-yellow-100 text-yellow-800',
   IN_REVIEW: 'bg-yellow-100 text-yellow-800',
   APPROVED: 'bg-green-100 text-green-800',
   REJECTED: 'bg-red-100 text-red-800',
   COMPLETED: 'bg-blue-100 text-blue-800',
+  RETURNED: 'bg-orange-100 text-orange-800',
 }
 
 const statusLabels: Record<string, string> = {
   DRAFT: 'Taslak',
+  PENDING: 'Beklemede',
   IN_REVIEW: 'İncelemede',
   APPROVED: 'Onaylandı',
   REJECTED: 'Reddedildi',
   COMPLETED: 'Tamamlandı',
+  RETURNED: 'İade Edildi',
+}
+
+const priorityLabels: Record<string, string> = {
+  LOW: 'Düşük',
+  NORMAL: 'Normal',
+  HIGH: 'Yüksek',
+  URGENT: 'Acil',
+}
+
+const priorityColors: Record<string, string> = {
+  LOW: 'bg-gray-100 text-gray-700',
+  NORMAL: 'bg-blue-100 text-blue-700',
+  HIGH: 'bg-orange-100 text-orange-700',
+  URGENT: 'bg-red-100 text-red-700',
+}
+
+interface RequestDetail {
+  id: string
+  requestNumber: string
+  title: string
+  description?: string
+  status: string
+  priority: string
+  totalAmount: number
+  createdAt: string
+  requiredDate?: string
+  user: {
+    name: string
+    email: string
+    department?: { name: string }
+  }
+  category?: { name: string }
+  items: Array<{
+    id: string
+    productName: string
+    quantity: number
+    unitPrice: number
+  }>
+  approvalActions?: Array<{
+    id: string
+    action: string
+    comments?: string
+    createdAt: string
+    user: { name: string; role: string }
+  }>
+  workflow?: {
+    steps: Array<{
+      stepOrder: number
+      role: string
+      status: string
+    }>
+  }
 }
 
 export default function RequestDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { success, error } = useNotification()
+  const { user } = useAuth()
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [request, setRequest] = useState<RequestDetail | null>(null)
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false)
   const [comments, setComments] = useState('')
 
-  const request = mockPurchaseRequests.find((r) => r.id === params.id)
+  useEffect(() => {
+    const loadRequest = async () => {
+      try {
+        const response = await purchaseRequestsApi.getById(params.id as string)
+        if (response.success) {
+          setRequest(response.data)
+        } else {
+          error('Talep yüklenemedi')
+        }
+      } catch (err) {
+        console.error('Talep yüklenirken hata:', err)
+        error('Talep yüklenemedi')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadRequest()
+  }, [params.id])
 
-  if (!request) {
+  if (loading) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <p className="text-gray-600">Talep bulunamadı</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-4">Yükleniyor...</p>
         </div>
       </DashboardLayout>
     )
   }
 
-  const handleApprove = () => {
-    success('Talep onaylandı!')
-    setIsApproveModalOpen(false)
-    router.push('/requests')
+  if (!request) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
+          <p className="text-gray-600 mt-4">Talep bulunamadı</p>
+        </div>
+      </DashboardLayout>
+    )
   }
 
-  const handleReject = () => {
+  const handleApprove = async () => {
+    setSubmitting(true)
+    try {
+      const response = await purchaseRequestsApi.approve(request.id, {
+        action: 'APPROVE',
+        comments: comments || undefined
+      })
+      if (response.success) {
+        success('Talep onaylandı!')
+        setIsApproveModalOpen(false)
+        router.push('/requests')
+      } else {
+        error(response.error || 'Onaylama başarısız')
+      }
+    } catch (err) {
+      error('Onaylama sırasında hata oluştu')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleReject = async () => {
     if (!comments) {
       error('Lütfen red nedeni girin')
       return
     }
-    success('Talep reddedildi')
-    setIsRejectModalOpen(false)
-    router.push('/requests')
+    setSubmitting(true)
+    try {
+      const response = await purchaseRequestsApi.approve(request.id, {
+        action: 'REJECT',
+        comments
+      })
+      if (response.success) {
+        success('Talep reddedildi')
+        setIsRejectModalOpen(false)
+        router.push('/requests')
+      } else {
+        error(response.error || 'Reddetme başarısız')
+      }
+    } catch (err) {
+      error('Reddetme sırasında hata oluştu')
+    } finally {
+      setSubmitting(false)
+    }
   }
+
+  const handleReturn = async () => {
+    if (!comments) {
+      error('Lütfen iade nedeni girin')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const response = await purchaseRequestsApi.approve(request.id, {
+        action: 'RETURN',
+        comments
+      })
+      if (response.success) {
+        success('Talep iade edildi')
+        setIsReturnModalOpen(false)
+        router.push('/requests')
+      } else {
+        error(response.error || 'İade başarısız')
+      }
+    } catch (err) {
+      error('İade sırasında hata oluştu')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Check if user can approve this request
+  const canApprove = ['PENDING', 'IN_REVIEW'].includes(request.status) &&
+    ['DEPARTMENT_MANAGER', 'FINANCE_MANAGER', 'GENERAL_MANAGER', 'PROCUREMENT_MANAGER', 'COMPANY_ADMIN'].includes(user?.role || '')
 
   return (
     <DashboardLayout>
@@ -102,8 +254,15 @@ export default function RequestDetailPage() {
               </p>
             </div>
 
-            {request.status === 'IN_REVIEW' && (
+            {canApprove && (
               <div className="flex gap-3">
+                <button
+                  onClick={() => setIsReturnModalOpen(true)}
+                  className="flex items-center gap-2 border border-orange-300 text-orange-700 hover:bg-orange-50 px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <RotateCcw size={20} />
+                  İade Et
+                </button>
                 <button
                   onClick={() => setIsRejectModalOpen(true)}
                   className="flex items-center gap-2 border border-red-300 text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg font-medium transition-colors"
@@ -120,6 +279,12 @@ export default function RequestDetailPage() {
                 </button>
               </div>
             )}
+
+            {request.priority && (
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${priorityColors[request.priority]}`}>
+                {priorityLabels[request.priority]}
+              </span>
+            )}
           </div>
         </div>
 
@@ -135,7 +300,7 @@ export default function RequestDetailPage() {
                   <User className="text-gray-400" size={20} />
                   <div>
                     <p className="text-sm text-gray-600">Talep Eden</p>
-                    <p className="font-medium text-gray-900">{request.requester.name}</p>
+                    <p className="font-medium text-gray-900">{request.user.name}</p>
                   </div>
                 </div>
 
@@ -143,7 +308,7 @@ export default function RequestDetailPage() {
                   <Building2 className="text-gray-400" size={20} />
                   <div>
                     <p className="text-sm text-gray-600">Departman</p>
-                    <p className="font-medium text-gray-900">{request.requester.department}</p>
+                    <p className="font-medium text-gray-900">{request.user.department?.name || '-'}</p>
                   </div>
                 </div>
 
@@ -151,7 +316,9 @@ export default function RequestDetailPage() {
                   <Calendar className="text-gray-400" size={20} />
                   <div>
                     <p className="text-sm text-gray-600">Oluşturma Tarihi</p>
-                    <p className="font-medium text-gray-900">{request.createdAt}</p>
+                    <p className="font-medium text-gray-900">
+                      {new Date(request.createdAt).toLocaleDateString('tr-TR')}
+                    </p>
                   </div>
                 </div>
 
@@ -160,7 +327,7 @@ export default function RequestDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600">Toplam Tutar</p>
                     <p className="text-lg font-bold text-blue-600">
-                      {request.estimatedTotal.toLocaleString('tr-TR', {
+                      {request.totalAmount.toLocaleString('tr-TR', {
                         style: 'currency',
                         currency: 'TRY',
                       })}
@@ -168,6 +335,18 @@ export default function RequestDetailPage() {
                   </div>
                 </div>
               </div>
+
+              {request.requiredDate && (
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <Calendar className="text-gray-400" size={20} />
+                  <div>
+                    <p className="text-sm text-gray-600">Gerekli Tarih</p>
+                    <p className="font-medium text-gray-900">
+                      {new Date(request.requiredDate).toLocaleDateString('tr-TR')}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {request.description && (
                 <div className="pt-4 border-t border-gray-200">
@@ -184,13 +363,13 @@ export default function RequestDetailPage() {
               </h2>
 
               <div className="space-y-3">
-                {request.items.map((item: any, idx: number) => (
+                {request.items.map((item, idx: number) => (
                   <div
-                    key={idx}
+                    key={item.id || idx}
                     className="border border-gray-200 rounded-lg p-4 flex justify-between items-start"
                   >
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{item.name}</h4>
+                      <h4 className="font-medium text-gray-900">{item.productName}</h4>
                       <div className="flex gap-6 mt-2 text-sm text-gray-600">
                         <span>Miktar: {item.quantity}</span>
                         <span>
@@ -218,7 +397,7 @@ export default function RequestDetailPage() {
               <div className="flex justify-end items-center gap-4 mt-6 pt-4 border-t border-gray-200">
                 <span className="text-lg font-medium text-gray-700">Toplam Tutar:</span>
                 <span className="text-2xl font-bold text-blue-600">
-                  {request.estimatedTotal.toLocaleString('tr-TR', {
+                  {request.totalAmount.toLocaleString('tr-TR', {
                     style: 'currency',
                     currency: 'TRY',
                   })}
@@ -237,26 +416,53 @@ export default function RequestDetailPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">{request.requester.name}</span>
-                      <span className="text-sm text-gray-500">{request.createdAt}</span>
+                      <span className="font-medium text-gray-900">{request.user.name}</span>
+                      <span className="text-sm text-gray-500">
+                        {new Date(request.createdAt).toLocaleDateString('tr-TR')}
+                      </span>
                     </div>
                     <p className="text-sm text-gray-600 mt-1">Satın alma talebi oluşturuldu</p>
                   </div>
                 </div>
 
-                {request.status === 'IN_REVIEW' && (
+                {request.approvalActions?.map((action) => (
+                  <div key={action.id} className="flex gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      action.action === 'APPROVE' ? 'bg-green-100' :
+                      action.action === 'REJECT' ? 'bg-red-100' :
+                      action.action === 'RETURN' ? 'bg-orange-100' : 'bg-yellow-100'
+                    }`}>
+                      {action.action === 'APPROVE' ? <CheckCircle size={20} className="text-green-600" /> :
+                       action.action === 'REJECT' ? <XCircle size={20} className="text-red-600" /> :
+                       action.action === 'RETURN' ? <RotateCcw size={20} className="text-orange-600" /> :
+                       <Clock size={20} className="text-yellow-600" />}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">{action.user.name}</span>
+                        <span className="text-sm text-gray-500">
+                          {new Date(action.createdAt).toLocaleDateString('tr-TR')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {action.action === 'APPROVE' ? 'Talebi onayladı' :
+                         action.action === 'REJECT' ? 'Talebi reddetti' :
+                         action.action === 'RETURN' ? 'Talebi iade etti' : action.action}
+                      </p>
+                      {action.comments && (
+                        <p className="text-sm text-gray-500 mt-1 italic">&quot;{action.comments}&quot;</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {['PENDING', 'IN_REVIEW'].includes(request.status) && !request.approvalActions?.length && (
                   <div className="flex gap-4">
                     <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
                       <Clock size={20} className="text-yellow-600" />
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">Sistem</span>
-                        <span className="text-sm text-gray-500">{request.createdAt}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Talep onay sürecine gönderildi
-                      </p>
+                      <p className="text-sm text-gray-600">Onay bekliyor...</p>
                     </div>
                   </div>
                 )}
@@ -320,19 +526,19 @@ export default function RequestDetailPage() {
                   <div className="flex justify-between text-sm mb-2">
                     <span className="text-gray-600">Bu Talep</span>
                     <span className="font-medium text-blue-600">
-                      {request.estimatedTotal.toLocaleString('tr-TR')} TL
+                      {request.totalAmount.toLocaleString('tr-TR')} TL
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full"
                       style={{
-                        width: `${((15000 + request.estimatedTotal) / 50000) * 100}%`,
+                        width: `${((15000 + request.totalAmount) / 50000) * 100}%`,
                       }}
                     />
                   </div>
                   <p className="text-xs text-gray-600 mt-1">
-                    Onaylanırsa %{(((15000 + request.estimatedTotal) / 50000) * 100).toFixed(1)}{' '}
+                    Onaylanırsa %{(((15000 + request.totalAmount) / 50000) * 100).toFixed(1)}{' '}
                     kullanılmış olacak
                   </p>
                 </div>
@@ -351,15 +557,17 @@ export default function RequestDetailPage() {
           <>
             <button
               onClick={() => setIsApproveModalOpen(false)}
-              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={submitting}
+              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               İptal
             </button>
             <button
               onClick={handleApprove}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              Onayla
+              {submitting ? 'Onaylanıyor...' : 'Onayla'}
             </button>
           </>
         }
@@ -406,15 +614,17 @@ export default function RequestDetailPage() {
           <>
             <button
               onClick={() => setIsRejectModalOpen(false)}
-              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={submitting}
+              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               İptal
             </button>
             <button
               onClick={handleReject}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors"
+              disabled={submitting}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              Reddet
+              {submitting ? 'Reddediliyor...' : 'Reddet'}
             </button>
           </>
         }
@@ -430,7 +640,7 @@ export default function RequestDetailPage() {
             </p>
             <p className="text-sm text-gray-700">
               <strong>Tutar:</strong>{' '}
-              {request.estimatedTotal.toLocaleString('tr-TR', {
+              {request.totalAmount.toLocaleString('tr-TR', {
                 style: 'currency',
                 currency: 'TRY',
               })}
@@ -447,6 +657,63 @@ export default function RequestDetailPage() {
               rows={4}
               placeholder="Lütfen red nedenini açıklayın..."
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* Return Modal */}
+      <Modal
+        isOpen={isReturnModalOpen}
+        onClose={() => setIsReturnModalOpen(false)}
+        title="Talebi İade Et"
+        footer={
+          <>
+            <button
+              onClick={() => setIsReturnModalOpen(false)}
+              disabled={submitting}
+              className="border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              İptal
+            </button>
+            <button
+              onClick={handleReturn}
+              disabled={submitting}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'İade Ediliyor...' : 'İade Et'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Bu talebi düzeltme için talep edene iade etmek istediğinize emin misiniz?
+          </p>
+
+          <div className="bg-orange-50 rounded-lg p-4">
+            <p className="text-sm text-gray-700">
+              <strong>Talep No:</strong> {request.requestNumber}
+            </p>
+            <p className="text-sm text-gray-700">
+              <strong>Tutar:</strong>{' '}
+              {request.totalAmount.toLocaleString('tr-TR', {
+                style: 'currency',
+                currency: 'TRY',
+              })}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              İade Nedeni * <span className="text-red-500">(Zorunlu)</span>
+            </label>
+            <textarea
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              rows={4}
+              placeholder="Lütfen iade nedenini açıklayın (eksik bilgi, hatalı miktar vb.)..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
         </div>
