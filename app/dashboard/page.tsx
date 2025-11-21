@@ -13,7 +13,12 @@ import {
   TrendingUp,
   AlertCircle,
   DollarSign,
+  Bell,
+  Search,
+  FileText,
+  HelpCircle,
 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
@@ -52,6 +57,7 @@ interface PurchaseRequest {
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [requests, setRequests] = useState<PurchaseRequest[]>([])
   const [budgetData, setBudgetData] = useState<any>(null)
@@ -169,9 +175,41 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Satın alma yönetimi özeti ve istatistikler</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Hoş geldin, {user?.name?.split(' ')[0] || 'Kullanıcı'}
+            </h1>
+            <p className="text-gray-600 mt-1">Satın alma yönetimi özeti ve istatistikler</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/search"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              title="Ara"
+            >
+              <Search size={20} />
+            </Link>
+            <Link
+              href="/notifications"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative"
+              title="Bildirimler"
+            >
+              <Bell size={20} />
+              {pendingRequests > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {pendingRequests > 9 ? '9+' : pendingRequests}
+                </span>
+              )}
+            </Link>
+            <Link
+              href="/help"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              title="Yardım"
+            >
+              <HelpCircle size={20} />
+            </Link>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -284,19 +322,19 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/requests/new"
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-6 flex items-center gap-4 transition-colors"
           >
             <ShoppingCart size={32} />
             <div>
-              <h4 className="font-semibold text-lg">Yeni Talep Oluştur</h4>
+              <h4 className="font-semibold text-lg">Yeni Talep</h4>
               <p className="text-sm text-blue-100">Satın alma talebi başlat</p>
             </div>
           </Link>
           <Link
-            href="/requests/pending"
+            href="/approvals"
             className="bg-white hover:bg-gray-50 border-2 border-gray-200 rounded-lg p-6 flex items-center gap-4 transition-colors"
           >
             <Clock size={32} className="text-yellow-600" />
@@ -306,13 +344,23 @@ export default function DashboardPage() {
             </div>
           </Link>
           <Link
+            href="/orders"
+            className="bg-white hover:bg-gray-50 border-2 border-gray-200 rounded-lg p-6 flex items-center gap-4 transition-colors"
+          >
+            <FileText size={32} className="text-purple-600" />
+            <div>
+              <h4 className="font-semibold text-lg text-gray-900">Siparişler</h4>
+              <p className="text-sm text-gray-600">Siparişleri takip et</p>
+            </div>
+          </Link>
+          <Link
             href="/reports"
             className="bg-white hover:bg-gray-50 border-2 border-gray-200 rounded-lg p-6 flex items-center gap-4 transition-colors"
           >
             <DollarSign size={32} className="text-green-600" />
             <div>
-              <h4 className="font-semibold text-lg text-gray-900">Bütçe Raporları</h4>
-              <p className="text-sm text-gray-600">Detaylı analiz görüntüle</p>
+              <h4 className="font-semibold text-lg text-gray-900">Raporlar</h4>
+              <p className="text-sm text-gray-600">Bütçe analizi görüntüle</p>
             </div>
           </Link>
         </div>
