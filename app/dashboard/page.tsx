@@ -177,22 +177,22 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               Hoş geldin, {user?.name?.split(' ')[0] || 'Kullanıcı'}
             </h1>
-            <p className="text-gray-600 mt-1">Satın alma yönetimi özeti ve istatistikler</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Satın alma yönetimi özeti ve istatistikler</p>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href="/search"
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-lg"
               title="Ara"
             >
               <Search size={20} />
             </Link>
             <Link
               href="/notifications"
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg relative"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-lg relative"
               title="Bildirimler"
             >
               <Bell size={20} />
@@ -204,7 +204,7 @@ export default function DashboardPage() {
             </Link>
             <Link
               href="/help"
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 rounded-lg"
               title="Yardım"
             >
               <HelpCircle size={20} />
@@ -249,8 +249,8 @@ export default function DashboardPage() {
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Budget Utilization Chart */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Departman Bütçe Kullanımı</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Departman Bütçe Kullanımı</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={budgetChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -268,8 +268,8 @@ export default function DashboardPage() {
           </div>
 
           {/* Status Distribution Chart */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Talep Durumu Dağılımı</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Talep Durumu Dağılımı</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -293,10 +293,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Budget Alert */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" size={20} />
           <div className="flex-1">
-            <h4 className="font-semibold text-yellow-900">Bütçe Uyarısı</h4>
+            <h4 className="font-semibold text-yellow-900 dark:text-yellow-200">Bütçe Uyarısı</h4>
             <p className="text-sm text-yellow-800 mt-1">
               Bilgi İşlem departmanı bütçesinin %90&apos;ı kullanıldı. Yeni talepler için bütçe artırımı gerekebilir.
             </p>
