@@ -16,6 +16,14 @@ import {
   GitBranch,
   LogOut,
   ChevronDown,
+  ClipboardCheck,
+  Truck,
+  Receipt,
+  FolderOpen,
+  Mail,
+  Activity,
+  HelpCircle,
+  DollarSign,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -40,19 +48,44 @@ export default function Sidebar() {
     },
     {
       icon: ShoppingCart,
-      label: 'Satın Alma Talepleri',
+      label: 'Satın Alma',
       href: '/requests',
       children: [
-        { icon: FileText, label: 'Tüm Talepler', href: '/requests' },
+        { icon: FileText, label: 'Talepler', href: '/requests' },
         { icon: FileText, label: 'Yeni Talep', href: '/requests/new' },
-        { icon: FileText, label: 'Bekleyen Onaylar', href: '/requests/pending' },
+        { icon: ClipboardCheck, label: 'Onaylar', href: '/approvals' },
       ],
+    },
+    {
+      icon: Truck,
+      label: 'Siparişler',
+      href: '/orders',
+    },
+    {
+      icon: Package,
+      label: 'Ürünler',
+      href: '/products',
+    },
+    {
+      icon: Briefcase,
+      label: 'Tedarikçiler',
+      href: '/suppliers',
+    },
+    {
+      icon: Receipt,
+      label: 'Faturalar',
+      href: '/invoices',
+    },
+    {
+      icon: FolderOpen,
+      label: 'Dokümanlar',
+      href: '/documents',
     },
     {
       icon: BarChart3,
       label: 'Raporlar',
       href: '/reports',
-      roles: ['COMPANY_ADMIN', 'FINANCE_MANAGER', 'GENERAL_MANAGER'],
+      roles: ['COMPANY_ADMIN', 'FINANCE_MANAGER', 'GENERAL_MANAGER', 'DEPARTMENT_MANAGER'],
     },
     {
       icon: Settings,
@@ -60,13 +93,19 @@ export default function Sidebar() {
       href: '/admin',
       roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
       children: [
-        { icon: Package, label: 'Ürünler', href: '/admin/products' },
-        { icon: GitBranch, label: 'Kategoriler', href: '/admin/categories' },
-        { icon: Building2, label: 'Departmanlar', href: '/admin/departments' },
         { icon: Users, label: 'Kullanıcılar', href: '/admin/users' },
-        { icon: Briefcase, label: 'Tedarikçiler', href: '/admin/suppliers' },
-        { icon: GitBranch, label: 'Onay İş Akışları', href: '/admin/workflows' },
+        { icon: Building2, label: 'Departmanlar', href: '/admin/departments' },
+        { icon: GitBranch, label: 'Kategoriler', href: '/admin/categories' },
+        { icon: DollarSign, label: 'Bütçeler', href: '/admin/budgets' },
+        { icon: Mail, label: 'Email Şablonları', href: '/admin/email-templates' },
+        { icon: Activity, label: 'Aktivite Log', href: '/admin/activity' },
+        { icon: Settings, label: 'Ayarlar', href: '/admin/settings' },
       ],
+    },
+    {
+      icon: HelpCircle,
+      label: 'Yardım',
+      href: '/help',
     },
   ]
 
